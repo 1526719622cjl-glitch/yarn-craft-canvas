@@ -1,11 +1,15 @@
 import { motion } from 'framer-motion';
-import { useYarnCluesStore, PixelTool } from '@/store/useYarnCluesStore';
-import { Grid3X3, Upload, Palette, ZoomIn, Pencil, Eraser, PaintBucket, Pipette, Settings } from 'lucide-react';
+import { useYarnCluesStore, PixelTool, PixelCell } from '@/store/useYarnCluesStore';
+import { 
+  Grid3X3, Upload, Palette, ZoomIn, Pencil, Eraser, PaintBucket, Pipette, 
+  Settings, Square, RotateCw, Copy, Move, Grid, Eye, EyeOff
+} from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -19,6 +23,17 @@ const itemVariants = {
   hidden: { opacity: 0, y: 20 },
   show: { opacity: 1, y: 0 }
 };
+
+// Selection state interface
+interface SelectionState {
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+  isSelecting: boolean;
+  hasSelection: boolean;
+  copiedCells: PixelCell[];
+}
 
 // Floyd-Steinberg dithering implementation
 function floydSteinbergDither(
@@ -133,12 +148,96 @@ function rgbToString(rgb: [number, number, number]): string {
   return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
 }
 
-const tools: { type: PixelTool; icon: typeof Pencil; label: string }[] = [
+type ExtendedTool = PixelTool | 'select';
+
+const tools: { type: ExtendedTool; icon: typeof Pencil; label: string }[] = [
   { type: 'pencil', icon: Pencil, label: 'Pencil' },
   { type: 'eraser', icon: Eraser, label: 'Eraser' },
   { type: 'bucket', icon: PaintBucket, label: 'Fill' },
   { type: 'eyedropper', icon: Pipette, label: 'Picker' },
+  { type: 'select', icon: Square, label: 'Select' },
 ];
+
+// Ruler component with numbers
+function Ruler({ 
+  type, 
+  size, 
+  cellSize, 
+  offset = 0 
+}: { 
+  type: 'horizontal' | 'vertical'; 
+  size: number; 
+  cellSize: number; 
+  offset?: number;
+}) {
+  const rulerSize = 24;
+  const markers = useMemo(() => {
+    const items = [];
+    for (let i = 0; i < size; i++) {
+      const isMajor = (i + 1) % 10 === 0;
+      const isMinor = (i + 1) % 5 === 0;
+      items.push({ index: i, isMajor, isMinor, label: i + 1 });
+    }
+    return items;
+  }, [size]);
+
+  if (type === 'horizontal') {
+    return (
+      <div 
+        className="flex bg-muted/40 border-b border-border/50 select-none"
+        style={{ marginLeft: rulerSize, height: rulerSize }}
+      >
+        {markers.map(({ index, isMajor, isMinor, label }) => (
+          <div
+            key={index}
+            className="relative flex items-end justify-center border-r"
+            style={{ 
+              width: cellSize + 1, 
+              borderColor: isMajor ? 'hsl(var(--primary) / 0.3)' : 'transparent'
+            }}
+          >
+            {isMajor && (
+              <span className="text-[9px] font-medium text-muted-foreground pb-0.5">
+                {label}
+              </span>
+            )}
+            {!isMajor && isMinor && (
+              <div className="w-[1px] h-2 bg-muted-foreground/30" />
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div 
+      className="flex flex-col bg-muted/40 border-r border-border/50 select-none"
+      style={{ width: rulerSize }}
+    >
+      <div style={{ height: rulerSize }} /> {/* Corner spacer */}
+      {markers.map(({ index, isMajor, isMinor, label }) => (
+        <div
+          key={index}
+          className="relative flex items-center justify-end border-b pr-1"
+          style={{ 
+            height: cellSize + 1, 
+            borderColor: isMajor ? 'hsl(var(--primary) / 0.3)' : 'transparent'
+          }}
+        >
+          {isMajor && (
+            <span className="text-[9px] font-medium text-muted-foreground">
+              {label}
+            </span>
+          )}
+          {!isMajor && isMinor && (
+            <div className="h-[1px] w-2 bg-muted-foreground/30" />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function PixelGenerator() {
   const { 
@@ -169,9 +268,27 @@ export default function PixelGenerator() {
   const [isDragging, setIsDragging] = useState(false);
   const [useDithering, setUseDithering] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [showGridLines, setShowGridLines] = useState(true);
+  const [currentTool, setCurrentTool] = useState<ExtendedTool>('pencil');
+  
+  // Selection state
+  const [selection, setSelection] = useState<SelectionState>({
+    startX: 0,
+    startY: 0,
+    endX: 0,
+    endY: 0,
+    isSelecting: false,
+    hasSelection: false,
+    copiedCells: [],
+  });
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Safe gauge ratio
+  const safeGaugeRatio = typeof gaugeData?.gaugeRatio === 'number' && Number.isFinite(gaugeData.gaugeRatio) 
+    ? gaugeData.gaugeRatio 
+    : 1;
 
   const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -214,7 +331,7 @@ export default function PixelGenerator() {
       }
 
       // Create pixel grid
-      const newGrid = [];
+      const newGrid: PixelCell[] = [];
       for (let y = 0; y < targetHeight; y++) {
         for (let x = 0; x < targetWidth; x++) {
           const i = (y * targetWidth + x) * 4;
@@ -235,11 +352,29 @@ export default function PixelGenerator() {
     }
   }, [uploadedImage, colorCount, customGridWidth, customGridHeight, useDithering, processImage]);
 
-  const cellWidth = 12;
-  const cellHeight = cellWidth * gaugeData.gaugeRatio;
+  const cellWidth = 14;
+  const cellHeight = cellWidth * safeGaugeRatio;
+
+  // Selection helpers
+  const getSelectionBounds = () => {
+    const minX = Math.min(selection.startX, selection.endX);
+    const maxX = Math.max(selection.startX, selection.endX);
+    const minY = Math.min(selection.startY, selection.endY);
+    const maxY = Math.max(selection.startY, selection.endY);
+    return { minX, maxX, minY, maxY };
+  };
+
+  const isInSelection = (x: number, y: number) => {
+    if (!selection.hasSelection) return false;
+    const { minX, maxX, minY, maxY } = getSelectionBounds();
+    return x >= minX && x <= maxX && y >= minY && y <= maxY;
+  };
 
   const handleCellClick = (x: number, y: number) => {
-    switch (selectedTool) {
+    if (currentTool === 'select') return;
+    
+    const tool = currentTool as PixelTool;
+    switch (tool) {
       case 'pencil':
         paintPixel(x, y, selectedColor);
         break;
@@ -253,25 +388,118 @@ export default function PixelGenerator() {
         const cell = pixelGrid.find(p => p.x === x && p.y === y);
         if (cell) {
           setSelectedColor(cell.color);
-          setSelectedTool('pencil');
+          setCurrentTool('pencil');
         }
         break;
     }
   };
 
   const handleMouseDown = (x: number, y: number) => {
-    setIsDragging(true);
-    handleCellClick(x, y);
+    if (currentTool === 'select') {
+      setSelection(prev => ({
+        ...prev,
+        startX: x,
+        startY: y,
+        endX: x,
+        endY: y,
+        isSelecting: true,
+        hasSelection: false,
+      }));
+    } else {
+      setIsDragging(true);
+      handleCellClick(x, y);
+    }
   };
 
   const handleMouseEnter = (x: number, y: number) => {
-    if (isDragging && (selectedTool === 'pencil' || selectedTool === 'eraser')) {
+    if (currentTool === 'select' && selection.isSelecting) {
+      setSelection(prev => ({ ...prev, endX: x, endY: y }));
+    } else if (isDragging && (currentTool === 'pencil' || currentTool === 'eraser')) {
       handleCellClick(x, y);
     }
   };
 
   const handleMouseUp = () => {
+    if (currentTool === 'select' && selection.isSelecting) {
+      setSelection(prev => ({ ...prev, isSelecting: false, hasSelection: true }));
+    }
     setIsDragging(false);
+  };
+
+  // Selection actions
+  const copySelection = () => {
+    if (!selection.hasSelection) return;
+    const { minX, maxX, minY, maxY } = getSelectionBounds();
+    const copied = pixelGrid.filter(cell => 
+      cell.x >= minX && cell.x <= maxX && cell.y >= minY && cell.y <= maxY
+    ).map(cell => ({
+      ...cell,
+      x: cell.x - minX, // Normalize to 0,0
+      y: cell.y - minY,
+    }));
+    setSelection(prev => ({ ...prev, copiedCells: copied }));
+  };
+
+  const pasteSelection = (offsetX: number = 0, offsetY: number = 0) => {
+    if (selection.copiedCells.length === 0) return;
+    const { minX, minY } = getSelectionBounds();
+    const newGrid = [...pixelGrid];
+    
+    selection.copiedCells.forEach(copiedCell => {
+      const targetX = minX + copiedCell.x + offsetX;
+      const targetY = minY + copiedCell.y + offsetY;
+      const idx = newGrid.findIndex(c => c.x === targetX && c.y === targetY);
+      if (idx >= 0) {
+        newGrid[idx] = { ...newGrid[idx], color: copiedCell.color };
+      }
+    });
+    
+    setPixelGrid(newGrid);
+  };
+
+  const rotateSelection90 = () => {
+    if (!selection.hasSelection) return;
+    const { minX, maxX, minY, maxY } = getSelectionBounds();
+    const width = maxX - minX + 1;
+    const height = maxY - minY + 1;
+    
+    const newGrid = [...pixelGrid];
+    const selectionCells = pixelGrid.filter(cell => 
+      cell.x >= minX && cell.x <= maxX && cell.y >= minY && cell.y <= maxY
+    );
+    
+    // Rotate 90° clockwise: (x, y) -> (height - 1 - y, x)
+    selectionCells.forEach(cell => {
+      const localX = cell.x - minX;
+      const localY = cell.y - minY;
+      const newLocalX = height - 1 - localY;
+      const newLocalY = localX;
+      
+      // Map back if within bounds
+      const targetX = minX + newLocalX;
+      const targetY = minY + newLocalY;
+      
+      if (targetX < gridWidth && targetY < gridHeight) {
+        const idx = newGrid.findIndex(c => c.x === targetX && c.y === targetY);
+        if (idx >= 0) {
+          newGrid[idx] = { ...newGrid[idx], color: cell.color };
+        }
+      }
+    });
+    
+    setPixelGrid(newGrid);
+  };
+
+  const clearSelection = () => {
+    setSelection({
+      startX: 0,
+      startY: 0,
+      endX: 0,
+      endY: 0,
+      isSelecting: false,
+      hasSelection: false,
+      copiedCells: [],
+    });
   };
 
   const handleGridTouch = (e: React.TouchEvent) => {
@@ -281,7 +509,7 @@ export default function PixelGenerator() {
   };
 
   const createEmptyGrid = () => {
-    const newGrid = [];
+    const newGrid: PixelCell[] = [];
     const defaultColor = colorPalette[0] || '#FDFBF7';
     for (let y = 0; y < customGridHeight; y++) {
       for (let x = 0; x < customGridWidth; x++) {
@@ -290,6 +518,51 @@ export default function PixelGenerator() {
     }
     setGridDimensions(customGridWidth, customGridHeight);
     setPixelGrid(newGrid);
+  };
+
+  // Handle tool change - sync with store for non-select tools
+  const handleToolChange = (tool: ExtendedTool) => {
+    setCurrentTool(tool);
+    if (tool !== 'select') {
+      setSelectedTool(tool as PixelTool);
+    }
+    if (tool !== 'select') {
+      clearSelection();
+    }
+  };
+
+  // Render cell with grid line logic
+  const renderCell = (cell: PixelCell, index: number) => {
+    const isMajorX = (cell.x + 1) % 10 === 0;
+    const isMajorY = (cell.y + 1) % 10 === 0;
+    const inSelection = isInSelection(cell.x, cell.y);
+    const isSelectionBorder = selection.hasSelection && (
+      cell.x === Math.min(selection.startX, selection.endX) ||
+      cell.x === Math.max(selection.startX, selection.endX) ||
+      cell.y === Math.min(selection.startY, selection.endY) ||
+      cell.y === Math.max(selection.startY, selection.endY)
+    ) && inSelection;
+
+    return (
+      <div
+        key={index}
+        className={`
+          transition-transform cursor-crosshair
+          ${!showGridLines ? '' : isMajorX && isMajorY ? 'border-r-2 border-b-2 border-primary/40' : 
+            isMajorX ? 'border-r-2 border-primary/40' : 
+            isMajorY ? 'border-b-2 border-primary/40' : ''}
+          ${inSelection ? 'ring-1 ring-inset ring-primary/60' : ''}
+          ${isSelectionBorder ? 'ring-2 ring-primary' : ''}
+        `}
+        style={{ 
+          width: cellWidth, 
+          height: cellHeight,
+          backgroundColor: cell.color,
+        }}
+        onMouseDown={() => handleMouseDown(cell.x, cell.y)}
+        onMouseEnter={() => handleMouseEnter(cell.x, cell.y)}
+      />
+    );
   };
 
   return (
@@ -309,7 +582,7 @@ export default function PixelGenerator() {
           </div>
           <div>
             <h1 className="text-3xl font-display font-semibold text-foreground">Pixel Generator</h1>
-            <p className="text-muted-foreground">Convert images to gauge-aware yarn grids</p>
+            <p className="text-muted-foreground">Convert images to gauge-aware yarn grids with Floyd-Steinberg dithering</p>
           </div>
         </div>
       </motion.div>
@@ -436,20 +709,86 @@ export default function PixelGenerator() {
           {/* Editing Tools */}
           <div className="space-y-2 border-t border-border/30 pt-4">
             <h3 className="text-sm font-medium text-muted-foreground">Tools</h3>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-5 gap-1">
               {tools.map((tool) => (
-                <Button
-                  key={tool.type}
-                  variant={selectedTool === tool.type ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSelectedTool(tool.type)}
-                  className="h-10 rounded-xl flex-col gap-0.5 soft-press"
-                >
-                  <tool.icon className="w-4 h-4" />
-                  <span className="text-[10px]">{tool.label}</span>
-                </Button>
+                <Tooltip key={tool.type}>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={currentTool === tool.type ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => handleToolChange(tool.type)}
+                      className="h-10 rounded-xl flex-col gap-0.5 soft-press px-2"
+                    >
+                      <tool.icon className="w-4 h-4" />
+                      <span className="text-[9px]">{tool.label}</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{tool.label}</TooltipContent>
+                </Tooltip>
               ))}
             </div>
+          </div>
+
+          {/* Selection Actions */}
+          {selection.hasSelection && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              className="space-y-2 border-t border-border/30 pt-4"
+            >
+              <h3 className="text-sm font-medium text-muted-foreground">Selection Actions</h3>
+              <div className="grid grid-cols-3 gap-2">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="sm" onClick={copySelection} className="rounded-xl">
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Copy</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => pasteSelection(1, 1)} 
+                      disabled={selection.copiedCells.length === 0}
+                      className="rounded-xl"
+                    >
+                      <Move className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Paste (+1,+1)</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="sm" onClick={rotateSelection90} className="rounded-xl">
+                      <RotateCw className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Rotate 90°</TooltipContent>
+                </Tooltip>
+              </div>
+              <Button variant="ghost" size="sm" onClick={clearSelection} className="w-full rounded-xl text-muted-foreground">
+                Clear Selection
+              </Button>
+            </motion.div>
+          )}
+
+          {/* Grid Toggle */}
+          <div className="flex items-center justify-between border-t border-border/30 pt-4">
+            <div className="flex items-center gap-2">
+              <Grid className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm">Grid Lines</span>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowGridLines(!showGridLines)}
+              className="rounded-xl"
+            >
+              {showGridLines ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+            </Button>
           </div>
 
           <div className="frosted-panel">
@@ -458,7 +797,7 @@ export default function PixelGenerator() {
               <span className="text-sm font-medium">Gauge Ratio</span>
             </div>
             <p className="text-2xl font-display font-semibold text-primary">
-              {gaugeData.gaugeRatio.toFixed(2)}
+              {safeGaugeRatio.toFixed(2)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
               Applied to grid cell dimensions
@@ -468,7 +807,7 @@ export default function PixelGenerator() {
 
         {/* Pixel Grid */}
         <motion.div variants={itemVariants} className="lg:col-span-3 glass-card p-6">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-medium">Yarn Grid Preview</h2>
             <span className="text-sm text-muted-foreground">
               {gridWidth} × {gridHeight} stitches
@@ -479,30 +818,29 @@ export default function PixelGenerator() {
 
           {pixelGrid.length > 0 ? (
             <div 
-              className="overflow-auto max-h-[600px] rounded-2xl bg-muted/20 p-4"
+              className="overflow-auto max-h-[600px] rounded-2xl bg-muted/20"
               onTouchStart={handleGridTouch}
               onTouchMove={handleGridTouch}
               onTouchEnd={() => setShowLoupe(false)}
             >
-              <div 
-                className="inline-grid gap-[1px]"
-                style={{ 
-                  gridTemplateColumns: `repeat(${gridWidth}, ${cellWidth}px)`,
-                }}
-              >
-                {pixelGrid.map((cell, i) => (
-                  <div
-                    key={i}
-                    className="rounded-[2px] cursor-crosshair transition-transform hover:scale-110 hover:z-10"
+              <div className="inline-flex">
+                {/* Vertical Ruler */}
+                <Ruler type="vertical" size={gridHeight} cellSize={cellHeight} />
+                
+                <div className="flex flex-col">
+                  {/* Horizontal Ruler */}
+                  <Ruler type="horizontal" size={gridWidth} cellSize={cellWidth} />
+                  
+                  {/* Grid */}
+                  <div 
+                    className={`inline-grid ${showGridLines ? 'gap-[1px]' : 'gap-0'}`}
                     style={{ 
-                      width: cellWidth, 
-                      height: cellHeight,
-                      backgroundColor: cell.color,
+                      gridTemplateColumns: `repeat(${gridWidth}, ${cellWidth}px)`,
                     }}
-                    onMouseDown={() => handleMouseDown(cell.x, cell.y)}
-                    onMouseEnter={() => handleMouseEnter(cell.x, cell.y)}
-                  />
-                ))}
+                  >
+                    {pixelGrid.map((cell, i) => renderCell(cell, i))}
+                  </div>
+                </div>
               </div>
             </div>
           ) : (
