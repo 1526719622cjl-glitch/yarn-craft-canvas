@@ -52,9 +52,34 @@ export default function SwatchLab() {
   const [yarnName, setYarnName] = useState('');
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
 
+  // Safe gauge data with defaults
+  const safeGaugeData = gaugeData ?? {
+    stitchDensity: 0,
+    rowDensity: 0,
+    gaugeRatio: 1,
+    shrinkageStitches: 0,
+    shrinkageRows: 0,
+  };
+
+  const safeProjectPlan = projectPlan ?? {
+    targetWidth: 50,
+    targetHeight: 60,
+    startingStitches: 0,
+    startingRows: 0,
+  };
+
+  const safeSwatchData = swatchData ?? {
+    swatchWidth: 10,
+    swatchHeight: 10,
+    stitchesPreWash: 20,
+    rowsPreWash: 28,
+    stitchesPostWash: 20,
+    rowsPostWash: 28,
+  };
+
   useEffect(() => {
     calculateGauge();
-  }, []);
+  }, [calculateGauge]);
 
   const handleSaveYarn = () => {
     if (yarnName.trim()) {
@@ -86,14 +111,14 @@ export default function SwatchLab() {
 
           {/* Yarn Library Actions */}
           <div className="flex gap-2">
-            {yarnLibrary.length > 0 && (
+            {(yarnLibrary ?? []).length > 0 && (
               <Select onValueChange={loadFromYarnLibrary}>
                 <SelectTrigger className="w-48 rounded-2xl">
                   <Library className="w-4 h-4 mr-2" />
                   <SelectValue placeholder="Load Saved Yarn" />
                 </SelectTrigger>
                 <SelectContent>
-                  {yarnLibrary.map((yarn) => (
+                  {(yarnLibrary ?? []).map((yarn) => (
                     <SelectItem key={yarn.id} value={yarn.id}>
                       {yarn.name}
                     </SelectItem>
@@ -155,7 +180,7 @@ export default function SwatchLab() {
             <Input
               id="swatch-width"
               type="number"
-              value={swatchData.swatchWidth}
+              value={safeSwatchData.swatchWidth}
               onChange={(e) => setSwatchData({ swatchWidth: Number(e.target.value) })}
               className="input-glass h-12 text-lg font-medium"
             />
@@ -165,7 +190,7 @@ export default function SwatchLab() {
             <Input
               id="swatch-height"
               type="number"
-              value={swatchData.swatchHeight}
+              value={safeSwatchData.swatchHeight}
               onChange={(e) => setSwatchData({ swatchHeight: Number(e.target.value) })}
               className="input-glass h-12 text-lg font-medium"
             />
@@ -189,7 +214,7 @@ export default function SwatchLab() {
               <Input
                 id="stitches-pre"
                 type="number"
-                value={swatchData.stitchesPreWash}
+                value={safeSwatchData.stitchesPreWash}
                 onChange={(e) => setSwatchData({ stitchesPreWash: Number(e.target.value) })}
                 className="input-glass h-12 text-lg font-medium"
               />
@@ -199,7 +224,7 @@ export default function SwatchLab() {
               <Input
                 id="rows-pre"
                 type="number"
-                value={swatchData.rowsPreWash}
+                value={safeSwatchData.rowsPreWash}
                 onChange={(e) => setSwatchData({ rowsPreWash: Number(e.target.value) })}
                 className="input-glass h-12 text-lg font-medium"
               />
@@ -222,7 +247,7 @@ export default function SwatchLab() {
               <Input
                 id="stitches-post"
                 type="number"
-                value={swatchData.stitchesPostWash}
+                value={safeSwatchData.stitchesPostWash}
                 onChange={(e) => setSwatchData({ stitchesPostWash: Number(e.target.value) })}
                 className="input-glass h-12 text-lg font-medium"
               />
@@ -232,7 +257,7 @@ export default function SwatchLab() {
               <Input
                 id="rows-post"
                 type="number"
-                value={swatchData.rowsPostWash}
+                value={safeSwatchData.rowsPostWash}
                 onChange={(e) => setSwatchData({ rowsPostWash: Number(e.target.value) })}
                 className="input-glass h-12 text-lg font-medium"
               />
@@ -253,42 +278,42 @@ export default function SwatchLab() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="frosted-panel text-center">
             <p className="text-3xl font-display font-semibold text-primary">
-              {gaugeData.stitchDensity.toFixed(1)}
+              {safeGaugeData.stitchDensity.toFixed(1)}
             </p>
             <p className="text-sm text-muted-foreground mt-1">stitches/cm</p>
           </div>
           <div className="frosted-panel text-center">
             <p className="text-3xl font-display font-semibold text-primary">
-              {gaugeData.rowDensity.toFixed(1)}
+              {safeGaugeData.rowDensity.toFixed(1)}
             </p>
             <p className="text-sm text-muted-foreground mt-1">rows/cm</p>
           </div>
           <div className="frosted-panel text-center">
             <p className="text-3xl font-display font-semibold text-primary">
-              {gaugeData.gaugeRatio.toFixed(2)}
+              {safeGaugeData.gaugeRatio.toFixed(2)}
             </p>
             <p className="text-sm text-muted-foreground mt-1">gauge ratio</p>
           </div>
           <div className="frosted-panel text-center">
             <div className="flex items-center justify-center gap-1">
-              {gaugeData.shrinkageStitches >= 0 ? (
+              {safeGaugeData.shrinkageStitches >= 0 ? (
                 <TrendingUp className="w-4 h-4 text-secondary-foreground" />
               ) : (
                 <TrendingDown className="w-4 h-4 text-destructive" />
               )}
               <p className="text-3xl font-display font-semibold text-primary">
-                {Math.abs(gaugeData.shrinkageStitches).toFixed(1)}%
+                {Math.abs(safeGaugeData.shrinkageStitches).toFixed(1)}%
               </p>
             </div>
             <p className="text-sm text-muted-foreground mt-1">
-              {gaugeData.shrinkageStitches >= 0 ? 'growth' : 'shrinkage'}
+              {safeGaugeData.shrinkageStitches >= 0 ? 'growth' : 'shrinkage'}
             </p>
           </div>
         </div>
       </motion.div>
 
       {/* Yarn Library */}
-      {yarnLibrary.length > 0 && (
+      {(yarnLibrary ?? []).length > 0 && (
         <motion.div variants={itemVariants} className="glass-card p-6">
           <div className="flex items-center gap-2 mb-6">
             <div className="w-8 h-8 rounded-xl bg-yarn-lavender/30 flex items-center justify-center">
@@ -298,7 +323,7 @@ export default function SwatchLab() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {yarnLibrary.map((yarn) => (
+            {(yarnLibrary ?? []).map((yarn) => (
               <motion.div
                 key={yarn.id}
                 className="frosted-panel space-y-2"
@@ -317,8 +342,8 @@ export default function SwatchLab() {
                   </Button>
                 </div>
                 <div className="text-sm text-muted-foreground space-y-1">
-                  <p>Density: {yarn.gaugeData.stitchDensity.toFixed(1)} st/cm × {yarn.gaugeData.rowDensity.toFixed(1)} rows/cm</p>
-                  <p>Ratio: {yarn.gaugeData.gaugeRatio.toFixed(2)}</p>
+                  <p>Density: {yarn.gaugeData?.stitchDensity?.toFixed(1) ?? '0'} st/cm × {yarn.gaugeData?.rowDensity?.toFixed(1) ?? '0'} rows/cm</p>
+                  <p>Ratio: {yarn.gaugeData?.gaugeRatio?.toFixed(2) ?? '1.00'}</p>
                 </div>
                 <Button
                   variant="outline"
@@ -352,7 +377,7 @@ export default function SwatchLab() {
                 <Input
                   id="target-width"
                   type="number"
-                  value={projectPlan.targetWidth}
+                  value={safeProjectPlan.targetWidth}
                   onChange={(e) => setProjectPlan({ targetWidth: Number(e.target.value) })}
                   className="input-glass h-12 text-lg font-medium"
                 />
@@ -362,7 +387,7 @@ export default function SwatchLab() {
                 <Input
                   id="target-height"
                   type="number"
-                  value={projectPlan.targetHeight}
+                  value={safeProjectPlan.targetHeight}
                   onChange={(e) => setProjectPlan({ targetHeight: Number(e.target.value) })}
                   className="input-glass h-12 text-lg font-medium"
                 />
@@ -375,13 +400,13 @@ export default function SwatchLab() {
             <div className="grid grid-cols-2 gap-4">
               <div className="frosted-panel text-center">
                 <p className="text-3xl font-display font-semibold text-primary">
-                  {projectPlan.startingStitches}
+                  {safeProjectPlan.startingStitches}
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">cast on stitches</p>
               </div>
               <div className="frosted-panel text-center">
                 <p className="text-3xl font-display font-semibold text-primary">
-                  {projectPlan.startingRows}
+                  {safeProjectPlan.startingRows}
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">total rows</p>
               </div>
