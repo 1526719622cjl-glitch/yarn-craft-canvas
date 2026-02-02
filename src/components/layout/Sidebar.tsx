@@ -1,18 +1,13 @@
 import { motion } from 'framer-motion';
 import { NavLink, useLocation } from 'react-router-dom';
-import { 
-  Ruler, 
-  Grid3X3, 
-  Circle, 
-  LayoutGrid,
-  Sparkles 
-} from 'lucide-react';
+import { Ruler, Grid3X3, Sparkles } from 'lucide-react';
+import { CrochetHookIcon, KnittingNeedlesIcon } from '@/components/icons';
 
 const navItems = [
   { path: '/', icon: Ruler, label: 'Swatch Lab', description: 'Gauge Calculator' },
   { path: '/pixel', icon: Grid3X3, label: 'Pixel Generator', description: 'Image to Grid' },
-  { path: '/crochet', icon: Circle, label: 'Crochet Engine', description: 'Pattern Parser' },
-  { path: '/knitting', icon: LayoutGrid, label: 'Knitting Engine', description: 'Chart Designer' },
+  { path: '/crochet', icon: CrochetHookIcon, label: 'Crochet Engine', description: 'Pattern Parser' },
+  { path: '/knitting', icon: KnittingNeedlesIcon, label: 'Knitting Engine', description: 'Chart Designer' },
 ];
 
 export function Sidebar() {
@@ -37,7 +32,7 @@ export function Sidebar() {
           </div>
           <div>
             <h1 className="text-lg font-display font-semibold text-foreground">Yarn Clues</h1>
-            <p className="text-xs text-muted-foreground">线索 · Design Suite</p>
+            <p className="text-xs text-muted-foreground">线·索 · All for Yarn</p>
           </div>
         </motion.div>
       </div>
@@ -77,7 +72,7 @@ export function Sidebar() {
       <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-border/30">
         <div className="text-center">
           <p className="text-xs text-muted-foreground">
-            Crafted with care for yarn artists
+            Design Suite: All for Yarn
           </p>
         </div>
       </div>

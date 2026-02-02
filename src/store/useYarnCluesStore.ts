@@ -1,8 +1,10 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-// Swatch data for gauge calculations
+// Flexible swatch data for gauge calculations
 export interface SwatchData {
+  swatchWidth: number; // cm
+  swatchHeight: number; // cm
   stitchesPreWash: number;
   rowsPreWash: number;
   stitchesPostWash: number;
@@ -16,6 +18,15 @@ export interface GaugeData {
   gaugeRatio: number; // stitch width / row height
   shrinkageStitches: number; // % change
   shrinkageRows: number; // % change
+}
+
+// Saved yarn record
+export interface YarnRecord {
+  id: string;
+  name: string;
+  swatchData: SwatchData;
+  gaugeData: GaugeData;
+  createdAt: number;
 }
 
 // Project planning
@@ -33,17 +44,27 @@ export interface PixelCell {
   color: string;
 }
 
-// Crochet stitch types (JIS standard)
+// Pixel editor tool
+export type PixelTool = 'pencil' | 'eraser' | 'bucket' | 'eyedropper';
+
+// Crochet stitch types (Complete JIS standard)
 export type CrochetStitch = 
-  | 'chain' // 鎖編み - chain
-  | 'slip' // 引き抜き編み - slip stitch
-  | 'sc' // 細編み - single crochet (X)
-  | 'hdc' // 中長編み - half double crochet
-  | 'dc' // 長編み - double crochet (T)
-  | 'tr' // 長々編み - treble crochet
-  | 'inc' // 増し目 - increase (V)
-  | 'dec' // 減らし目 - decrease
-  | 'magic'; // magic ring
+  | 'chain'    // CH - 鎖編み
+  | 'slip'     // SL - 引き抜き編み
+  | 'sc'       // X - 細編み (single crochet)
+  | 'hdc'      // T - 中長編み (half double crochet)
+  | 'dc'       // F - 長編み (double crochet)
+  | 'tr'       // E - 長々編み (treble crochet)
+  | 'dtr'      // W - 三つ巻き長編み (double treble)
+  | 'inc'      // V - 増し目 (increase)
+  | 'dec'      // A - 減らし目 (decrease/inverted V)
+  | 'magic'    // Magic ring
+  | 'blo'      // Back loop only
+  | 'flo'      // Front loop only
+  | 'spike'    // Spike stitch
+  | 'popcorn'  // Popcorn stitch
+  | 'bobble'   // Bobble stitch
+  | 'puff';    // Puff stitch
 
 // Knitting stitch types
 export type KnittingStitch = 
@@ -75,27 +96,45 @@ interface YarnCluesStore {
   swatchData: SwatchData;
   gaugeData: GaugeData;
   projectPlan: ProjectPlan;
+  yarnLibrary: YarnRecord[];
   setSwatchData: (data: Partial<SwatchData>) => void;
   calculateGauge: () => void;
   setProjectPlan: (plan: Partial<ProjectPlan>) => void;
   calculateProjectStitches: () => void;
+  saveToYarnLibrary: (name: string) => void;
+  loadFromYarnLibrary: (id: string) => void;
+  deleteFromYarnLibrary: (id: string) => void;
 
   // Pixel Generator
   pixelGrid: PixelCell[];
   gridWidth: number;
   gridHeight: number;
   colorPalette: string[];
+  selectedTool: PixelTool;
+  selectedColor: string;
+  customGridWidth: number;
+  customGridHeight: number;
   setPixelGrid: (grid: PixelCell[]) => void;
   setGridDimensions: (width: number, height: number) => void;
   setColorPalette: (colors: string[]) => void;
+  setSelectedTool: (tool: PixelTool) => void;
+  setSelectedColor: (color: string) => void;
+  setCustomGridDimensions: (width: number, height: number) => void;
+  paintPixel: (x: number, y: number, color: string) => void;
+  erasePixel: (x: number, y: number) => void;
+  bucketFill: (x: number, y: number, newColor: string) => void;
 
   // Crochet Engine
   crochetChart: CrochetCell[];
   crochetInput: string;
   chartMode: 'circular' | 'linear';
+  hoveredCrochetCell: { row: number; stitch: number } | null;
+  highFidelityMode: boolean;
   setCrochetChart: (chart: CrochetCell[]) => void;
   setCrochetInput: (input: string) => void;
   setChartMode: (mode: 'circular' | 'linear') => void;
+  setHoveredCrochetCell: (cell: { row: number; stitch: number } | null) => void;
+  setHighFidelityMode: (enabled: boolean) => void;
   parseCrochetPattern: () => void;
 
   // Knitting Engine
@@ -104,22 +143,26 @@ interface YarnCluesStore {
   knittingHeight: number;
   selectedKnittingStitch: KnittingStitch;
   showWrongSide: boolean;
+  hoveredKnittingCell: { row: number; stitch: number } | null;
+  knittingHighFidelityMode: boolean;
   setKnittingChart: (chart: KnittingCell[]) => void;
   setKnittingDimensions: (width: number, height: number) => void;
   setSelectedKnittingStitch: (stitch: KnittingStitch) => void;
   setShowWrongSide: (show: boolean) => void;
+  setHoveredKnittingCell: (cell: { row: number; stitch: number } | null) => void;
+  setKnittingHighFidelityMode: (enabled: boolean) => void;
   paintKnittingCell: (row: number, stitch: number) => void;
   initKnittingGrid: () => void;
   getWrongSideInstructions: () => string[];
 }
 
-const SWATCH_SIZE = 10; // 10cm x 10cm swatch
-
 export const useYarnCluesStore = create<YarnCluesStore>()(
   persist(
     (set, get) => ({
-      // Initial Swatch Data
+      // Initial Swatch Data - flexible dimensions
       swatchData: {
+        swatchWidth: 10,
+        swatchHeight: 10,
         stitchesPreWash: 20,
         rowsPreWash: 28,
         stitchesPostWash: 20,
@@ -138,6 +181,7 @@ export const useYarnCluesStore = create<YarnCluesStore>()(
         startingStitches: 100,
         startingRows: 168,
       },
+      yarnLibrary: [],
 
       setSwatchData: (data) => {
         set((state) => ({
@@ -148,9 +192,9 @@ export const useYarnCluesStore = create<YarnCluesStore>()(
 
       calculateGauge: () => {
         const { swatchData } = get();
-        const stitchDensity = swatchData.stitchesPostWash / SWATCH_SIZE;
-        const rowDensity = swatchData.rowsPostWash / SWATCH_SIZE;
-        const gaugeRatio = (SWATCH_SIZE / swatchData.stitchesPostWash) / (SWATCH_SIZE / swatchData.rowsPostWash);
+        const stitchDensity = swatchData.stitchesPostWash / swatchData.swatchWidth;
+        const rowDensity = swatchData.rowsPostWash / swatchData.swatchHeight;
+        const gaugeRatio = (swatchData.swatchWidth / swatchData.stitchesPostWash) / (swatchData.swatchHeight / swatchData.rowsPostWash);
         
         const shrinkageStitches = ((swatchData.stitchesPostWash - swatchData.stitchesPreWash) / swatchData.stitchesPreWash) * 100;
         const shrinkageRows = ((swatchData.rowsPostWash - swatchData.rowsPreWash) / swatchData.rowsPreWash) * 100;
@@ -183,24 +227,112 @@ export const useYarnCluesStore = create<YarnCluesStore>()(
         }));
       },
 
+      saveToYarnLibrary: (name: string) => {
+        const { swatchData, gaugeData, yarnLibrary } = get();
+        const newRecord: YarnRecord = {
+          id: crypto.randomUUID(),
+          name,
+          swatchData: { ...swatchData },
+          gaugeData: { ...gaugeData },
+          createdAt: Date.now(),
+        };
+        set({ yarnLibrary: [...yarnLibrary, newRecord] });
+      },
+
+      loadFromYarnLibrary: (id: string) => {
+        const { yarnLibrary } = get();
+        const record = yarnLibrary.find(r => r.id === id);
+        if (record) {
+          set({
+            swatchData: { ...record.swatchData },
+            gaugeData: { ...record.gaugeData },
+          });
+        }
+      },
+
+      deleteFromYarnLibrary: (id: string) => {
+        const { yarnLibrary } = get();
+        set({ yarnLibrary: yarnLibrary.filter(r => r.id !== id) });
+      },
+
       // Pixel Generator
       pixelGrid: [],
       gridWidth: 20,
       gridHeight: 20,
       colorPalette: ['#FDFBF7', '#E8D5C4', '#C9A08E', '#8B9A7C', '#D4A5A5', '#7B8FA1'],
+      selectedTool: 'pencil',
+      selectedColor: '#C9A08E',
+      customGridWidth: 60,
+      customGridHeight: 40,
 
       setPixelGrid: (grid) => set({ pixelGrid: grid }),
       setGridDimensions: (width, height) => set({ gridWidth: width, gridHeight: height }),
       setColorPalette: (colors) => set({ colorPalette: colors }),
+      setSelectedTool: (tool) => set({ selectedTool: tool }),
+      setSelectedColor: (color) => set({ selectedColor: color }),
+      setCustomGridDimensions: (width, height) => set({ customGridWidth: width, customGridHeight: height }),
+      
+      paintPixel: (x, y, color) => {
+        const { pixelGrid, gridWidth, gridHeight } = get();
+        const idx = pixelGrid.findIndex(p => p.x === x && p.y === y);
+        if (idx >= 0) {
+          const newGrid = [...pixelGrid];
+          newGrid[idx] = { ...newGrid[idx], color };
+          set({ pixelGrid: newGrid });
+        }
+      },
+
+      erasePixel: (x, y) => {
+        const { pixelGrid, colorPalette } = get();
+        const defaultColor = colorPalette[0] || '#FDFBF7';
+        const idx = pixelGrid.findIndex(p => p.x === x && p.y === y);
+        if (idx >= 0) {
+          const newGrid = [...pixelGrid];
+          newGrid[idx] = { ...newGrid[idx], color: defaultColor };
+          set({ pixelGrid: newGrid });
+        }
+      },
+
+      bucketFill: (x, y, newColor) => {
+        const { pixelGrid, gridWidth, gridHeight } = get();
+        const targetCell = pixelGrid.find(p => p.x === x && p.y === y);
+        if (!targetCell || targetCell.color === newColor) return;
+
+        const targetColor = targetCell.color;
+        const newGrid = [...pixelGrid];
+        const visited = new Set<string>();
+        const stack: [number, number][] = [[x, y]];
+
+        while (stack.length > 0) {
+          const [cx, cy] = stack.pop()!;
+          const key = `${cx},${cy}`;
+          if (visited.has(key)) continue;
+          if (cx < 0 || cx >= gridWidth || cy < 0 || cy >= gridHeight) continue;
+          
+          const cellIdx = newGrid.findIndex(p => p.x === cx && p.y === cy);
+          if (cellIdx < 0 || newGrid[cellIdx].color !== targetColor) continue;
+
+          visited.add(key);
+          newGrid[cellIdx] = { ...newGrid[cellIdx], color: newColor };
+          
+          stack.push([cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]);
+        }
+
+        set({ pixelGrid: newGrid });
+      },
 
       // Crochet Engine
       crochetChart: [],
       crochetInput: '6x\n(2x, v)*6\n(3x, v)*6',
       chartMode: 'circular',
+      hoveredCrochetCell: null,
+      highFidelityMode: false,
 
       setCrochetChart: (chart) => set({ crochetChart: chart }),
       setCrochetInput: (input) => set({ crochetInput: input }),
       setChartMode: (mode) => set({ chartMode: mode }),
+      setHoveredCrochetCell: (cell) => set({ hoveredCrochetCell: cell }),
+      setHighFidelityMode: (enabled) => set({ highFidelityMode: enabled }),
 
       parseCrochetPattern: () => {
         const { crochetInput } = get();
@@ -214,12 +346,13 @@ export const useYarnCluesStore = create<YarnCluesStore>()(
           currentRow++;
           
           // Parse patterns like "6x" (6 single crochet)
-          const simpleMatch = trimmed.match(/^(\d+)([xvo])$/);
+          const simpleMatch = trimmed.match(/^(\d+)([xvotfewaslchbp])$/);
           if (simpleMatch) {
             const count = parseInt(simpleMatch[1]);
-            const type = simpleMatch[2] === 'x' ? 'sc' : simpleMatch[2] === 'v' ? 'inc' : 'dc';
+            const typeChar = simpleMatch[2];
+            const type = charToStitchType(typeChar);
             for (let i = 0; i < count; i++) {
-              chart.push({ row: currentRow, stitch: i + 1, type: type as CrochetStitch });
+              chart.push({ row: currentRow, stitch: i + 1, type });
             }
             return;
           }
@@ -233,12 +366,13 @@ export const useYarnCluesStore = create<YarnCluesStore>()(
             
             const parts = pattern.split(',').map(p => p.trim());
             parts.forEach(part => {
-              const partMatch = part.match(/^(\d*)([xvo])$/);
+              const partMatch = part.match(/^(\d*)([xvotfewaslchbp])$/);
               if (partMatch) {
                 const count = partMatch[1] ? parseInt(partMatch[1]) : 1;
-                const type = partMatch[2] === 'x' ? 'sc' : partMatch[2] === 'v' ? 'inc' : 'dc';
+                const typeChar = partMatch[2];
+                const type = charToStitchType(typeChar);
                 for (let i = 0; i < count; i++) {
-                  stitches.push(type as CrochetStitch);
+                  stitches.push(type);
                 }
               }
             });
@@ -261,6 +395,8 @@ export const useYarnCluesStore = create<YarnCluesStore>()(
       knittingHeight: 10,
       selectedKnittingStitch: 'knit',
       showWrongSide: false,
+      hoveredKnittingCell: null,
+      knittingHighFidelityMode: false,
 
       setKnittingChart: (chart) => set({ knittingChart: chart }),
       setKnittingDimensions: (width, height) => {
@@ -269,6 +405,8 @@ export const useYarnCluesStore = create<YarnCluesStore>()(
       },
       setSelectedKnittingStitch: (stitch) => set({ selectedKnittingStitch: stitch }),
       setShowWrongSide: (show) => set({ showWrongSide: show }),
+      setHoveredKnittingCell: (cell) => set({ hoveredKnittingCell: cell }),
+      setKnittingHighFidelityMode: (enabled) => set({ knittingHighFidelityMode: enabled }),
 
       initKnittingGrid: () => {
         const { knittingWidth, knittingHeight } = get();
@@ -331,7 +469,31 @@ export const useYarnCluesStore = create<YarnCluesStore>()(
         gaugeData: state.gaugeData,
         projectPlan: state.projectPlan,
         colorPalette: state.colorPalette,
+        yarnLibrary: state.yarnLibrary,
+        customGridWidth: state.customGridWidth,
+        customGridHeight: state.customGridHeight,
       }),
     }
   )
 );
+
+// Helper function for stitch type mapping
+function charToStitchType(char: string): CrochetStitch {
+  const mapping: Record<string, CrochetStitch> = {
+    'x': 'sc',
+    'v': 'inc',
+    'a': 'dec',
+    't': 'hdc',
+    'f': 'dc',
+    'e': 'tr',
+    'w': 'dtr',
+    'o': 'dc', // legacy support
+    'ch': 'chain',
+    'c': 'chain',
+    'sl': 'slip',
+    's': 'slip',
+    'b': 'bobble',
+    'p': 'puff',
+  };
+  return mapping[char] || 'sc';
+}
