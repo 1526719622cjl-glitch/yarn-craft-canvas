@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
-import { useYarnCluesStore } from '@/store/useYarnCluesStore';
-import { Grid3X3, Upload, Palette, ZoomIn } from 'lucide-react';
+import { useYarnCluesStore, PixelTool } from '@/store/useYarnCluesStore';
+import { Grid3X3, Upload, Palette, ZoomIn, Pencil, Eraser, PaintBucket, Pipette, Settings } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
@@ -20,30 +20,88 @@ const itemVariants = {
   show: { opacity: 1, y: 0 }
 };
 
+// Floyd-Steinberg dithering implementation
+function floydSteinbergDither(
+  imageData: ImageData, 
+  width: number, 
+  height: number, 
+  palette: [number, number, number][]
+): ImageData {
+  const data = new Uint8ClampedArray(imageData.data);
+  
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4;
+      const oldR = data[i];
+      const oldG = data[i + 1];
+      const oldB = data[i + 2];
+      
+      // Find closest palette color
+      let minDist = Infinity;
+      let newColor: [number, number, number] = [0, 0, 0];
+      for (const color of palette) {
+        const dist = Math.sqrt(
+          Math.pow(oldR - color[0], 2) +
+          Math.pow(oldG - color[1], 2) +
+          Math.pow(oldB - color[2], 2)
+        );
+        if (dist < minDist) {
+          minDist = dist;
+          newColor = color;
+        }
+      }
+      
+      data[i] = newColor[0];
+      data[i + 1] = newColor[1];
+      data[i + 2] = newColor[2];
+      
+      // Calculate error
+      const errR = oldR - newColor[0];
+      const errG = oldG - newColor[1];
+      const errB = oldB - newColor[2];
+      
+      // Distribute error to neighboring pixels
+      const distribute = (dx: number, dy: number, factor: number) => {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+          const ni = (ny * width + nx) * 4;
+          data[ni] = Math.max(0, Math.min(255, data[ni] + errR * factor));
+          data[ni + 1] = Math.max(0, Math.min(255, data[ni + 1] + errG * factor));
+          data[ni + 2] = Math.max(0, Math.min(255, data[ni + 2] + errB * factor));
+        }
+      };
+      
+      distribute(1, 0, 7/16);
+      distribute(-1, 1, 3/16);
+      distribute(0, 1, 5/16);
+      distribute(1, 1, 1/16);
+    }
+  }
+  
+  return new ImageData(data, width, height);
+}
+
 // K-Means clustering for color quantization
-function kMeansQuantize(imageData: ImageData, colorCount: number): string[] {
+function kMeansQuantize(imageData: ImageData, colorCount: number): [number, number, number][] {
   const pixels: [number, number, number][] = [];
   
-  // Sample pixels
   for (let i = 0; i < imageData.data.length; i += 4) {
-    if (imageData.data[i + 3] > 128) { // Only opaque pixels
+    if (imageData.data[i + 3] > 128) {
       pixels.push([imageData.data[i], imageData.data[i + 1], imageData.data[i + 2]]);
     }
   }
 
   if (pixels.length === 0) return [];
 
-  // Initialize centroids randomly
   let centroids: [number, number, number][] = [];
   for (let i = 0; i < colorCount; i++) {
     centroids.push(pixels[Math.floor(Math.random() * pixels.length)]);
   }
 
-  // K-Means iterations
-  for (let iter = 0; iter < 10; iter++) {
+  for (let iter = 0; iter < 15; iter++) {
     const clusters: [number, number, number][][] = Array.from({ length: colorCount }, () => []);
 
-    // Assign pixels to nearest centroid
     for (const pixel of pixels) {
       let minDist = Infinity;
       let nearest = 0;
@@ -61,7 +119,6 @@ function kMeansQuantize(imageData: ImageData, colorCount: number): string[] {
       clusters[nearest].push(pixel);
     }
 
-    // Update centroids
     centroids = clusters.map((cluster, i) => {
       if (cluster.length === 0) return centroids[i];
       const sum = cluster.reduce((acc, p) => [acc[0] + p[0], acc[1] + p[1], acc[2] + p[2]], [0, 0, 0]);
@@ -69,38 +126,50 @@ function kMeansQuantize(imageData: ImageData, colorCount: number): string[] {
     });
   }
 
-  return centroids.map(c => 
-    `rgb(${Math.round(c[0])}, ${Math.round(c[1])}, ${Math.round(c[2])})`
-  );
+  return centroids.map(c => [Math.round(c[0]), Math.round(c[1]), Math.round(c[2])] as [number, number, number]);
 }
 
-function getClosestColor(r: number, g: number, b: number, palette: string[]): string {
-  let closest = palette[0];
-  let minDist = Infinity;
-
-  for (const color of palette) {
-    const match = color.match(/rgb\((\d+), (\d+), (\d+)\)/);
-    if (match) {
-      const [, cr, cg, cb] = match.map(Number);
-      const dist = Math.sqrt(
-        Math.pow(r - cr, 2) + Math.pow(g - cg, 2) + Math.pow(b - cb, 2)
-      );
-      if (dist < minDist) {
-        minDist = dist;
-        closest = color;
-      }
-    }
-  }
-
-  return closest;
+function rgbToString(rgb: [number, number, number]): string {
+  return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
 }
+
+const tools: { type: PixelTool; icon: typeof Pencil; label: string }[] = [
+  { type: 'pencil', icon: Pencil, label: 'Pencil' },
+  { type: 'eraser', icon: Eraser, label: 'Eraser' },
+  { type: 'bucket', icon: PaintBucket, label: 'Fill' },
+  { type: 'eyedropper', icon: Pipette, label: 'Picker' },
+];
 
 export default function PixelGenerator() {
-  const { gaugeData, pixelGrid, setPixelGrid, gridWidth, gridHeight, setGridDimensions, colorPalette, setColorPalette } = useYarnCluesStore();
+  const { 
+    gaugeData, 
+    pixelGrid, 
+    setPixelGrid, 
+    gridWidth, 
+    gridHeight, 
+    setGridDimensions, 
+    colorPalette, 
+    setColorPalette,
+    selectedTool,
+    setSelectedTool,
+    selectedColor,
+    setSelectedColor,
+    customGridWidth,
+    customGridHeight,
+    setCustomGridDimensions,
+    paintPixel,
+    erasePixel,
+    bucketFill
+  } = useYarnCluesStore();
+  
   const [colorCount, setColorCount] = useState(6);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [showLoupe, setShowLoupe] = useState(false);
   const [loupePosition, setLoupePosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [useDithering, setUseDithering] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
+  
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -124,49 +193,86 @@ export default function PixelGenerator() {
 
     const img = new Image();
     img.onload = () => {
-      // Calculate grid dimensions based on gauge ratio
-      const aspectRatio = img.width / img.height;
-      const baseSize = 30;
-      const newWidth = Math.round(baseSize * aspectRatio);
-      const newHeight = baseSize;
+      const targetWidth = customGridWidth;
+      const targetHeight = customGridHeight;
       
-      setGridDimensions(newWidth, newHeight);
+      setGridDimensions(targetWidth, targetHeight);
 
-      canvas.width = newWidth;
-      canvas.height = newHeight;
-      ctx.drawImage(img, 0, 0, newWidth, newHeight);
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+      ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
 
-      const imageData = ctx.getImageData(0, 0, newWidth, newHeight);
+      let imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
       
-      // Quantize colors
-      const palette = kMeansQuantize(imageData, colorCount);
-      setColorPalette(palette);
+      // Get palette via K-means
+      const paletteRgb = kMeansQuantize(imageData, colorCount);
+      setColorPalette(paletteRgb.map(rgbToString));
+      
+      // Apply Floyd-Steinberg dithering if enabled
+      if (useDithering) {
+        imageData = floydSteinbergDither(imageData, targetWidth, targetHeight, paletteRgb);
+      }
 
       // Create pixel grid
       const newGrid = [];
-      for (let y = 0; y < newHeight; y++) {
-        for (let x = 0; x < newWidth; x++) {
-          const i = (y * newWidth + x) * 4;
+      for (let y = 0; y < targetHeight; y++) {
+        for (let x = 0; x < targetWidth; x++) {
+          const i = (y * targetWidth + x) * 4;
           const r = imageData.data[i];
           const g = imageData.data[i + 1];
           const b = imageData.data[i + 2];
-          const color = getClosestColor(r, g, b, palette);
-          newGrid.push({ x, y, color });
+          newGrid.push({ x, y, color: `rgb(${r}, ${g}, ${b})` });
         }
       }
       setPixelGrid(newGrid);
     };
     img.src = uploadedImage;
-  }, [uploadedImage, colorCount, setGridDimensions, setColorPalette, setPixelGrid]);
+  }, [uploadedImage, colorCount, customGridWidth, customGridHeight, useDithering, setGridDimensions, setColorPalette, setPixelGrid]);
 
   useEffect(() => {
     if (uploadedImage) {
       processImage();
     }
-  }, [uploadedImage, colorCount, processImage]);
+  }, [uploadedImage, colorCount, customGridWidth, customGridHeight, useDithering, processImage]);
 
-  const cellWidth = 16;
+  const cellWidth = 12;
   const cellHeight = cellWidth * gaugeData.gaugeRatio;
+
+  const handleCellClick = (x: number, y: number) => {
+    switch (selectedTool) {
+      case 'pencil':
+        paintPixel(x, y, selectedColor);
+        break;
+      case 'eraser':
+        erasePixel(x, y);
+        break;
+      case 'bucket':
+        bucketFill(x, y, selectedColor);
+        break;
+      case 'eyedropper':
+        const cell = pixelGrid.find(p => p.x === x && p.y === y);
+        if (cell) {
+          setSelectedColor(cell.color);
+          setSelectedTool('pencil');
+        }
+        break;
+    }
+  };
+
+  const handleMouseDown = (x: number, y: number) => {
+    setIsDragging(true);
+    handleCellClick(x, y);
+  };
+
+  const handleMouseEnter = (x: number, y: number) => {
+    if (isDragging && (selectedTool === 'pencil' || selectedTool === 'eraser')) {
+      handleCellClick(x, y);
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
 
   const handleGridTouch = (e: React.TouchEvent) => {
     const touch = e.touches[0];
@@ -174,12 +280,26 @@ export default function PixelGenerator() {
     setShowLoupe(true);
   };
 
+  const createEmptyGrid = () => {
+    const newGrid = [];
+    const defaultColor = colorPalette[0] || '#FDFBF7';
+    for (let y = 0; y < customGridHeight; y++) {
+      for (let x = 0; x < customGridWidth; x++) {
+        newGrid.push({ x, y, color: defaultColor });
+      }
+    }
+    setGridDimensions(customGridWidth, customGridHeight);
+    setPixelGrid(newGrid);
+  };
+
   return (
     <motion.div
       variants={containerVariants}
       initial="hidden"
       animate="show"
-      className="max-w-6xl mx-auto space-y-8"
+      className="max-w-7xl mx-auto space-y-8"
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
     >
       {/* Header */}
       <motion.div variants={itemVariants} className="space-y-2">
@@ -194,12 +314,22 @@ export default function PixelGenerator() {
         </div>
       </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Upload & Settings */}
         <motion.div variants={itemVariants} className="glass-card p-6 space-y-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Upload className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-medium">Image Upload</h2>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Upload className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-medium">Image Upload</h2>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowSettings(!showSettings)}
+              className="rounded-xl"
+            >
+              <Settings className="w-4 h-4" />
+            </Button>
           </div>
 
           <input
@@ -212,25 +342,67 @@ export default function PixelGenerator() {
 
           <Button
             onClick={() => fileInputRef.current?.click()}
-            className="w-full h-32 rounded-2xl border-2 border-dashed border-border hover:border-primary/50 bg-muted/20 hover:bg-muted/40 transition-all soft-press"
+            className="w-full h-24 rounded-2xl border-2 border-dashed border-border hover:border-primary/50 bg-muted/20 hover:bg-muted/40 transition-all soft-press"
             variant="ghost"
           >
             <div className="text-center">
-              <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Click to upload image</p>
+              <Upload className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">Upload image</p>
             </div>
           </Button>
 
-          {uploadedImage && (
-            <div className="rounded-2xl overflow-hidden">
-              <img src={uploadedImage} alt="Uploaded" className="w-full h-auto" />
-            </div>
+          {showSettings && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              className="space-y-4 border-t border-border/30 pt-4"
+            >
+              <h3 className="text-sm font-medium">Canvas Dimensions</h3>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Width (sts)</Label>
+                  <Input
+                    type="number"
+                    value={customGridWidth}
+                    onChange={(e) => setCustomGridDimensions(Number(e.target.value), customGridHeight)}
+                    className="h-9"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Height (rows)</Label>
+                  <Input
+                    type="number"
+                    value={customGridHeight}
+                    onChange={(e) => setCustomGridDimensions(customGridWidth, Number(e.target.value))}
+                    className="h-9"
+                  />
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={createEmptyGrid}
+                className="w-full rounded-xl"
+              >
+                Create Empty Canvas
+              </Button>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="dithering"
+                  checked={useDithering}
+                  onChange={(e) => setUseDithering(e.target.checked)}
+                  className="rounded"
+                />
+                <Label htmlFor="dithering" className="text-sm">Floyd-Steinberg Dithering</Label>
+              </div>
+            </motion.div>
           )}
 
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <Palette className="w-5 h-5 text-primary" />
-              <h3 className="font-medium">Color Count: {colorCount}</h3>
+              <h3 className="font-medium">Colors: {colorCount}</h3>
             </div>
             <Slider
               value={[colorCount]}
@@ -244,19 +416,41 @@ export default function PixelGenerator() {
 
           {colorPalette.length > 0 && (
             <div className="space-y-2">
-              <h3 className="text-sm font-medium text-muted-foreground">Extracted Palette</h3>
+              <h3 className="text-sm font-medium text-muted-foreground">Palette</h3>
               <div className="flex flex-wrap gap-2">
                 {colorPalette.map((color, i) => (
-                  <div
+                  <button
                     key={i}
-                    className="w-8 h-8 rounded-lg shadow-soft"
+                    className={`w-8 h-8 rounded-lg shadow-sm transition-all ${
+                      selectedColor === color ? 'ring-2 ring-primary ring-offset-2' : ''
+                    }`}
                     style={{ backgroundColor: color }}
+                    onClick={() => setSelectedColor(color)}
                     title={color}
                   />
                 ))}
               </div>
             </div>
           )}
+
+          {/* Editing Tools */}
+          <div className="space-y-2 border-t border-border/30 pt-4">
+            <h3 className="text-sm font-medium text-muted-foreground">Tools</h3>
+            <div className="grid grid-cols-4 gap-2">
+              {tools.map((tool) => (
+                <Button
+                  key={tool.type}
+                  variant={selectedTool === tool.type ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSelectedTool(tool.type)}
+                  className="h-10 rounded-xl flex-col gap-0.5 soft-press"
+                >
+                  <tool.icon className="w-4 h-4" />
+                  <span className="text-[10px]">{tool.label}</span>
+                </Button>
+              ))}
+            </div>
+          </div>
 
           <div className="frosted-panel">
             <div className="flex items-center gap-2 mb-2">
@@ -273,7 +467,7 @@ export default function PixelGenerator() {
         </motion.div>
 
         {/* Pixel Grid */}
-        <motion.div variants={itemVariants} className="lg:col-span-2 glass-card p-6">
+        <motion.div variants={itemVariants} className="lg:col-span-3 glass-card p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-medium">Yarn Grid Preview</h2>
             <span className="text-sm text-muted-foreground">
@@ -285,7 +479,7 @@ export default function PixelGenerator() {
 
           {pixelGrid.length > 0 ? (
             <div 
-              className="overflow-auto max-h-[500px] rounded-2xl bg-muted/20 p-4"
+              className="overflow-auto max-h-[600px] rounded-2xl bg-muted/20 p-4"
               onTouchStart={handleGridTouch}
               onTouchMove={handleGridTouch}
               onTouchEnd={() => setShowLoupe(false)}
@@ -297,24 +491,28 @@ export default function PixelGenerator() {
                 }}
               >
                 {pixelGrid.map((cell, i) => (
-                  <motion.div
+                  <div
                     key={i}
-                    initial={{ opacity: 0, scale: 0.5 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: i * 0.001 }}
-                    className="rounded-sm transition-transform hover:scale-110 hover:z-10"
+                    className="rounded-[2px] cursor-crosshair transition-transform hover:scale-110 hover:z-10"
                     style={{ 
                       width: cellWidth, 
                       height: cellHeight,
                       backgroundColor: cell.color,
                     }}
+                    onMouseDown={() => handleMouseDown(cell.x, cell.y)}
+                    onMouseEnter={() => handleMouseEnter(cell.x, cell.y)}
                   />
                 ))}
               </div>
             </div>
           ) : (
             <div className="h-64 flex items-center justify-center rounded-2xl bg-muted/20">
-              <p className="text-muted-foreground">Upload an image to generate a grid</p>
+              <div className="text-center">
+                <p className="text-muted-foreground mb-2">Upload an image or create an empty canvas</p>
+                <Button variant="outline" onClick={createEmptyGrid} className="rounded-xl">
+                  Create {customGridWidth}×{customGridHeight} Canvas
+                </Button>
+              </div>
             </div>
           )}
 
