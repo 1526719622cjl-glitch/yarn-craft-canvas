@@ -1,14 +1,15 @@
 import { motion } from 'framer-motion';
 import { useYarnCluesStore, KnittingStitch } from '@/store/useYarnCluesStore';
-import { Paintbrush, RotateCcw, FileText, Sparkles } from 'lucide-react';
+import { Paintbrush, RotateCcw, FileText, Sparkles, Grid } from 'lucide-react';
 import { KnittingNeedlesIcon } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { useEffect, useState, Suspense, useRef } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Input } from '@/components/ui/input';
+import { useEffect, useState, Suspense, useMemo } from 'react';
+import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment } from '@react-three/drei';
-import * as THREE from 'three';
+import { KnittingYarnStitch } from '@/components/3d/YarnSimulation';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -58,89 +59,85 @@ function KnittingSymbol({ type, isWrongSide = false }: { type: KnittingStitch; i
   );
 }
 
-// 3D Knitting Stitch Component
-function KnittingStitch3D({ 
-  position, 
+// Ruler component
+function ChartRuler({ 
   type, 
-  isHovered,
-  highFidelity 
+  size, 
+  cellSize 
 }: { 
-  position: [number, number, number]; 
-  type: KnittingStitch;
-  isHovered: boolean;
-  highFidelity: boolean;
+  type: 'horizontal' | 'vertical'; 
+  size: number; 
+  cellSize: number;
 }) {
-  const meshRef = useRef<THREE.Group>(null);
+  const rulerSize = 20;
   
-  const knitColor = '#E8D5C4';
-  const purlColor = '#D4C4B4';
-  const yoColor = '#B4C4D4';
-  
-  const color = type === 'knit' ? knitColor : type === 'purl' ? purlColor : yoColor;
-  
+  if (type === 'horizontal') {
+    return (
+      <div 
+        className="flex bg-muted/40 border-b border-border/50 select-none"
+        style={{ marginLeft: rulerSize, height: rulerSize }}
+      >
+        {Array.from({ length: size }).map((_, i) => {
+          const isMajor = (i + 1) % 10 === 0;
+          const isMinor = (i + 1) % 5 === 0;
+          return (
+            <div
+              key={i}
+              className="relative flex items-end justify-center"
+              style={{ 
+                width: cellSize, 
+                borderRight: isMajor ? '1px solid hsl(var(--primary) / 0.4)' : 'none'
+              }}
+            >
+              {isMajor && (
+                <span className="text-[8px] font-medium text-muted-foreground pb-0.5">
+                  {i + 1}
+                </span>
+              )}
+              {!isMajor && isMinor && (
+                <div className="w-[1px] h-1.5 bg-muted-foreground/30" />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
-    <group ref={meshRef} position={position}>
-      {type === 'knit' ? (
-        // V shape for knit stitch
-        <group>
-          <mesh position={[-0.08, 0.08, 0]} rotation={[0, 0, Math.PI / 6]}>
-            <cylinderGeometry args={[0.03, 0.03, 0.25, 8]} />
-            <meshStandardMaterial 
-              color={color} 
-              roughness={0.9}
-              emissive={isHovered ? color : '#000000'}
-              emissiveIntensity={isHovered ? 0.4 : 0}
-            />
-          </mesh>
-          <mesh position={[0.08, 0.08, 0]} rotation={[0, 0, -Math.PI / 6]}>
-            <cylinderGeometry args={[0.03, 0.03, 0.25, 8]} />
-            <meshStandardMaterial 
-              color={color} 
-              roughness={0.9}
-              emissive={isHovered ? color : '#000000'}
-              emissiveIntensity={isHovered ? 0.4 : 0}
-            />
-          </mesh>
-        </group>
-      ) : type === 'purl' ? (
-        // Horizontal bar for purl stitch
-        <mesh rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.04, 0.04, 0.3, 8]} />
-          <meshStandardMaterial 
-            color={color} 
-            roughness={0.9}
-            emissive={isHovered ? color : '#000000'}
-            emissiveIntensity={isHovered ? 0.4 : 0}
-          />
-        </mesh>
-      ) : type === 'yo' ? (
-        // Circle for yarn over
-        <mesh>
-          <torusGeometry args={[0.1, 0.03, 8, 16]} />
-          <meshStandardMaterial 
-            color={color} 
-            roughness={0.8}
-            emissive={isHovered ? color : '#000000'}
-            emissiveIntensity={isHovered ? 0.4 : 0}
-          />
-        </mesh>
-      ) : (
-        // Default small sphere
-        <mesh>
-          <sphereGeometry args={[0.1, 12, 12]} />
-          <meshStandardMaterial 
-            color={color} 
-            roughness={0.9}
-            emissive={isHovered ? color : '#000000'}
-            emissiveIntensity={isHovered ? 0.4 : 0}
-          />
-        </mesh>
-      )}
-    </group>
+    <div 
+      className="flex flex-col bg-muted/40 border-r border-border/50 select-none"
+      style={{ width: rulerSize }}
+    >
+      <div style={{ height: rulerSize }} />
+      {Array.from({ length: size }).map((_, i) => {
+        const rowNum = size - i;
+        const isMajor = rowNum % 10 === 0 || rowNum === 1;
+        const isWS = (size - 1 - i) % 2 === 1;
+        return (
+          <div
+            key={i}
+            className={`relative flex items-center justify-end pr-1 ${
+              isWS ? 'bg-muted/30' : ''
+            }`}
+            style={{ 
+              height: cellSize,
+              borderBottom: isMajor ? '1px solid hsl(var(--primary) / 0.4)' : 'none'
+            }}
+          >
+            {isMajor && (
+              <span className="text-[8px] font-medium text-muted-foreground">
+                {rowNum}
+              </span>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
-// 3D Preview Scene
+// 3D Preview Scene with TubeGeometry yarn
 function Knitting3DScene({ 
   chart, 
   width,
@@ -154,7 +151,7 @@ function Knitting3DScene({
   hoveredCell: { row: number; stitch: number } | null;
   highFidelity: boolean;
 }) {
-  const spacing = 0.35;
+  const spacing = 0.3;
   const offsetX = (width * spacing) / 2;
   const offsetY = (height * spacing) / 2;
   
@@ -167,16 +164,16 @@ function Knitting3DScene({
       {highFidelity && <Environment preset="apartment" />}
       
       {chart.map((cell) => {
-        // Physical stacking - alternate rows offset slightly
+        // Physical stacking - alternate rows offset slightly for interlocking
         const xOffset = cell.row % 2 === 0 ? 0 : spacing / 2;
         const x = cell.stitch * spacing - offsetX + xOffset;
-        const y = cell.row * spacing * 0.8 - offsetY; // Rows slightly compressed
-        const z = cell.row * 0.02; // Slight z-stacking
+        const y = cell.row * spacing * 0.7 - offsetY;
+        const z = cell.row * 0.015;
         
         const isHovered = hoveredCell?.row === cell.row && hoveredCell?.stitch === cell.stitch;
         
         return (
-          <KnittingStitch3D
+          <KnittingYarnStitch
             key={`${cell.row}-${cell.stitch}`}
             position={[x, y, z]}
             type={cell.type}
@@ -189,7 +186,7 @@ function Knitting3DScene({
       <OrbitControls 
         enablePan={true}
         enableZoom={true}
-        minDistance={2}
+        minDistance={1.5}
         maxDistance={15}
       />
     </>
@@ -211,11 +208,15 @@ export default function KnittingEngine() {
     setKnittingHighFidelityMode,
     paintKnittingCell,
     initKnittingGrid,
+    setKnittingDimensions,
     getWrongSideInstructions
   } = useYarnCluesStore();
 
   const [instructions, setInstructions] = useState<string[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [showGridLines, setShowGridLines] = useState(true);
+  const [tempWidth, setTempWidth] = useState(knittingWidth);
+  const [tempHeight, setTempHeight] = useState(knittingHeight);
 
   useEffect(() => {
     if (knittingChart.length === 0) {
@@ -225,7 +226,16 @@ export default function KnittingEngine() {
 
   useEffect(() => {
     setInstructions(getWrongSideInstructions());
-  }, [knittingChart, showWrongSide]);
+  }, [knittingChart, showWrongSide, getWrongSideInstructions]);
+
+  // Stitch count per row validation
+  const rowCounts = useMemo(() => {
+    const counts: Record<number, number> = {};
+    for (const cell of knittingChart) {
+      counts[cell.row] = (counts[cell.row] || 0) + 1;
+    }
+    return counts;
+  }, [knittingChart]);
 
   const handleCellInteraction = (row: number, stitch: number) => {
     paintKnittingCell(row, stitch);
@@ -255,6 +265,12 @@ export default function KnittingEngine() {
     initKnittingGrid();
   };
 
+  const applyDimensions = () => {
+    setKnittingDimensions(tempWidth, tempHeight);
+  };
+
+  const cellSize = 28;
+
   return (
     <motion.div
       variants={containerVariants}
@@ -272,7 +288,7 @@ export default function KnittingEngine() {
           </div>
           <div>
             <h1 className="text-3xl font-display font-semibold text-foreground">Knitting Engine</h1>
-            <p className="text-muted-foreground">Design professional charts with auto WS instructions</p>
+            <p className="text-muted-foreground">Professional chart designer with auto WS instructions & 3D yarn simulation</p>
           </div>
         </div>
       </motion.div>
@@ -299,6 +315,43 @@ export default function KnittingEngine() {
             ))}
           </div>
 
+          {/* Grid Dimensions */}
+          <div className="space-y-3 pt-4 border-t border-border/50">
+            <h3 className="text-sm font-medium">Chart Dimensions</h3>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Width</Label>
+                <Input
+                  type="number"
+                  value={tempWidth}
+                  onChange={(e) => setTempWidth(Number(e.target.value))}
+                  className="h-9"
+                  min={1}
+                  max={100}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Height</Label>
+                <Input
+                  type="number"
+                  value={tempHeight}
+                  onChange={(e) => setTempHeight(Number(e.target.value))}
+                  className="h-9"
+                  min={1}
+                  max={100}
+                />
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={applyDimensions}
+              className="w-full rounded-xl"
+            >
+              Apply Dimensions
+            </Button>
+          </div>
+
           <div className="space-y-4 pt-4 border-t border-border/50">
             <div className="flex items-center justify-between">
               <Label htmlFor="ws-toggle" className="text-sm font-medium">
@@ -308,6 +361,19 @@ export default function KnittingEngine() {
                 id="ws-toggle"
                 checked={showWrongSide}
                 onCheckedChange={setShowWrongSide}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Grid className="w-4 h-4 text-muted-foreground" />
+                <Label htmlFor="grid-toggle" className="text-sm font-medium">
+                  Grid Lines
+                </Label>
+              </div>
+              <Switch
+                id="grid-toggle"
+                checked={showGridLines}
+                onCheckedChange={setShowGridLines}
               />
             </div>
           </div>
@@ -329,9 +395,9 @@ export default function KnittingEngine() {
           </div>
         </motion.div>
 
-        {/* Main Chart */}
+        {/* Main Chart with Rulers */}
         <motion.div variants={itemVariants} className="xl:col-span-2 glass-card p-6">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-medium">
               {showWrongSide ? 'Wrong Side View' : 'Right Side View'}
             </h2>
@@ -340,56 +406,67 @@ export default function KnittingEngine() {
             </span>
           </div>
 
-          <div className="overflow-auto max-h-[500px] rounded-2xl bg-muted/20 p-4">
-            <div 
-              className="inline-grid gap-[1px]"
-              style={{ 
-                gridTemplateColumns: `repeat(${knittingWidth}, 28px)`,
-              }}
-            >
-              {Array.from({ length: knittingHeight }).map((_, rowIdx) => {
-                const row = knittingHeight - 1 - rowIdx;
-                const isWS = row % 2 === 1;
+          <div className="overflow-auto max-h-[500px] rounded-2xl bg-muted/20">
+            <div className="inline-flex">
+              {/* Vertical Ruler */}
+              <ChartRuler type="vertical" size={knittingHeight} cellSize={cellSize} />
+              
+              <div className="flex flex-col">
+                {/* Horizontal Ruler */}
+                <ChartRuler type="horizontal" size={knittingWidth} cellSize={cellSize} />
                 
-                return Array.from({ length: knittingWidth }).map((_, stitchIdx) => {
-                  const stitch = showWrongSide && isWS 
-                    ? knittingWidth - 1 - stitchIdx 
-                    : stitchIdx;
-                  
-                  const cell = knittingChart.find(c => c.row === row && c.stitch === stitch);
-                  const isHovered = hoveredKnittingCell?.row === row && hoveredKnittingCell?.stitch === stitch;
-                  
-                  return (
-                    <motion.div
-                      key={`${row}-${stitch}`}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: (rowIdx * knittingWidth + stitchIdx) * 0.002 }}
-                      className={`w-7 h-7 rounded-sm cursor-pointer transition-all select-none ${
-                        isHovered ? 'ring-2 ring-primary/50' : ''
-                      }`}
-                      onMouseDown={() => handleMouseDown(row, stitch)}
-                      onMouseEnter={() => handleMouseEnter(row, stitch)}
-                      onMouseLeave={handleMouseLeave}
-                      style={{
-                        boxShadow: isWS && showWrongSide 
-                          ? 'inset 0 1px 3px rgba(0,0,0,0.1)' 
-                          : '0 1px 2px rgba(0,0,0,0.05)',
-                      }}
-                    >
-                      <KnittingSymbol 
-                        type={cell?.type || 'knit'} 
-                        isWrongSide={showWrongSide && isWS}
-                      />
-                    </motion.div>
-                  );
-                });
-              })}
-            </div>
-
-            <div className="flex justify-between mt-2 text-xs text-muted-foreground">
-              <span>1</span>
-              <span>{knittingWidth}</span>
+                {/* Grid */}
+                <div 
+                  className={`inline-grid ${showGridLines ? 'gap-[1px]' : 'gap-0'}`}
+                  style={{ 
+                    gridTemplateColumns: `repeat(${knittingWidth}, ${cellSize}px)`,
+                  }}
+                >
+                  {Array.from({ length: knittingHeight }).map((_, rowIdx) => {
+                    const row = knittingHeight - 1 - rowIdx;
+                    const isWS = row % 2 === 1;
+                    const isMajorRow = (row + 1) % 10 === 0;
+                    
+                    return Array.from({ length: knittingWidth }).map((_, stitchIdx) => {
+                      const stitch = showWrongSide && isWS 
+                        ? knittingWidth - 1 - stitchIdx 
+                        : stitchIdx;
+                      
+                      const cell = knittingChart.find(c => c.row === row && c.stitch === stitch);
+                      const isHovered = hoveredKnittingCell?.row === row && hoveredKnittingCell?.stitch === stitch;
+                      const isMajorCol = (stitchIdx + 1) % 10 === 0;
+                      
+                      return (
+                        <div
+                          key={`${row}-${stitch}`}
+                          className={`cursor-pointer transition-all select-none ${
+                            isHovered ? 'ring-2 ring-primary/50 z-10' : ''
+                          } ${
+                            showGridLines && isMajorRow && isMajorCol ? 'border-r-2 border-b-2 border-primary/30' :
+                            showGridLines && isMajorRow ? 'border-b-2 border-primary/30' :
+                            showGridLines && isMajorCol ? 'border-r-2 border-primary/30' : ''
+                          }`}
+                          style={{
+                            width: cellSize,
+                            height: cellSize,
+                            boxShadow: isWS && showWrongSide 
+                              ? 'inset 0 1px 3px rgba(0,0,0,0.1)' 
+                              : '0 1px 2px rgba(0,0,0,0.05)',
+                          }}
+                          onMouseDown={() => handleMouseDown(row, stitch)}
+                          onMouseEnter={() => handleMouseEnter(row, stitch)}
+                          onMouseLeave={handleMouseLeave}
+                        >
+                          <KnittingSymbol 
+                            type={cell?.type || 'knit'} 
+                            isWrongSide={showWrongSide && isWS}
+                          />
+                        </div>
+                      );
+                    });
+                  })}
+                </div>
+              </div>
             </div>
           </div>
         </motion.div>
@@ -447,11 +524,12 @@ export default function KnittingEngine() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-medium">3D Stitch Preview</h2>
+            <h2 className="text-lg font-medium">3D Yarn Simulation</h2>
+            <span className="text-xs text-muted-foreground ml-2">(TubeGeometry + Fuzzy Shader)</span>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <Label htmlFor="knit-hifi-toggle" className="text-sm">High Fidelity (AO)</Label>
+              <Label htmlFor="knit-hifi-toggle" className="text-sm">High Quality (AO)</Label>
               <Switch
                 id="knit-hifi-toggle"
                 checked={knittingHighFidelityMode}
@@ -464,10 +542,10 @@ export default function KnittingEngine() {
         <div className="h-[400px] rounded-2xl overflow-hidden bg-gradient-to-b from-muted/30 to-muted/10">
           <Suspense fallback={
             <div className="w-full h-full flex items-center justify-center">
-              <div className="animate-pulse text-muted-foreground">Loading 3D Preview...</div>
+              <div className="animate-pulse text-muted-foreground">Loading 3D Yarn Preview...</div>
             </div>
           }>
-            <Canvas camera={{ position: [0, 0, 6], fov: 50 }} shadows={knittingHighFidelityMode}>
+            <Canvas camera={{ position: [0, 0, 5], fov: 50 }} shadows={knittingHighFidelityMode}>
               <Knitting3DScene 
                 chart={knittingChart}
                 width={knittingWidth}
@@ -480,7 +558,7 @@ export default function KnittingEngine() {
         </div>
 
         <p className="text-xs text-muted-foreground mt-3 text-center">
-          Drag to rotate • Scroll to zoom • Hover on chart to highlight stitch
+          Drag to rotate • Scroll to zoom • Hover on chart to highlight stitch with emissive glow
         </p>
       </motion.div>
     </motion.div>
