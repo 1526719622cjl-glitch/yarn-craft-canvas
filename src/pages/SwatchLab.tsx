@@ -34,29 +34,33 @@ export default function SwatchLab() {
     calculateGauge,
   } = useYarnCluesStore();
 
-  // Safe defaults
-  const safeGaugeData = gaugeData ?? {
-    stitchDensity: 0,
-    rowDensity: 0,
-    gaugeRatio: 1,
-    shrinkageStitches: 0,
-    shrinkageRows: 0,
+  // Safe defaults + null/NaN normalization (prevents `.toFixed()` on null)
+  const num = (value: unknown, fallback: number) => {
+    return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
   };
 
-  const safeProjectPlan = projectPlan ?? {
-    targetWidth: 50,
-    targetHeight: 60,
-    startingStitches: 0,
-    startingRows: 0,
+  const safeGaugeData = {
+    stitchDensity: num(gaugeData?.stitchDensity, 0),
+    rowDensity: num(gaugeData?.rowDensity, 0),
+    gaugeRatio: num(gaugeData?.gaugeRatio, 1),
+    shrinkageStitches: num(gaugeData?.shrinkageStitches, 0),
+    shrinkageRows: num(gaugeData?.shrinkageRows, 0),
   };
 
-  const safeSwatchData = swatchData ?? {
-    swatchWidth: 10,
-    swatchHeight: 10,
-    stitchesPreWash: 20,
-    rowsPreWash: 28,
-    stitchesPostWash: 20,
-    rowsPostWash: 28,
+  const safeProjectPlan = {
+    targetWidth: num(projectPlan?.targetWidth, 50),
+    targetHeight: num(projectPlan?.targetHeight, 60),
+    startingStitches: num(projectPlan?.startingStitches, 0),
+    startingRows: num(projectPlan?.startingRows, 0),
+  };
+
+  const safeSwatchData = {
+    swatchWidth: num(swatchData?.swatchWidth, 10),
+    swatchHeight: num(swatchData?.swatchHeight, 10),
+    stitchesPreWash: num(swatchData?.stitchesPreWash, 20),
+    rowsPreWash: num(swatchData?.rowsPreWash, 28),
+    stitchesPostWash: num(swatchData?.stitchesPostWash, 20),
+    rowsPostWash: num(swatchData?.rowsPostWash, 28),
   };
 
   // Undo/Redo for swatch data
@@ -77,7 +81,7 @@ export default function SwatchLab() {
     if (JSON.stringify(undoableSwatchData) !== JSON.stringify(safeSwatchData)) {
       setSwatchData(undoableSwatchData);
     }
-  }, [undoableSwatchData]);
+  }, [undoableSwatchData, setSwatchData]);
 
   useEffect(() => {
     calculateGauge();
