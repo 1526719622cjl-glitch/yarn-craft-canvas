@@ -1,15 +1,21 @@
 import { motion } from 'framer-motion';
 import { useYarnCluesStore } from '@/store/useYarnCluesStore';
-import { Ruler, Calculator, TrendingUp, TrendingDown, Target, Undo, Redo } from 'lucide-react';
+import { Ruler, Calculator, TrendingUp, TrendingDown, Target, Undo, Redo, Save, FolderOpen } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { useEffect } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { YarnCalculator } from '@/components/swatch/YarnCalculator';
-import { YarnVault } from '@/components/swatch/YarnVault';
+import { useEffect, useState } from 'react';
+import { SmartYarnCalculator } from '@/components/swatch/SmartYarnCalculator';
+import { YarnLibrarySaveModal } from '@/components/swatch/YarnLibrarySaveModal';
 import { useUndoRedo, useUndoRedoKeyboard } from '@/hooks/useUndoRedo';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -29,10 +35,15 @@ export default function SwatchLab() {
     swatchData, 
     gaugeData, 
     projectPlan,
+    yarnLibrary,
     setSwatchData, 
     setProjectPlan,
     calculateGauge,
+    saveToYarnLibrary,
+    loadFromYarnLibrary,
   } = useYarnCluesStore();
+
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
 
   // Safe defaults + null/NaN normalization (prevents `.toFixed()` on null)
   const num = (value: unknown, fallback: number) => {
@@ -91,6 +102,14 @@ export default function SwatchLab() {
     setUndoableSwatch((prev) => ({ ...prev, ...updates }));
   };
 
+  const handleSaveToLibrary = (name: string) => {
+    saveToYarnLibrary(name);
+  };
+
+  const handleLoadFromLibrary = (id: string) => {
+    loadFromYarnLibrary(id);
+  };
+
   return (
     <motion.div
       variants={containerVariants}
@@ -145,228 +164,251 @@ export default function SwatchLab() {
         </div>
       </motion.div>
 
-      {/* Tabs for different sections */}
-      <Tabs defaultValue="gauge" className="space-y-6">
-        <TabsList className="glass-card p-1">
-          <TabsTrigger value="gauge" className="rounded-xl">Gauge Calculator</TabsTrigger>
-          <TabsTrigger value="yarn-calc" className="rounded-xl">Yarn Calculator</TabsTrigger>
-          <TabsTrigger value="vault" className="rounded-xl">Yarn Vault</TabsTrigger>
-        </TabsList>
+      <div className="space-y-6">
+        {/* Swatch Dimensions */}
+        <motion.div variants={itemVariants} className="glass-card p-6 space-y-4">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-xl bg-yarn-cream/50 flex items-center justify-center">
+              <span className="text-sm">📐</span>
+            </div>
+            <h2 className="text-lg font-medium">Swatch Dimensions</h2>
+            <span className="text-xs text-muted-foreground ml-2">(Flexible - any size)</span>
+          </div>
 
-        <TabsContent value="gauge" className="space-y-6">
-          {/* Swatch Dimensions */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="swatch-width" className="text-sm text-muted-foreground">Swatch Width (cm)</Label>
+              <Input
+                id="swatch-width"
+                type="number"
+                value={safeSwatchData.swatchWidth}
+                onChange={(e) => handleSwatchChange({ swatchWidth: Number(e.target.value) })}
+                className="input-glass h-12 text-lg font-medium"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="swatch-height" className="text-sm text-muted-foreground">Swatch Height (cm)</Label>
+              <Input
+                id="swatch-height"
+                type="number"
+                value={safeSwatchData.swatchHeight}
+                onChange={(e) => handleSwatchChange({ swatchHeight: Number(e.target.value) })}
+                className="input-glass h-12 text-lg font-medium"
+              />
+            </div>
+          </div>
+        </motion.div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Pre-Wash Swatch */}
           <motion.div variants={itemVariants} className="glass-card p-6 space-y-4">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-xl bg-yarn-cream/50 flex items-center justify-center">
-                <span className="text-sm">📐</span>
+              <div className="w-8 h-8 rounded-xl bg-yarn-honey/30 flex items-center justify-center">
+                <span className="text-sm">🧶</span>
               </div>
-              <h2 className="text-lg font-medium">Swatch Dimensions</h2>
-              <span className="text-xs text-muted-foreground ml-2">(Flexible - any size)</span>
+              <h2 className="text-lg font-medium">Pre-Wash Measurements</h2>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="swatch-width" className="text-sm text-muted-foreground">Swatch Width (cm)</Label>
+                <Label htmlFor="stitches-pre" className="text-sm text-muted-foreground">Stitch Count</Label>
                 <Input
-                  id="swatch-width"
+                  id="stitches-pre"
                   type="number"
-                  value={safeSwatchData.swatchWidth}
-                  onChange={(e) => handleSwatchChange({ swatchWidth: Number(e.target.value) })}
+                  value={safeSwatchData.stitchesPreWash}
+                  onChange={(e) => handleSwatchChange({ stitchesPreWash: Number(e.target.value) })}
                   className="input-glass h-12 text-lg font-medium"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="swatch-height" className="text-sm text-muted-foreground">Swatch Height (cm)</Label>
+                <Label htmlFor="rows-pre" className="text-sm text-muted-foreground">Row Count</Label>
                 <Input
-                  id="swatch-height"
+                  id="rows-pre"
                   type="number"
-                  value={safeSwatchData.swatchHeight}
-                  onChange={(e) => handleSwatchChange({ swatchHeight: Number(e.target.value) })}
+                  value={safeSwatchData.rowsPreWash}
+                  onChange={(e) => handleSwatchChange({ rowsPreWash: Number(e.target.value) })}
                   className="input-glass h-12 text-lg font-medium"
                 />
               </div>
             </div>
           </motion.div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Pre-Wash Swatch */}
-            <motion.div variants={itemVariants} className="glass-card p-6 space-y-4">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded-xl bg-yarn-honey/30 flex items-center justify-center">
-                  <span className="text-sm">🧶</span>
-                </div>
-                <h2 className="text-lg font-medium">Pre-Wash Measurements</h2>
+          {/* Post-Wash Swatch */}
+          <motion.div variants={itemVariants} className="glass-card p-6 space-y-4">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-xl bg-yarn-sky/30 flex items-center justify-center">
+                <span className="text-sm">💧</span>
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="stitches-pre" className="text-sm text-muted-foreground">Stitch Count</Label>
-                  <Input
-                    id="stitches-pre"
-                    type="number"
-                    value={safeSwatchData.stitchesPreWash}
-                    onChange={(e) => handleSwatchChange({ stitchesPreWash: Number(e.target.value) })}
-                    className="input-glass h-12 text-lg font-medium"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="rows-pre" className="text-sm text-muted-foreground">Row Count</Label>
-                  <Input
-                    id="rows-pre"
-                    type="number"
-                    value={safeSwatchData.rowsPreWash}
-                    onChange={(e) => handleSwatchChange({ rowsPreWash: Number(e.target.value) })}
-                    className="input-glass h-12 text-lg font-medium"
-                  />
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Post-Wash Swatch */}
-            <motion.div variants={itemVariants} className="glass-card p-6 space-y-4">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded-xl bg-yarn-sky/30 flex items-center justify-center">
-                  <span className="text-sm">💧</span>
-                </div>
-                <h2 className="text-lg font-medium">Post-Wash Measurements</h2>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="stitches-post" className="text-sm text-muted-foreground">Stitch Count</Label>
-                  <Input
-                    id="stitches-post"
-                    type="number"
-                    value={safeSwatchData.stitchesPostWash}
-                    onChange={(e) => handleSwatchChange({ stitchesPostWash: Number(e.target.value) })}
-                    className="input-glass h-12 text-lg font-medium"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="rows-post" className="text-sm text-muted-foreground">Row Count</Label>
-                  <Input
-                    id="rows-post"
-                    type="number"
-                    value={safeSwatchData.rowsPostWash}
-                    onChange={(e) => handleSwatchChange({ rowsPostWash: Number(e.target.value) })}
-                    className="input-glass h-12 text-lg font-medium"
-                  />
-                </div>
-              </div>
-            </motion.div>
-          </div>
-
-          {/* Gauge Results */}
-          <motion.div variants={itemVariants} className="glass-card p-6">
-            <div className="flex items-center gap-2 mb-6">
-              <div className="w-8 h-8 rounded-xl bg-yarn-rose/30 flex items-center justify-center">
-                <Calculator className="w-4 h-4 text-primary" />
-              </div>
-              <h2 className="text-lg font-medium">Calculated Gauge</h2>
+              <h2 className="text-lg font-medium">Post-Wash Measurements</h2>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="frosted-panel text-center">
-                <p className="text-3xl font-display font-semibold text-primary">
-                  {safeGaugeData.stitchDensity.toFixed(1)}
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">stitches/cm</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="stitches-post" className="text-sm text-muted-foreground">Stitch Count</Label>
+                <Input
+                  id="stitches-post"
+                  type="number"
+                  value={safeSwatchData.stitchesPostWash}
+                  onChange={(e) => handleSwatchChange({ stitchesPostWash: Number(e.target.value) })}
+                  className="input-glass h-12 text-lg font-medium"
+                />
               </div>
-              <div className="frosted-panel text-center">
-                <p className="text-3xl font-display font-semibold text-primary">
-                  {safeGaugeData.rowDensity.toFixed(1)}
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">rows/cm</p>
-              </div>
-              <div className="frosted-panel text-center">
-                <p className="text-3xl font-display font-semibold text-primary">
-                  {safeGaugeData.gaugeRatio.toFixed(2)}
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">gauge ratio</p>
-              </div>
-              <div className="frosted-panel text-center">
-                <div className="flex items-center justify-center gap-1">
-                  {safeGaugeData.shrinkageStitches >= 0 ? (
-                    <TrendingUp className="w-4 h-4 text-secondary-foreground" />
-                  ) : (
-                    <TrendingDown className="w-4 h-4 text-destructive" />
-                  )}
-                  <p className="text-3xl font-display font-semibold text-primary">
-                    {Math.abs(safeGaugeData.shrinkageStitches).toFixed(1)}%
-                  </p>
-                </div>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {safeGaugeData.shrinkageStitches >= 0 ? 'growth' : 'shrinkage'}
-                </p>
+              <div className="space-y-2">
+                <Label htmlFor="rows-post" className="text-sm text-muted-foreground">Row Count</Label>
+                <Input
+                  id="rows-post"
+                  type="number"
+                  value={safeSwatchData.rowsPostWash}
+                  onChange={(e) => handleSwatchChange({ rowsPostWash: Number(e.target.value) })}
+                  className="input-glass h-12 text-lg font-medium"
+                />
               </div>
             </div>
           </motion.div>
+        </div>
 
-          {/* Project Planner */}
-          <motion.div variants={itemVariants} className="glass-card p-6">
-            <div className="flex items-center gap-2 mb-6">
+        {/* Gauge Results */}
+        <motion.div variants={itemVariants} className="glass-card p-6">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="w-8 h-8 rounded-xl bg-yarn-rose/30 flex items-center justify-center">
+              <Calculator className="w-4 h-4 text-primary" />
+            </div>
+            <h2 className="text-lg font-medium">Calculated Gauge</h2>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="frosted-panel text-center">
+              <p className="text-3xl font-display font-semibold text-primary">
+                {safeGaugeData.stitchDensity.toFixed(1)}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">stitches/cm</p>
+            </div>
+            <div className="frosted-panel text-center">
+              <p className="text-3xl font-display font-semibold text-primary">
+                {safeGaugeData.rowDensity.toFixed(1)}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">rows/cm</p>
+            </div>
+            <div className="frosted-panel text-center">
+              <p className="text-3xl font-display font-semibold text-primary">
+                {safeGaugeData.gaugeRatio.toFixed(2)}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">gauge ratio</p>
+            </div>
+            <div className="frosted-panel text-center">
+              <div className="flex items-center justify-center gap-1">
+                {safeGaugeData.shrinkageStitches >= 0 ? (
+                  <TrendingUp className="w-4 h-4 text-secondary-foreground" />
+                ) : (
+                  <TrendingDown className="w-4 h-4 text-destructive" />
+                )}
+                <p className="text-3xl font-display font-semibold text-primary">
+                  {Math.abs(safeGaugeData.shrinkageStitches).toFixed(1)}%
+                </p>
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                {safeGaugeData.shrinkageStitches >= 0 ? 'growth' : 'shrinkage'}
+              </p>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Project Planner */}
+        <motion.div variants={itemVariants} className="glass-card p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-xl bg-yarn-lavender/30 flex items-center justify-center">
                 <Target className="w-4 h-4 text-primary" />
               </div>
               <h2 className="text-lg font-medium">Project Planner</h2>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium text-muted-foreground">Target Dimensions</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="target-width" className="text-sm text-muted-foreground">Width (cm)</Label>
-                    <Input
-                      id="target-width"
-                      type="number"
-                      value={safeProjectPlan.targetWidth}
-                      onChange={(e) => setProjectPlan({ targetWidth: Number(e.target.value) })}
-                      className="input-glass h-12 text-lg font-medium"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="target-height" className="text-sm text-muted-foreground">Height (cm)</Label>
-                    <Input
-                      id="target-height"
-                      type="number"
-                      value={safeProjectPlan.targetHeight}
-                      onChange={(e) => setProjectPlan({ targetHeight: Number(e.target.value) })}
-                      className="input-glass h-12 text-lg font-medium"
-                    />
-                  </div>
-                </div>
-              </div>
+            {/* Load from Library */}
+            {yarnLibrary.length > 0 && (
+              <Select onValueChange={handleLoadFromLibrary}>
+                <SelectTrigger className="w-[200px] rounded-xl">
+                  <FolderOpen className="w-4 h-4 mr-2" />
+                  <SelectValue placeholder="Load from Library" />
+                </SelectTrigger>
+                <SelectContent>
+                  {yarnLibrary.map((yarn) => (
+                    <SelectItem key={yarn.id} value={yarn.id}>
+                      {yarn.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
 
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium text-muted-foreground">Starting Count</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="frosted-panel text-center">
-                    <p className="text-3xl font-display font-semibold text-primary">
-                      {safeProjectPlan.startingStitches}
-                    </p>
-                    <p className="text-sm text-muted-foreground mt-1">cast on stitches</p>
-                  </div>
-                  <div className="frosted-panel text-center">
-                    <p className="text-3xl font-display font-semibold text-primary">
-                      {safeProjectPlan.startingRows}
-                    </p>
-                    <p className="text-sm text-muted-foreground mt-1">total rows</p>
-                  </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium text-muted-foreground">Target Dimensions</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="target-width" className="text-sm text-muted-foreground">Width (cm)</Label>
+                  <Input
+                    id="target-width"
+                    type="number"
+                    value={safeProjectPlan.targetWidth}
+                    onChange={(e) => setProjectPlan({ targetWidth: Number(e.target.value) })}
+                    className="input-glass h-12 text-lg font-medium"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="target-height" className="text-sm text-muted-foreground">Height (cm)</Label>
+                  <Input
+                    id="target-height"
+                    type="number"
+                    value={safeProjectPlan.targetHeight}
+                    onChange={(e) => setProjectPlan({ targetHeight: Number(e.target.value) })}
+                    className="input-glass h-12 text-lg font-medium"
+                  />
                 </div>
               </div>
             </div>
-          </motion.div>
-        </TabsContent>
 
-        <TabsContent value="yarn-calc">
-          <YarnCalculator />
-        </TabsContent>
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium text-muted-foreground">Starting Count</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="frosted-panel text-center">
+                  <p className="text-3xl font-display font-semibold text-primary">
+                    {safeProjectPlan.startingStitches}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">cast on stitches</p>
+                </div>
+                <div className="frosted-panel text-center">
+                  <p className="text-3xl font-display font-semibold text-primary">
+                    {safeProjectPlan.startingRows}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">total rows</p>
+                </div>
+              </div>
+            </div>
+          </div>
 
-        <TabsContent value="vault">
-          <YarnVault />
-        </TabsContent>
-      </Tabs>
+          {/* Save to Library Button */}
+          <div className="flex justify-end mt-6 pt-4 border-t border-border/30">
+            <Button 
+              onClick={() => setSaveModalOpen(true)}
+              className="rounded-xl soft-press"
+            >
+              <Save className="w-4 h-4 mr-2" />
+              Save to My Yarn
+            </Button>
+          </div>
+        </motion.div>
+
+        {/* Smart Yarn Calculator */}
+        <SmartYarnCalculator />
+      </div>
+
+      {/* Save Modal */}
+      <YarnLibrarySaveModal
+        open={saveModalOpen}
+        onOpenChange={setSaveModalOpen}
+        onSave={handleSaveToLibrary}
+      />
     </motion.div>
   );
 }

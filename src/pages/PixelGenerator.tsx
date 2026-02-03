@@ -2,14 +2,19 @@ import { motion } from 'framer-motion';
 import { useYarnCluesStore, PixelTool, PixelCell } from '@/store/useYarnCluesStore';
 import { 
   Grid3X3, Upload, Palette, ZoomIn, Pencil, Eraser, PaintBucket, Pipette, 
-  Settings, Square, RotateCw, Copy, Move, Grid, Eye, EyeOff
+  Settings, Square, RotateCw, Copy, Move, Grid, Eye, EyeOff, Layers, Replace,
+  FlipHorizontal, Sliders
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { SymmetryTools, SymmetryMode, getSymmetricPoints } from '@/components/pixel/SymmetryTools';
+import { ColorLegend } from '@/components/pixel/ColorLegend';
+import { StitchTypeSelector, StitchType, getStitchRatio } from '@/components/pixel/StitchTypeSelector';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -148,7 +153,7 @@ function rgbToString(rgb: [number, number, number]): string {
   return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
 }
 
-type ExtendedTool = PixelTool | 'select';
+type ExtendedTool = PixelTool | 'select' | 'replace';
 
 const tools: { type: ExtendedTool; icon: typeof Pencil; label: string }[] = [
   { type: 'pencil', icon: Pencil, label: 'Pencil' },
@@ -156,6 +161,7 @@ const tools: { type: ExtendedTool; icon: typeof Pencil; label: string }[] = [
   { type: 'bucket', icon: PaintBucket, label: 'Fill' },
   { type: 'eyedropper', icon: Pipette, label: 'Picker' },
   { type: 'select', icon: Square, label: 'Select' },
+  { type: 'replace', icon: Replace, label: 'Replace' },
 ];
 
 // Ruler component with numbers
@@ -163,12 +169,10 @@ function Ruler({
   type, 
   size, 
   cellSize, 
-  offset = 0 
 }: { 
   type: 'horizontal' | 'vertical'; 
   size: number; 
   cellSize: number; 
-  offset?: number;
 }) {
   const rulerSize = 24;
   const markers = useMemo(() => {
@@ -261,15 +265,17 @@ export default function PixelGenerator() {
     bucketFill
   } = useYarnCluesStore();
   
-  const [colorCount, setColorCount] = useState(6);
+  const [colorCount, setColorCount] = useState(8);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
-  const [showLoupe, setShowLoupe] = useState(false);
-  const [loupePosition, setLoupePosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [useDithering, setUseDithering] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [showGridLines, setShowGridLines] = useState(true);
   const [currentTool, setCurrentTool] = useState<ExtendedTool>('pencil');
+  const [symmetryMode, setSymmetryMode] = useState<SymmetryMode>('none');
+  const [stitchType, setStitchType] = useState<StitchType>('sc');
+  const [traceOpacity, setTraceOpacity] = useState(0);
+  const [ignoredColor, setIgnoredColor] = useState<string | null>(null);
   
   // Selection state
   const [selection, setSelection] = useState<SelectionState>({
@@ -285,10 +291,17 @@ export default function PixelGenerator() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Safe gauge ratio
-  const safeGaugeRatio = typeof gaugeData?.gaugeRatio === 'number' && Number.isFinite(gaugeData.gaugeRatio) 
+  // Safe gauge ratio combined with stitch type ratio
+  const baseGaugeRatio = typeof gaugeData?.gaugeRatio === 'number' && Number.isFinite(gaugeData.gaugeRatio) 
     ? gaugeData.gaugeRatio 
     : 1;
+  const stitchRatio = getStitchRatio(stitchType);
+  const combinedRatio = baseGaugeRatio * stitchRatio;
+
+  // Calculate target height based on width and stitch ratio
+  const calculatedHeight = useMemo(() => {
+    return Math.round(customGridWidth / combinedRatio);
+  }, [customGridWidth, combinedRatio]);
 
   const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -311,7 +324,7 @@ export default function PixelGenerator() {
     const img = new Image();
     img.onload = () => {
       const targetWidth = customGridWidth;
-      const targetHeight = customGridHeight;
+      const targetHeight = calculatedHeight;
       
       setGridDimensions(targetWidth, targetHeight);
 
@@ -342,18 +355,29 @@ export default function PixelGenerator() {
         }
       }
       setPixelGrid(newGrid);
+      
+      // Auto-detect background (most frequent color)
+      const colorCounts: Record<string, number> = {};
+      for (const cell of newGrid) {
+        colorCounts[cell.color] = (colorCounts[cell.color] || 0) + 1;
+      }
+      const sortedColors = Object.entries(colorCounts).sort((a, b) => b[1] - a[1]);
+      if (sortedColors.length > 0) {
+        // Don't auto-ignore, but prepare it
+        setIgnoredColor(null);
+      }
     };
     img.src = uploadedImage;
-  }, [uploadedImage, colorCount, customGridWidth, customGridHeight, useDithering, setGridDimensions, setColorPalette, setPixelGrid]);
+  }, [uploadedImage, colorCount, customGridWidth, calculatedHeight, useDithering, setGridDimensions, setColorPalette, setPixelGrid]);
 
   useEffect(() => {
     if (uploadedImage) {
       processImage();
     }
-  }, [uploadedImage, colorCount, customGridWidth, customGridHeight, useDithering, processImage]);
+  }, [uploadedImage, colorCount, customGridWidth, useDithering, processImage]);
 
   const cellWidth = 14;
-  const cellHeight = cellWidth * safeGaugeRatio;
+  const cellHeight = cellWidth * combinedRatio;
 
   // Selection helpers
   const getSelectionBounds = () => {
@@ -370,13 +394,37 @@ export default function PixelGenerator() {
     return x >= minX && x <= maxX && y >= minY && y <= maxY;
   };
 
+  // Paint with symmetry support
+  const paintWithSymmetry = (x: number, y: number, color: string) => {
+    const points = getSymmetricPoints(x, y, gridWidth, gridHeight, symmetryMode);
+    for (const point of points) {
+      paintPixel(point.x, point.y, color);
+    }
+  };
+
+  // Replace all color
+  const replaceAllColor = (oldColor: string, newColor: string) => {
+    const newGrid = pixelGrid.map(cell => 
+      cell.color === oldColor ? { ...cell, color: newColor } : cell
+    );
+    setPixelGrid(newGrid);
+  };
+
   const handleCellClick = (x: number, y: number) => {
     if (currentTool === 'select') return;
+    
+    if (currentTool === 'replace') {
+      const cell = pixelGrid.find(p => p.x === x && p.y === y);
+      if (cell && cell.color !== selectedColor) {
+        replaceAllColor(cell.color, selectedColor);
+      }
+      return;
+    }
     
     const tool = currentTool as PixelTool;
     switch (tool) {
       case 'pencil':
-        paintPixel(x, y, selectedColor);
+        paintWithSymmetry(x, y, selectedColor);
         break;
       case 'eraser':
         erasePixel(x, y);
@@ -434,7 +482,7 @@ export default function PixelGenerator() {
       cell.x >= minX && cell.x <= maxX && cell.y >= minY && cell.y <= maxY
     ).map(cell => ({
       ...cell,
-      x: cell.x - minX, // Normalize to 0,0
+      x: cell.x - minX,
       y: cell.y - minY,
     }));
     setSelection(prev => ({ ...prev, copiedCells: copied }));
@@ -475,7 +523,6 @@ export default function PixelGenerator() {
       const newLocalX = height - 1 - localY;
       const newLocalY = localX;
       
-      // Map back if within bounds
       const targetX = minX + newLocalX;
       const targetY = minY + newLocalY;
       
@@ -502,25 +549,18 @@ export default function PixelGenerator() {
     });
   };
 
-  const handleGridTouch = (e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    setLoupePosition({ x: touch.clientX, y: touch.clientY });
-    setShowLoupe(true);
-  };
-
   const createEmptyGrid = () => {
     const newGrid: PixelCell[] = [];
     const defaultColor = colorPalette[0] || '#FDFBF7';
-    for (let y = 0; y < customGridHeight; y++) {
+    for (let y = 0; y < calculatedHeight; y++) {
       for (let x = 0; x < customGridWidth; x++) {
         newGrid.push({ x, y, color: defaultColor });
       }
     }
-    setGridDimensions(customGridWidth, customGridHeight);
+    setGridDimensions(customGridWidth, calculatedHeight);
     setPixelGrid(newGrid);
   };
 
-  // Handle tool change - sync with store for non-select tools
   const handleToolChange = (tool: ExtendedTool) => {
     setCurrentTool(tool);
     if (tool !== 'select') {
@@ -528,6 +568,29 @@ export default function PixelGenerator() {
     }
     if (tool !== 'select') {
       clearSelection();
+    }
+  };
+
+  const handlePaletteColorClick = (color: string) => {
+    setSelectedColor(color);
+    if (currentTool !== 'pencil' && currentTool !== 'bucket' && currentTool !== 'replace') {
+      setCurrentTool('pencil');
+    }
+  };
+
+  const toggleIgnoreBackground = () => {
+    if (ignoredColor) {
+      setIgnoredColor(null);
+    } else if (colorPalette.length > 0) {
+      // Find most frequent color
+      const colorCounts: Record<string, number> = {};
+      for (const cell of pixelGrid) {
+        colorCounts[cell.color] = (colorCounts[cell.color] || 0) + 1;
+      }
+      const sorted = Object.entries(colorCounts).sort((a, b) => b[1] - a[1]);
+      if (sorted.length > 0) {
+        setIgnoredColor(sorted[0][0]);
+      }
     }
   };
 
@@ -582,14 +645,14 @@ export default function PixelGenerator() {
           </div>
           <div>
             <h1 className="text-3xl font-display font-semibold text-foreground">Pixel Generator</h1>
-            <p className="text-muted-foreground">Convert images to gauge-aware yarn grids with Floyd-Steinberg dithering</p>
+            <p className="text-muted-foreground">Gauge-aware conversion with K-Means quantization & symmetry tools</p>
           </div>
         </div>
       </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Upload & Settings */}
-        <motion.div variants={itemVariants} className="glass-card p-6 space-y-6">
+        <motion.div variants={itemVariants} className="glass-card p-6 space-y-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Upload className="w-5 h-5 text-primary" />
@@ -615,14 +678,20 @@ export default function PixelGenerator() {
 
           <Button
             onClick={() => fileInputRef.current?.click()}
-            className="w-full h-24 rounded-2xl border-2 border-dashed border-border hover:border-primary/50 bg-muted/20 hover:bg-muted/40 transition-all soft-press"
+            className="w-full h-20 rounded-2xl border-2 border-dashed border-border hover:border-primary/50 bg-muted/20 hover:bg-muted/40 transition-all soft-press"
             variant="ghost"
           >
             <div className="text-center">
-              <Upload className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
+              <Upload className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">Upload image</p>
             </div>
           </Button>
+
+          {/* Stitch Type Selector */}
+          <div className="space-y-2">
+            <Label className="text-sm text-muted-foreground">Stitch Type</Label>
+            <StitchTypeSelector value={stitchType} onChange={setStitchType} />
+          </div>
 
           {showSettings && (
             <motion.div
@@ -630,35 +699,19 @@ export default function PixelGenerator() {
               animate={{ opacity: 1, height: 'auto' }}
               className="space-y-4 border-t border-border/30 pt-4"
             >
-              <h3 className="text-sm font-medium">Canvas Dimensions</h3>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">Width (sts)</Label>
-                  <Input
-                    type="number"
-                    value={customGridWidth}
-                    onChange={(e) => setCustomGridDimensions(Number(e.target.value), customGridHeight)}
-                    className="h-9"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Height (rows)</Label>
-                  <Input
-                    type="number"
-                    value={customGridHeight}
-                    onChange={(e) => setCustomGridDimensions(customGridWidth, Number(e.target.value))}
-                    className="h-9"
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label className="text-xs">Target Width (stitches)</Label>
+                <Input
+                  type="number"
+                  value={customGridWidth}
+                  onChange={(e) => setCustomGridDimensions(Number(e.target.value), customGridHeight)}
+                  className="h-9"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Height auto-calculated: {calculatedHeight} rows
+                </p>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={createEmptyGrid}
-                className="w-full rounded-xl"
-              >
-                Create Empty Canvas
-              </Button>
+              
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -669,36 +722,60 @@ export default function PixelGenerator() {
                 />
                 <Label htmlFor="dithering" className="text-sm">Floyd-Steinberg Dithering</Label>
               </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={createEmptyGrid}
+                className="w-full rounded-xl"
+              >
+                Create Empty Canvas
+              </Button>
             </motion.div>
           )}
 
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Palette className="w-5 h-5 text-primary" />
-              <h3 className="font-medium">Colors: {colorCount}</h3>
+          {/* Color Count Slider */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-primary" />
+                <h3 className="font-medium text-sm">Max Colors</h3>
+              </div>
+              <span className="text-sm font-semibold text-primary">{colorCount}</span>
             </div>
             <Slider
               value={[colorCount]}
               onValueChange={([val]) => setColorCount(val)}
               min={2}
-              max={16}
+              max={32}
               step={1}
               className="w-full"
             />
           </div>
 
+          {/* Dynamic Palette */}
           {colorPalette.length > 0 && (
             <div className="space-y-2">
-              <h3 className="text-sm font-medium text-muted-foreground">Palette</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium text-muted-foreground">Project Palette</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleIgnoreBackground}
+                  className="text-xs h-6 px-2"
+                >
+                  {ignoredColor ? 'Show BG' : 'Hide BG'}
+                </Button>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {colorPalette.map((color, i) => (
                   <button
                     key={i}
-                    className={`w-8 h-8 rounded-lg shadow-sm transition-all ${
+                    className={`w-8 h-8 rounded-lg shadow-sm transition-all hover:scale-110 ${
                       selectedColor === color ? 'ring-2 ring-primary ring-offset-2' : ''
-                    }`}
+                    } ${ignoredColor === color ? 'opacity-40' : ''}`}
                     style={{ backgroundColor: color }}
-                    onClick={() => setSelectedColor(color)}
+                    onClick={() => handlePaletteColorClick(color)}
                     title={color}
                   />
                 ))}
@@ -706,10 +783,10 @@ export default function PixelGenerator() {
             </div>
           )}
 
-          {/* Editing Tools */}
+          {/* Tools */}
           <div className="space-y-2 border-t border-border/30 pt-4">
-            <h3 className="text-sm font-medium text-muted-foreground">Tools</h3>
-            <div className="grid grid-cols-5 gap-1">
+            <h3 className="text-sm font-medium text-muted-foreground">Drawing Tools</h3>
+            <div className="grid grid-cols-3 gap-1">
               {tools.map((tool) => (
                 <Tooltip key={tool.type}>
                   <TooltipTrigger asChild>
@@ -729,6 +806,33 @@ export default function PixelGenerator() {
             </div>
           </div>
 
+          {/* Symmetry Tools */}
+          <div className="space-y-2 border-t border-border/30 pt-4">
+            <div className="flex items-center gap-2">
+              <FlipHorizontal className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-medium text-muted-foreground">Symmetry</span>
+            </div>
+            <SymmetryTools mode={symmetryMode} onChange={setSymmetryMode} />
+          </div>
+
+          {/* Trace Mode */}
+          {uploadedImage && (
+            <div className="space-y-2 border-t border-border/30 pt-4">
+              <div className="flex items-center gap-2">
+                <Layers className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-muted-foreground">Trace Opacity</span>
+              </div>
+              <Slider
+                value={[traceOpacity]}
+                onValueChange={([val]) => setTraceOpacity(val)}
+                min={0}
+                max={100}
+                step={5}
+                className="w-full"
+              />
+            </div>
+          )}
+
           {/* Selection Actions */}
           {selection.hasSelection && (
             <motion.div
@@ -736,7 +840,7 @@ export default function PixelGenerator() {
               animate={{ opacity: 1, height: 'auto' }}
               className="space-y-2 border-t border-border/30 pt-4"
             >
-              <h3 className="text-sm font-medium text-muted-foreground">Selection Actions</h3>
+              <h3 className="text-sm font-medium text-muted-foreground">Selection</h3>
               <div className="grid grid-cols-3 gap-2">
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -758,7 +862,7 @@ export default function PixelGenerator() {
                       <Move className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Paste (+1,+1)</TooltipContent>
+                  <TooltipContent>Paste</TooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -794,19 +898,19 @@ export default function PixelGenerator() {
           <div className="frosted-panel">
             <div className="flex items-center gap-2 mb-2">
               <ZoomIn className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Gauge Ratio</span>
+              <span className="text-sm font-medium">Combined Ratio</span>
             </div>
             <p className="text-2xl font-display font-semibold text-primary">
-              {safeGaugeRatio.toFixed(2)}
+              {combinedRatio.toFixed(2)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Applied to grid cell dimensions
+              Gauge × Stitch Type
             </p>
           </div>
         </motion.div>
 
-        {/* Pixel Grid */}
-        <motion.div variants={itemVariants} className="lg:col-span-3 glass-card p-6">
+        {/* Main Grid Area */}
+        <motion.div variants={itemVariants} className="lg:col-span-2 glass-card p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-medium">Yarn Grid Preview</h2>
             <span className="text-sm text-muted-foreground">
@@ -818,20 +922,27 @@ export default function PixelGenerator() {
 
           {pixelGrid.length > 0 ? (
             <div 
-              className="overflow-auto max-h-[600px] rounded-2xl bg-muted/20"
-              onTouchStart={handleGridTouch}
-              onTouchMove={handleGridTouch}
-              onTouchEnd={() => setShowLoupe(false)}
+              className="relative overflow-auto max-h-[600px] rounded-2xl bg-muted/20"
             >
+              {/* Trace image overlay */}
+              {uploadedImage && traceOpacity > 0 && (
+                <div 
+                  className="absolute inset-0 pointer-events-none z-10"
+                  style={{ 
+                    backgroundImage: `url(${uploadedImage})`,
+                    backgroundSize: '100% 100%',
+                    opacity: traceOpacity / 100,
+                    mixBlendMode: 'multiply',
+                  }}
+                />
+              )}
+              
               <div className="inline-flex">
-                {/* Vertical Ruler */}
                 <Ruler type="vertical" size={gridHeight} cellSize={cellHeight} />
                 
                 <div className="flex flex-col">
-                  {/* Horizontal Ruler */}
                   <Ruler type="horizontal" size={gridWidth} cellSize={cellWidth} />
                   
-                  {/* Grid */}
                   <div 
                     className={`inline-grid ${showGridLines ? 'gap-[1px]' : 'gap-0'}`}
                     style={{ 
@@ -848,28 +959,21 @@ export default function PixelGenerator() {
               <div className="text-center">
                 <p className="text-muted-foreground mb-2">Upload an image or create an empty canvas</p>
                 <Button variant="outline" onClick={createEmptyGrid} className="rounded-xl">
-                  Create {customGridWidth}×{customGridHeight} Canvas
+                  Create {customGridWidth}×{calculatedHeight} Canvas
                 </Button>
               </div>
             </div>
           )}
+        </motion.div>
 
-          {/* Mobile Loupe */}
-          {showLoupe && (
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              className="fixed w-32 h-32 rounded-full glass-card border-4 border-primary/30 overflow-hidden pointer-events-none z-50"
-              style={{
-                left: loupePosition.x - 64,
-                top: loupePosition.y - 150,
-              }}
-            >
-              <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                <ZoomIn className="w-8 h-8" />
-              </div>
-            </motion.div>
-          )}
+        {/* Color Legend */}
+        <motion.div variants={itemVariants} className="glass-card p-6">
+          <ColorLegend 
+            pixelGrid={pixelGrid} 
+            ignoredColor={ignoredColor}
+            onColorClick={handlePaletteColorClick}
+            selectedColor={selectedColor}
+          />
         </motion.div>
       </div>
     </motion.div>
