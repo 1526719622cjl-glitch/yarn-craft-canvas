@@ -3,7 +3,7 @@ import { useYarnCluesStore, PixelTool, PixelCell } from '@/store/useYarnCluesSto
 import { 
   Grid3X3, Upload, Palette, ZoomIn, Pencil, Eraser, PaintBucket, Pipette, 
   Settings, Square, RotateCw, Copy, Move, Grid, Eye, EyeOff, Layers, Replace,
-  FlipHorizontal, Sliders
+  FlipHorizontal, Sliders, FileDown, Table
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +15,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { SymmetryTools, SymmetryMode, getSymmetricPoints } from '@/components/pixel/SymmetryTools';
 import { ColorLegend } from '@/components/pixel/ColorLegend';
 import { StitchTypeSelector, StitchType, getStitchRatio } from '@/components/pixel/StitchTypeSelector';
+import { InfiniteCanvas } from '@/components/pixel/InfiniteCanvas';
+import { YarnStashPalette, StashColor, findNearestColor } from '@/components/pixel/YarnStashPalette';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -276,6 +278,9 @@ export default function PixelGenerator() {
   const [stitchType, setStitchType] = useState<StitchType>('sc');
   const [traceOpacity, setTraceOpacity] = useState(0);
   const [ignoredColor, setIgnoredColor] = useState<string | null>(null);
+  const [stashColors, setStashColors] = useState<StashColor[]>([]);
+  const [limitToPalette, setLimitToPalette] = useState(false);
+  const [showSymbols, setShowSymbols] = useState(false);
   
   // Selection state
   const [selection, setSelection] = useState<SelectionState>({
@@ -335,7 +340,21 @@ export default function PixelGenerator() {
       let imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
       
       // Get palette via K-means
-      const paletteRgb = kMeansQuantize(imageData, colorCount);
+      let paletteRgb = kMeansQuantize(imageData, colorCount);
+      
+      // If limit to stash palette is enabled, map to stash colors
+      if (limitToPalette && stashColors.length > 0) {
+        // Replace each k-means color with nearest stash color
+        const stashRgb = stashColors.map(c => {
+          const match = c.hex.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
+          if (match) {
+            return [parseInt(match[1], 16), parseInt(match[2], 16), parseInt(match[3], 16)] as [number, number, number];
+          }
+          return [128, 128, 128] as [number, number, number];
+        });
+        paletteRgb = stashRgb;
+      }
+      
       setColorPalette(paletteRgb.map(rgbToString));
       
       // Apply Floyd-Steinberg dithering if enabled
@@ -363,12 +382,11 @@ export default function PixelGenerator() {
       }
       const sortedColors = Object.entries(colorCounts).sort((a, b) => b[1] - a[1]);
       if (sortedColors.length > 0) {
-        // Don't auto-ignore, but prepare it
         setIgnoredColor(null);
       }
     };
     img.src = uploadedImage;
-  }, [uploadedImage, colorCount, customGridWidth, calculatedHeight, useDithering, setGridDimensions, setColorPalette, setPixelGrid]);
+  }, [uploadedImage, colorCount, customGridWidth, calculatedHeight, useDithering, limitToPalette, stashColors, setGridDimensions, setColorPalette, setPixelGrid]);
 
   useEffect(() => {
     if (uploadedImage) {
