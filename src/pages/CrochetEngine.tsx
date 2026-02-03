@@ -1,17 +1,20 @@
 import { motion } from 'framer-motion';
 import { useYarnCluesStore, CrochetStitch } from '@/store/useYarnCluesStore';
-import { Eye, LayoutGrid, Play, ZoomIn, Sparkles, AlertCircle, CheckCircle } from 'lucide-react';
+import { Eye, LayoutGrid, ZoomIn, Sparkles, AlertCircle, CheckCircle, Loader2, Brain, Split } from 'lucide-react';
 import { CrochetHookIcon } from '@/components/icons';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { useEffect, useMemo, Suspense } from 'react';
+import { useEffect, useMemo, Suspense, useState, useCallback } from 'react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment } from '@react-three/drei';
 import { parseCrochetPattern, toStoreFormat, ParseResult } from '@/lib/crochetParser';
 import { CrochetYarnStitch } from '@/components/3d/YarnSimulation';
+import { StitchSymbol, getStitchDisplayName } from '@/components/crochet/CrochetSymbols';
+import { useAIPatternParser } from '@/hooks/useAIPatternParser';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -25,116 +28,6 @@ const itemVariants = {
   hidden: { opacity: 0, y: 20 },
   show: { opacity: 1, y: 0 }
 };
-
-// JIS Crochet symbol rendering - Complete set
-function CrochetSymbol({ type, size = 24, rotation = 0 }: { type: CrochetStitch; size?: number; rotation?: number }) {
-  const symbols: Record<CrochetStitch, React.ReactNode> = {
-    chain: (
-      <svg width={size} height={size} viewBox="0 0 24 24" style={{ transform: `rotate(${rotation}rad)` }}>
-        <ellipse cx="12" cy="12" rx="8" ry="4" fill="none" stroke="currentColor" strokeWidth="2" />
-      </svg>
-    ),
-    slip: (
-      <svg width={size} height={size} viewBox="0 0 24 24" style={{ transform: `rotate(${rotation}rad)` }}>
-        <circle cx="12" cy="12" r="3" fill="currentColor" />
-      </svg>
-    ),
-    sc: (
-      <svg width={size} height={size} viewBox="0 0 24 24" style={{ transform: `rotate(${rotation}rad)` }}>
-        <line x1="6" y1="18" x2="18" y2="6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-        <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-      </svg>
-    ),
-    hdc: (
-      <svg width={size} height={size} viewBox="0 0 24 24" style={{ transform: `rotate(${rotation}rad)` }}>
-        <line x1="12" y1="4" x2="12" y2="20" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-        <line x1="8" y1="8" x2="16" y2="8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      </svg>
-    ),
-    dc: (
-      <svg width={size} height={size} viewBox="0 0 24 24" style={{ transform: `rotate(${rotation}rad)` }}>
-        <line x1="12" y1="2" x2="12" y2="22" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-        <line x1="8" y1="7" x2="16" y2="7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        <line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      </svg>
-    ),
-    tr: (
-      <svg width={size} height={size} viewBox="0 0 24 24" style={{ transform: `rotate(${rotation}rad)` }}>
-        <line x1="12" y1="2" x2="12" y2="22" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-        <line x1="8" y1="6" x2="16" y2="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        <line x1="8" y1="11" x2="16" y2="11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        <line x1="8" y1="16" x2="16" y2="16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      </svg>
-    ),
-    dtr: (
-      <svg width={size} height={size} viewBox="0 0 24 24" style={{ transform: `rotate(${rotation}rad)` }}>
-        <line x1="12" y1="1" x2="12" y2="23" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-        <line x1="8" y1="5" x2="16" y2="5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        <line x1="8" y1="9" x2="16" y2="9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        <line x1="8" y1="13" x2="16" y2="13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        <line x1="8" y1="17" x2="16" y2="17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    ),
-    inc: (
-      <svg width={size} height={size} viewBox="0 0 24 24" style={{ transform: `rotate(${rotation}rad)` }}>
-        <line x1="4" y1="20" x2="12" y2="4" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-        <line x1="20" y1="20" x2="12" y2="4" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-      </svg>
-    ),
-    dec: (
-      <svg width={size} height={size} viewBox="0 0 24 24" style={{ transform: `rotate(${rotation}rad)` }}>
-        <line x1="4" y1="4" x2="12" y2="20" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-        <line x1="20" y1="4" x2="12" y2="20" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-      </svg>
-    ),
-    magic: (
-      <svg width={size} height={size} viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2" />
-        <circle cx="12" cy="12" r="3" fill="currentColor" />
-      </svg>
-    ),
-    blo: (
-      <svg width={size} height={size} viewBox="0 0 24 24" style={{ transform: `rotate(${rotation}rad)` }}>
-        <line x1="6" y1="18" x2="18" y2="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        <circle cx="12" cy="20" r="2" fill="currentColor" />
-      </svg>
-    ),
-    flo: (
-      <svg width={size} height={size} viewBox="0 0 24 24" style={{ transform: `rotate(${rotation}rad)` }}>
-        <line x1="6" y1="18" x2="18" y2="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        <circle cx="12" cy="4" r="2" fill="currentColor" />
-      </svg>
-    ),
-    spike: (
-      <svg width={size} height={size} viewBox="0 0 24 24" style={{ transform: `rotate(${rotation}rad)` }}>
-        <line x1="12" y1="2" x2="12" y2="22" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-        <line x1="6" y1="12" x2="18" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      </svg>
-    ),
-    popcorn: (
-      <svg width={size} height={size} viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="8" fill="currentColor" opacity="0.3" />
-        <circle cx="12" cy="12" r="5" fill="currentColor" />
-      </svg>
-    ),
-    bobble: (
-      <svg width={size} height={size} viewBox="0 0 24 24">
-        <ellipse cx="12" cy="12" rx="7" ry="9" fill="currentColor" opacity="0.5" />
-        <ellipse cx="12" cy="12" rx="4" ry="6" fill="currentColor" />
-      </svg>
-    ),
-    puff: (
-      <svg width={size} height={size} viewBox="0 0 24 24" style={{ transform: `rotate(${rotation}rad)` }}>
-        <ellipse cx="12" cy="12" rx="8" ry="6" fill="none" stroke="currentColor" strokeWidth="2" />
-        <line x1="12" y1="6" x2="12" y2="18" stroke="currentColor" strokeWidth="2" />
-      </svg>
-    ),
-  };
-
-  return <div className="text-primary">{symbols[type]}</div>;
-}
 
 // 3D Preview Scene with TubeGeometry yarn
 function Crochet3DScene({ 
@@ -211,16 +104,35 @@ export default function CrochetEngine() {
     setHighFidelityMode
   } = useYarnCluesStore();
 
-  // Parse pattern with advanced NLP parser
+  const [useAIParser, setUseAIParser] = useState(false);
+  const [selectedStitchIndex, setSelectedStitchIndex] = useState<number | null>(null);
+  const { parsePatternDebounced, isLoading: aiLoading, error: aiError } = useAIPatternParser();
+
+  // Parse pattern with local recursive parser
   const parseResult: ParseResult = useMemo(() => {
     return parseCrochetPattern(crochetInput);
   }, [crochetInput]);
 
-  // Update store when parse result changes
+  // Update store when parse result changes (local parser)
   useEffect(() => {
-    const storeFormat = toStoreFormat(parseResult.stitches);
-    setCrochetChart(storeFormat);
-  }, [parseResult.stitches, setCrochetChart]);
+    if (!useAIParser) {
+      const storeFormat = toStoreFormat(parseResult.stitches);
+      setCrochetChart(storeFormat);
+    }
+  }, [parseResult.stitches, setCrochetChart, useAIParser]);
+
+  // AI parser with debounce
+  const handleInputChange = useCallback((value: string) => {
+    setCrochetInput(value);
+    
+    if (useAIParser && value.trim()) {
+      parsePatternDebounced(value, (stitches) => {
+        if (stitches.length > 0) {
+          setCrochetChart(stitches);
+        }
+      });
+    }
+  }, [useAIParser, setCrochetInput, parsePatternDebounced, setCrochetChart]);
 
   // Group by rows
   const rowGroups = crochetChart.reduce((acc, cell) => {
@@ -232,6 +144,44 @@ export default function CrochetEngine() {
   // Total stitch count
   const totalStitches = crochetChart.length;
 
+  // Row validation with error highlighting
+  const rowValidations = useMemo(() => {
+    const validations: Record<number, { count: number; expected?: number; isValid: boolean; message?: string }> = {};
+    let prevCount = 0;
+    
+    Object.entries(rowGroups).forEach(([rowStr, cells]) => {
+      const row = parseInt(rowStr);
+      const count = cells.length;
+      const incCount = cells.filter(c => c.type === 'inc').length;
+      const decCount = cells.filter(c => c.type === 'dec').length;
+      
+      let isValid = true;
+      let message = '';
+      
+      if (row > 1 && prevCount > 0) {
+        const expectedChange = incCount - decCount;
+        const actualChange = count - prevCount;
+        
+        if (actualChange !== expectedChange && incCount + decCount > 0) {
+          isValid = false;
+          message = `Expected ${prevCount + expectedChange}, got ${count}`;
+        }
+      }
+      
+      validations[row] = { count, isValid, message };
+      prevCount = count;
+    });
+    
+    return validations;
+  }, [rowGroups]);
+
+  // Handle stitch click in chart (for bidirectional linking)
+  const handleStitchClick = (row: number, stitch: number) => {
+    const index = crochetChart.findIndex(c => c.row === row && c.stitch === stitch);
+    setSelectedStitchIndex(index);
+    // Could also scroll to text position here
+  };
+
   return (
     <motion.div
       variants={containerVariants}
@@ -241,30 +191,53 @@ export default function CrochetEngine() {
     >
       {/* Header */}
       <motion.div variants={itemVariants} className="space-y-2">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-yarn-lavender/30 flex items-center justify-center">
-            <CrochetHookIcon className="w-6 h-6 text-primary" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-yarn-lavender/30 flex items-center justify-center">
+              <CrochetHookIcon className="w-6 h-6 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-display font-semibold text-foreground">Crochet Engine</h1>
+              <p className="text-muted-foreground">AI-powered NLP parser with JIS charting & 3D yarn simulation</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-3xl font-display font-semibold text-foreground">Crochet Engine</h1>
-            <p className="text-muted-foreground">Advanced NLP parser with JIS charting & 3D yarn simulation</p>
+          
+          {/* AI Toggle */}
+          <div className="flex items-center gap-3 frosted-panel px-4 py-2">
+            <Brain className="w-4 h-4 text-primary" />
+            <Label htmlFor="ai-toggle" className="text-sm font-medium">AI Parser</Label>
+            <Switch
+              id="ai-toggle"
+              checked={useAIParser}
+              onCheckedChange={setUseAIParser}
+            />
+            {aiLoading && <Loader2 className="w-4 h-4 animate-spin text-primary" />}
           </div>
         </div>
       </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Pattern Input */}
+      {/* Split View Layout */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        {/* Left: Pattern Input */}
         <motion.div variants={itemVariants} className="glass-card p-6 space-y-6">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">✍️</span>
-            <h2 className="text-lg font-medium">Pattern Shorthand</h2>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Split className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-medium">Pattern Editor</h2>
+            </div>
+            {aiError && (
+              <span className="text-xs text-destructive flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" />
+                {aiError}
+              </span>
+            )}
           </div>
 
           <Textarea
             value={crochetInput}
-            onChange={(e) => setCrochetInput(e.target.value)}
-            placeholder="Enter pattern commands..."
-            className="input-glass min-h-[180px] font-mono text-sm"
+            onChange={(e) => handleInputChange(e.target.value)}
+            placeholder="Enter pattern commands (e.g., 6x, (2x, v)*6)..."
+            className="input-glass min-h-[200px] font-mono text-sm"
           />
 
           {/* Stitch Count Validator */}
@@ -274,51 +247,84 @@ export default function CrochetEngine() {
               <span className="text-xs text-muted-foreground">{totalStitches} total</span>
             </div>
             <div className="max-h-[150px] overflow-auto space-y-1">
-              {parseResult.validations.map((v) => (
-                <div 
-                  key={v.row} 
-                  className={`flex items-center justify-between text-xs py-1 px-2 rounded-lg ${
-                    v.isValid ? 'bg-muted/30' : 'bg-destructive/10'
-                  }`}
-                >
-                  <span className="font-medium">Row {v.row}</span>
-                  <div className="flex items-center gap-2">
-                    <span>{v.stitchCount} sts</span>
-                    {v.message && (
-                      <span className="text-muted-foreground">{v.message}</span>
-                    )}
-                    {v.isValid ? (
-                      <CheckCircle className="w-3 h-3 text-green-500" />
-                    ) : (
-                      <AlertCircle className="w-3 h-3 text-destructive" />
-                    )}
+              {parseResult.validations.map((v) => {
+                const rowVal = rowValidations[v.row];
+                const hasError = rowVal && !rowVal.isValid;
+                
+                return (
+                  <div 
+                    key={v.row} 
+                    className={`flex items-center justify-between text-xs py-1.5 px-2 rounded-lg transition-all ${
+                      hasError ? 'bg-destructive/10 ring-1 ring-destructive/30' : 'bg-muted/30'
+                    }`}
+                  >
+                    <span className={`font-medium ${hasError ? 'text-destructive' : ''}`}>
+                      Row {v.row}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">{v.stitchCount} sts</span>
+                      {v.message && (
+                        <span className="text-muted-foreground">{v.message}</span>
+                      )}
+                      {hasError ? (
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <AlertCircle className="w-3.5 h-3.5 text-destructive" />
+                          </TooltipTrigger>
+                          <TooltipContent className="text-destructive">
+                            {rowVal.message}
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <CheckCircle className="w-3 h-3 text-secondary-foreground" />
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
+          {/* Syntax Guide */}
           <div className="frosted-panel space-y-3">
             <h3 className="text-sm font-medium">JIS Syntax Guide</h3>
             <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-              <div><code className="bg-muted px-1 rounded">x</code> = SC (細編み)</div>
-              <div><code className="bg-muted px-1 rounded">v</code> = Inc (増し目)</div>
-              <div><code className="bg-muted px-1 rounded">a</code> = Dec (減らし目)</div>
-              <div><code className="bg-muted px-1 rounded">t</code> = HDC (中長編み)</div>
-              <div><code className="bg-muted px-1 rounded">f</code> = DC (長編み)</div>
-              <div><code className="bg-muted px-1 rounded">blo</code> = Back Loop</div>
-              <div><code className="bg-muted px-1 rounded">w</code> = DTR (三つ巻き)</div>
+              <div className="flex items-center gap-2">
+                <StitchSymbol type="sc" size={16} />
+                <code className="bg-muted px-1 rounded">x</code> = SC
+              </div>
+              <div className="flex items-center gap-2">
+                <StitchSymbol type="inc" size={16} />
+                <code className="bg-muted px-1 rounded">v</code> = Inc
+              </div>
+              <div className="flex items-center gap-2">
+                <StitchSymbol type="dec" size={16} />
+                <code className="bg-muted px-1 rounded">a</code> = Dec
+              </div>
+              <div className="flex items-center gap-2">
+                <StitchSymbol type="hdc" size={16} />
+                <code className="bg-muted px-1 rounded">t</code> = HDC
+              </div>
+              <div className="flex items-center gap-2">
+                <StitchSymbol type="dc" size={16} />
+                <code className="bg-muted px-1 rounded">f</code> = DC
+              </div>
+              <div className="flex items-center gap-2">
+                <StitchSymbol type="blo" size={16} />
+                <code className="bg-muted px-1 rounded">blo</code> = Back Loop
+              </div>
               <div><code className="bg-muted px-1 rounded">(2x, v)*6</code> = repeat</div>
+              <div><code className="bg-muted px-1 rounded">w</code> = 3-inc (fan)</div>
             </div>
           </div>
         </motion.div>
 
-        {/* Chart View with Zoom/Pan */}
-        <motion.div variants={itemVariants} className="lg:col-span-2 glass-card p-6 space-y-6">
+        {/* Right: Chart View */}
+        <motion.div variants={itemVariants} className="glass-card p-6 space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Eye className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-medium">Chart View</h2>
+              <h2 className="text-lg font-medium">Interactive Chart</h2>
             </div>
             <div className="flex gap-2">
               <Button
@@ -328,7 +334,7 @@ export default function CrochetEngine() {
                 className="rounded-xl soft-press"
               >
                 <CrochetHookIcon className="w-4 h-4 mr-1" />
-                Circular
+                Rounds
               </Button>
               <Button
                 variant={chartMode === 'linear' ? 'default' : 'outline'}
@@ -337,7 +343,7 @@ export default function CrochetEngine() {
                 className="rounded-xl soft-press"
               >
                 <LayoutGrid className="w-4 h-4 mr-1" />
-                Linear
+                Rows
               </Button>
             </div>
           </div>
@@ -371,15 +377,18 @@ export default function CrochetEngine() {
                           const row = parseInt(rowNum);
                           const radius = 30 + row * 40;
                           const angleStep = (2 * Math.PI) / cells.length;
+                          const rowVal = rowValidations[row];
+                          const hasError = rowVal && !rowVal.isValid;
 
                           return cells.map((cell, i) => {
-                            // Polar coordinates: x = r * cos(θ), y = r * sin(θ)
                             const angle = i * angleStep - Math.PI / 2;
                             const x = Math.cos(angle) * radius;
                             const y = Math.sin(angle) * radius;
-                            
-                            // Symbol rotation follows curvature
                             const symbolRotation = angle + Math.PI / 2;
+                            const isHovered = hoveredCrochetCell?.row === cell.row && hoveredCrochetCell?.stitch === cell.stitch;
+                            const isSelected = selectedStitchIndex !== null && 
+                              crochetChart[selectedStitchIndex]?.row === cell.row && 
+                              crochetChart[selectedStitchIndex]?.stitch === cell.stitch;
 
                             return (
                               <motion.div
@@ -387,19 +396,24 @@ export default function CrochetEngine() {
                                 initial={{ opacity: 0, scale: 0 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 transition={{ delay: (row * cells.length + i) * 0.01 }}
-                                className={`absolute w-7 h-7 -ml-3.5 -mt-3.5 flex items-center justify-center cursor-pointer hover:scale-125 transition-transform ${
-                                  hoveredCrochetCell?.row === cell.row && hoveredCrochetCell?.stitch === cell.stitch
-                                    ? 'ring-2 ring-primary scale-125 z-10'
-                                    : ''
-                                }`}
+                                className={`absolute w-7 h-7 -ml-3.5 -mt-3.5 flex items-center justify-center cursor-pointer transition-all ${
+                                  isHovered || isSelected ? 'z-20 scale-125' : 'hover:scale-110'
+                                } ${hasError ? 'text-destructive' : 'text-primary'}`}
                                 style={{
                                   left: 200 + x,
                                   top: 200 + y,
                                 }}
                                 onMouseEnter={() => setHoveredCrochetCell({ row: cell.row, stitch: cell.stitch })}
                                 onMouseLeave={() => setHoveredCrochetCell(null)}
+                                onClick={() => handleStitchClick(cell.row, cell.stitch)}
                               >
-                                <CrochetSymbol type={cell.type} size={22} rotation={symbolRotation} />
+                                <StitchSymbol 
+                                  type={cell.type} 
+                                  size={22} 
+                                  rotation={symbolRotation}
+                                  isSelected={isSelected}
+                                  isHighlighted={isHovered}
+                                />
                               </motion.div>
                             );
                           });
@@ -409,61 +423,97 @@ export default function CrochetEngine() {
                           className="absolute w-8 h-8 -ml-4 -mt-4 flex items-center justify-center"
                           style={{ left: 200, top: 200 }}
                         >
-                          <CrochetSymbol type="magic" size={28} />
+                          <StitchSymbol type="magic" size={28} />
                         </div>
-                        {/* Row labels */}
+                        {/* Row labels with error indication */}
                         {Object.keys(rowGroups).map((rowNum) => {
                           const row = parseInt(rowNum);
                           const radius = 30 + row * 40 + 20;
+                          const rowVal = rowValidations[row];
+                          const hasError = rowVal && !rowVal.isValid;
+                          
                           return (
-                            <div
-                              key={`label-${row}`}
-                              className="absolute text-xs text-muted-foreground font-medium"
-                              style={{
-                                left: 200 + radius,
-                                top: 200 - 8,
-                              }}
-                            >
-                              R{row}
-                            </div>
+                            <Tooltip key={`label-${row}`}>
+                              <TooltipTrigger asChild>
+                                <div
+                                  className={`absolute text-xs font-medium cursor-help ${
+                                    hasError ? 'text-destructive' : 'text-muted-foreground'
+                                  }`}
+                                  style={{
+                                    left: 200 + radius,
+                                    top: 200 - 8,
+                                  }}
+                                >
+                                  R{row}
+                                  {hasError && <span className="ml-0.5">⚠</span>}
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {rowVal?.count} stitches
+                                {hasError && ` - ${rowVal?.message}`}
+                              </TooltipContent>
+                            </Tooltip>
                           );
                         })}
                       </div>
                     </div>
                   ) : (
                     <div className="space-y-2 max-h-[400px] overflow-auto">
-                      {Object.entries(rowGroups).map(([rowNum, cells]) => (
-                        <motion.div
-                          key={rowNum}
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: parseInt(rowNum) * 0.05 }}
-                          className="flex items-center gap-2"
-                        >
-                          <span className="w-12 text-xs font-medium text-muted-foreground">
-                            R{rowNum}
-                          </span>
-                          <div className="flex flex-wrap gap-1 frosted-panel py-2 px-3 flex-1">
-                            {cells.map((cell, i) => (
-                              <div 
-                                key={i} 
-                                className={`w-6 h-6 flex items-center justify-center cursor-pointer hover:scale-125 transition-transform ${
-                                  hoveredCrochetCell?.row === cell.row && hoveredCrochetCell?.stitch === cell.stitch
-                                    ? 'ring-2 ring-primary scale-125'
-                                    : ''
-                                }`}
-                                onMouseEnter={() => setHoveredCrochetCell({ row: cell.row, stitch: cell.stitch })}
-                                onMouseLeave={() => setHoveredCrochetCell(null)}
-                              >
-                                <CrochetSymbol type={cell.type} size={18} />
-                              </div>
-                            ))}
-                          </div>
-                          <span className="text-xs text-muted-foreground w-8 text-right">
-                            {cells.length}
-                          </span>
-                        </motion.div>
-                      ))}
+                      {Object.entries(rowGroups).map(([rowNum, cells]) => {
+                        const row = parseInt(rowNum);
+                        const rowVal = rowValidations[row];
+                        const hasError = rowVal && !rowVal.isValid;
+                        
+                        return (
+                          <motion.div
+                            key={rowNum}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: row * 0.05 }}
+                            className={`flex items-center gap-2 ${hasError ? 'ring-1 ring-destructive/30 rounded-xl' : ''}`}
+                          >
+                            <span className={`w-12 text-xs font-medium ${hasError ? 'text-destructive' : 'text-muted-foreground'}`}>
+                              R{rowNum}
+                            </span>
+                            <div className="flex flex-wrap gap-1 frosted-panel py-2 px-3 flex-1">
+                              {cells.map((cell, i) => {
+                                const isHovered = hoveredCrochetCell?.row === cell.row && hoveredCrochetCell?.stitch === cell.stitch;
+                                const isSelected = selectedStitchIndex !== null && 
+                                  crochetChart[selectedStitchIndex]?.row === cell.row && 
+                                  crochetChart[selectedStitchIndex]?.stitch === cell.stitch;
+                                
+                                return (
+                                  <Tooltip key={i}>
+                                    <TooltipTrigger asChild>
+                                      <div 
+                                        className={`w-6 h-6 flex items-center justify-center cursor-pointer transition-all ${
+                                          isHovered || isSelected ? 'scale-125 z-10' : 'hover:scale-110'
+                                        }`}
+                                        onMouseEnter={() => setHoveredCrochetCell({ row: cell.row, stitch: cell.stitch })}
+                                        onMouseLeave={() => setHoveredCrochetCell(null)}
+                                        onClick={() => handleStitchClick(cell.row, cell.stitch)}
+                                      >
+                                        <StitchSymbol 
+                                          type={cell.type} 
+                                          size={18}
+                                          isSelected={isSelected}
+                                          isHighlighted={isHovered}
+                                        />
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      {getStitchDisplayName(cell.type)}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                );
+                              })}
+                            </div>
+                            <span className={`text-xs w-8 text-right ${hasError ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
+                              {cells.length}
+                            </span>
+                          </motion.div>
+                        );
+                      })}
                     </div>
                   )}
                 </TransformComponent>
