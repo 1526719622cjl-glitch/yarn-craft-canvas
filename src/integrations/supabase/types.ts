@@ -14,7 +14,210 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      project_specs: {
+        Row: {
+          adjusted_rows: number | null
+          adjusted_stitches: number | null
+          balls_needed: number | null
+          created_at: string
+          height_shrinkage_factor: number | null
+          id: string
+          name: string
+          notes: string | null
+          target_height_cm: number | null
+          target_width_cm: number | null
+          total_grams_needed: number | null
+          total_meters_needed: number | null
+          total_rows: number | null
+          total_stitches: number | null
+          user_id: string
+          width_shrinkage_factor: number | null
+          yarn_entry_id: string | null
+        }
+        Insert: {
+          adjusted_rows?: number | null
+          adjusted_stitches?: number | null
+          balls_needed?: number | null
+          created_at?: string
+          height_shrinkage_factor?: number | null
+          id?: string
+          name: string
+          notes?: string | null
+          target_height_cm?: number | null
+          target_width_cm?: number | null
+          total_grams_needed?: number | null
+          total_meters_needed?: number | null
+          total_rows?: number | null
+          total_stitches?: number | null
+          user_id: string
+          width_shrinkage_factor?: number | null
+          yarn_entry_id?: string | null
+        }
+        Update: {
+          adjusted_rows?: number | null
+          adjusted_stitches?: number | null
+          balls_needed?: number | null
+          created_at?: string
+          height_shrinkage_factor?: number | null
+          id?: string
+          name?: string
+          notes?: string | null
+          target_height_cm?: number | null
+          target_width_cm?: number | null
+          total_grams_needed?: number | null
+          total_meters_needed?: number | null
+          total_rows?: number | null
+          total_stitches?: number | null
+          user_id?: string
+          width_shrinkage_factor?: number | null
+          yarn_entry_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_specs_yarn_entry_id_fkey"
+            columns: ["yarn_entry_id"]
+            isOneToOne: false
+            referencedRelation: "yarn_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      yarn_entries: {
+        Row: {
+          balls_in_stock: number | null
+          brand: string | null
+          color_code: string | null
+          created_at: string
+          fiber_content: string | null
+          folder_id: string | null
+          grams_per_ball: number | null
+          id: string
+          meters_per_ball: number | null
+          name: string
+          notes: string | null
+          post_wash_height_cm: number | null
+          post_wash_width_cm: number | null
+          rows_per_10cm: number | null
+          status: Database["public"]["Enums"]["yarn_status"] | null
+          stitches_per_10cm: number | null
+          updated_at: string
+          user_id: string
+          weight: Database["public"]["Enums"]["yarn_weight"] | null
+        }
+        Insert: {
+          balls_in_stock?: number | null
+          brand?: string | null
+          color_code?: string | null
+          created_at?: string
+          fiber_content?: string | null
+          folder_id?: string | null
+          grams_per_ball?: number | null
+          id?: string
+          meters_per_ball?: number | null
+          name: string
+          notes?: string | null
+          post_wash_height_cm?: number | null
+          post_wash_width_cm?: number | null
+          rows_per_10cm?: number | null
+          status?: Database["public"]["Enums"]["yarn_status"] | null
+          stitches_per_10cm?: number | null
+          updated_at?: string
+          user_id: string
+          weight?: Database["public"]["Enums"]["yarn_weight"] | null
+        }
+        Update: {
+          balls_in_stock?: number | null
+          brand?: string | null
+          color_code?: string | null
+          created_at?: string
+          fiber_content?: string | null
+          folder_id?: string | null
+          grams_per_ball?: number | null
+          id?: string
+          meters_per_ball?: number | null
+          name?: string
+          notes?: string | null
+          post_wash_height_cm?: number | null
+          post_wash_width_cm?: number | null
+          rows_per_10cm?: number | null
+          status?: Database["public"]["Enums"]["yarn_status"] | null
+          stitches_per_10cm?: number | null
+          updated_at?: string
+          user_id?: string
+          weight?: Database["public"]["Enums"]["yarn_weight"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "yarn_entries_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "yarn_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      yarn_folders: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+          parent_id: string | null
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          parent_id?: string | null
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          parent_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "yarn_folders_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "yarn_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +226,16 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      yarn_status: "new" | "in_use" | "scraps" | "finished" | "wishlist"
+      yarn_weight:
+        | "lace"
+        | "fingering"
+        | "sport"
+        | "dk"
+        | "worsted"
+        | "aran"
+        | "bulky"
+        | "super_bulky"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +362,18 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      yarn_status: ["new", "in_use", "scraps", "finished", "wishlist"],
+      yarn_weight: [
+        "lace",
+        "fingering",
+        "sport",
+        "dk",
+        "worsted",
+        "aran",
+        "bulky",
+        "super_bulky",
+      ],
+    },
   },
 } as const
