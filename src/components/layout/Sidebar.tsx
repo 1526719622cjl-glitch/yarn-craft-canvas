@@ -1,17 +1,22 @@
 import { motion } from 'framer-motion';
-import { NavLink, useLocation } from 'react-router-dom';
-import { Ruler, Grid3X3, Sparkles } from 'lucide-react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { Ruler, Grid3X3, Sparkles, Package, LogOut, LogIn, User } from 'lucide-react';
 import { CrochetHookIcon, KnittingNeedlesIcon } from '@/components/icons';
+import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
 
 const navItems = [
   { path: '/', icon: Ruler, label: 'Swatch Lab', description: 'Gauge Calculator' },
   { path: '/pixel', icon: Grid3X3, label: 'Pixel Generator', description: 'Image to Grid' },
   { path: '/crochet', icon: CrochetHookIcon, label: 'Crochet Engine', description: 'Pattern Parser' },
   { path: '/knitting', icon: KnittingNeedlesIcon, label: 'Knitting Engine', description: 'Chart Designer' },
+  { path: '/vault', icon: Package, label: 'Yarn Vault', description: 'My Library' },
 ];
 
 export function Sidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, signOut, loading } = useAuth();
 
   return (
     <motion.aside
@@ -68,9 +73,42 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Footer */}
-      <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-border/30">
-        <div className="text-center">
+      {/* Footer with Auth */}
+      <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border/30 space-y-3">
+        {!loading && (
+          user ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 px-2">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <User className="w-4 h-4 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{user.email}</p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => signOut()}
+                className="w-full justify-start rounded-xl text-muted-foreground hover:text-foreground"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign Out
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/auth')}
+              className="w-full rounded-xl"
+            >
+              <LogIn className="w-4 h-4 mr-2" />
+              Sign In
+            </Button>
+          )
+        )}
+        <div className="text-center pt-2">
           <p className="text-xs text-muted-foreground">
             Design Suite: All for Yarn
           </p>
