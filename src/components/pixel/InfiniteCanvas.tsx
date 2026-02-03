@@ -15,6 +15,7 @@ interface InfiniteCanvasProps {
   children: React.ReactNode;
   uploadedImage?: string | null;
   traceOpacity?: number;
+  autoFitOnMount?: boolean;
 }
 
 export function InfiniteCanvas({
@@ -27,12 +28,14 @@ export function InfiniteCanvas({
   children,
   uploadedImage,
   traceOpacity = 0,
+  autoFitOnMount = true,
 }: InfiniteCanvasProps) {
   const transformRef = useRef<ReactZoomPanPinchRef>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [currentZoom, setCurrentZoom] = useState(1);
   const [isPanning, setIsPanning] = useState(false);
   const [aspectLocked, setAspectLocked] = useState(true);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   // Calculate total canvas size
   const canvasWidth = width * cellWidth;
@@ -42,26 +45,52 @@ export function InfiniteCanvas({
   const showLODGrid = useMemo(() => currentZoom >= 0.3, [currentZoom]);
   const showLODLabels = useMemo(() => currentZoom >= 0.5, [currentZoom]);
   
-  // Fit to view calculation
+  // CRITICAL: Fit to view calculation - ensures entire pattern is visible
   const fitToView = useCallback(() => {
     if (!containerRef.current || !transformRef.current) return;
     
     const container = containerRef.current;
-    const containerWidth = container.clientWidth - 48; // padding
-    const containerHeight = container.clientHeight - 48;
+    const containerWidth = container.clientWidth - 80; // padding for rulers
+    const containerHeight = container.clientHeight - 80;
+    
+    if (canvasWidth <= 0 || canvasHeight <= 0) return;
     
     const scaleX = containerWidth / canvasWidth;
     const scaleY = containerHeight / canvasHeight;
+    // Scale to fit the entire pattern, cap at 100% (never zoom in past 1:1)
     const scale = Math.min(scaleX, scaleY, 1);
     
+    // Center and apply scale
     transformRef.current.centerView(scale);
+    setCurrentZoom(scale);
   }, [canvasWidth, canvasHeight]);
 
-  // Auto-fit on mount and dimension changes
+  // CRITICAL: Auto-fit on mount and dimension changes - immediate zoom-to-fit
   useEffect(() => {
-    const timer = setTimeout(fitToView, 100);
-    return () => clearTimeout(timer);
-  }, [fitToView]);
+    if (!autoFitOnMount) return;
+    
+    // Immediate fit on first render
+    const immediateTimer = setTimeout(() => {
+      fitToView();
+      setHasInitialized(true);
+    }, 50);
+    
+    // Delayed fit for when dimensions settle
+    const delayedTimer = setTimeout(fitToView, 200);
+    
+    return () => {
+      clearTimeout(immediateTimer);
+      clearTimeout(delayedTimer);
+    };
+  }, [fitToView, autoFitOnMount]);
+
+  // Re-fit when dimensions change significantly
+  useEffect(() => {
+    if (hasInitialized) {
+      const timer = setTimeout(fitToView, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [width, height, hasInitialized, fitToView]);
 
   // Handle zoom change for LOD
   const handleTransform = useCallback((ref: ReactZoomPanPinchRef) => {
@@ -72,6 +101,7 @@ export function InfiniteCanvas({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space' && !isPanning) {
+        e.preventDefault();
         setIsPanning(true);
         document.body.style.cursor = 'grab';
       }
@@ -205,7 +235,7 @@ export function InfiniteCanvas({
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                variant="ghost"
+                variant="default"
                 size="icon"
                 onClick={fitToView}
                 className="h-8 w-8 rounded-lg"
@@ -213,7 +243,7 @@ export function InfiniteCanvas({
                 <Maximize className="w-4 h-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Fit to View</TooltipContent>
+            <TooltipContent>Fit to View (Zoom-to-Fit)</TooltipContent>
           </Tooltip>
           
           <Tooltip>
@@ -227,7 +257,7 @@ export function InfiniteCanvas({
                 <Home className="w-4 h-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Reset View</TooltipContent>
+            <TooltipContent>Reset View (100%)</TooltipContent>
           </Tooltip>
 
           <div className="h-6 w-px bg-border/50 mx-1" />
@@ -305,23 +335,28 @@ export function InfiniteCanvas({
       >
         <TransformWrapper
           ref={transformRef}
-          initialScale={1}
-          minScale={0.1}
+          initialScale={0.5}
+          minScale={0.05}
           maxScale={5}
           wheel={{ step: 0.05 }}
           panning={{ disabled: false }}
           onTransformed={handleTransform}
           doubleClick={{ disabled: true }}
+          centerOnInit={true}
         >
           <TransformComponent
             wrapperStyle={{ width: '100%', height: '100%' }}
-            contentStyle={{ width: canvasWidth, height: canvasHeight }}
+            contentStyle={{ width: canvasWidth + 48, height: canvasHeight + 48 }}
           >
             {/* Trace image background */}
             {uploadedImage && traceOpacity > 0 && (
               <div 
-                className="absolute inset-0 pointer-events-none z-0"
+                className="absolute pointer-events-none z-0"
                 style={{ 
+                  left: 24,
+                  top: 20,
+                  width: canvasWidth,
+                  height: canvasHeight,
                   backgroundImage: `url(${uploadedImage})`,
                   backgroundSize: '100% 100%',
                   opacity: traceOpacity / 100,

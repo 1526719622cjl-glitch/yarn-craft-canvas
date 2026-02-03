@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { useYarnCluesStore } from '@/store/useYarnCluesStore';
-import { Ruler, Calculator, TrendingUp, TrendingDown, Target, Undo, Redo, Save, FolderOpen, Package } from 'lucide-react';
+import { Ruler, Calculator, TrendingUp, TrendingDown, Target, Undo, Redo, Save } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -8,19 +8,11 @@ import { useEffect, useState } from 'react';
 import { SmartYarnCalculator } from '@/components/swatch/SmartYarnCalculator';
 import { AdvancedGaugeCalculator } from '@/components/swatch/AdvancedGaugeCalculator';
 import { YarnLibrarySaveModal } from '@/components/swatch/YarnLibrarySaveModal';
+import { YarnGaugeVault } from '@/components/swatch/YarnGaugeVault';
 import { useUndoRedo, useUndoRedoKeyboard } from '@/hooks/useUndoRedo';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
-import { useYarnEntries } from '@/hooks/useYarnVault';
-import { Link } from 'react-router-dom';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -52,7 +44,6 @@ export default function SwatchLab() {
   const [activeTab, setActiveTab] = useState('basic');
   
   const { user } = useAuth();
-  const { entries: cloudYarnEntries } = useYarnEntries();
 
   // Safe defaults + null/NaN normalization (prevents `.toFixed()` on null)
   const num = (value: unknown, fallback: number) => {
@@ -181,15 +172,6 @@ export default function SwatchLab() {
               <TabsTrigger value="basic" className="rounded-xl">Basic Gauge</TabsTrigger>
               <TabsTrigger value="advanced" className="rounded-xl">Shrinkage Calculator</TabsTrigger>
             </TabsList>
-            
-            {user && cloudYarnEntries.length > 0 && (
-              <Link to="/vault">
-                <Button variant="outline" className="rounded-xl">
-                  <Package className="w-4 h-4 mr-2" />
-                  My Yarn Vault ({cloudYarnEntries.length})
-                </Button>
-              </Link>
-            )}
           </div>
 
           <TabsContent value="basic" className="space-y-6 mt-0">
@@ -351,37 +333,6 @@ export default function SwatchLab() {
                   <h2 className="text-lg font-medium">Project Planner</h2>
                 </div>
 
-                {/* Load from Library */}
-                {(yarnLibrary.length > 0 || cloudYarnEntries.length > 0) && (
-                  <Select onValueChange={handleLoadFromLibrary}>
-                    <SelectTrigger className="w-[200px] rounded-xl">
-                      <FolderOpen className="w-4 h-4 mr-2" />
-                      <SelectValue placeholder="Load from Library" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {cloudYarnEntries.length > 0 && (
-                        <>
-                          <div className="px-2 py-1 text-xs text-muted-foreground font-medium">Cloud Library</div>
-                          {cloudYarnEntries.map((yarn) => (
-                            <SelectItem key={`cloud-${yarn.id}`} value={`cloud:${yarn.id}`}>
-                              {yarn.name}
-                            </SelectItem>
-                          ))}
-                        </>
-                      )}
-                      {yarnLibrary.length > 0 && (
-                        <>
-                          <div className="px-2 py-1 text-xs text-muted-foreground font-medium">Local Library</div>
-                          {yarnLibrary.map((yarn) => (
-                            <SelectItem key={yarn.id} value={yarn.id}>
-                              {yarn.name}
-                            </SelectItem>
-                          ))}
-                        </>
-                      )}
-                    </SelectContent>
-                  </Select>
-                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -441,6 +392,9 @@ export default function SwatchLab() {
                 </Button>
               </div>
             </motion.div>
+
+            {/* Integrated Yarn & Gauge Vault */}
+            <YarnGaugeVault compact />
 
             {/* Smart Yarn Calculator */}
             <SmartYarnCalculator />
