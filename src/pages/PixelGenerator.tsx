@@ -1,3 +1,4 @@
+// PixelGenerator - Updated 2026-02-04
 import { motion } from 'framer-motion';
 import { useYarnCluesStore, PixelTool, PixelCell } from '@/store/useYarnCluesStore';
 import { 
