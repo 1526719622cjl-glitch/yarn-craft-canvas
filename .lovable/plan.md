@@ -1,97 +1,118 @@
 
-# 画布缩放修复 - 左上角起始 + 鼠标为中心缩放
+
+# 画布简化方案 - 滚动条导航 + 鼠标缩放
 
 ## 问题分析
 
-当前 `InfiniteCanvas` 组件的配置:
-- `centerOnInit={true}` - 画布初始化时居中显示，导致周围出现空白区域
-- 使用 `centerView(scale)` 进行 fitToView，会将内容居中
-- 缩放后自动调整位置，导致用户看到"不存在的像素点"
+当前的 `InfiniteCanvas` 使用 `react-zoom-pan-pinch` 实现了一个"无限画布"模式，会显示：
+- 棋盘格背景（表示透明区域）
+- 允许拖拽平移到画布外的空白区域
+- 标尺随画布移动
+
+这与您期望的简洁界面不符。
 
 ## 用户需求
 
-1. **画布从左上角开始** - 不显示空白区域，类似之前的版本
-2. **鼠标位置为缩放中心** - 缩放时以鼠标指向的位置为焦点
-3. **平滑拖拽** - 支持拖拽平移画布
+1. **只显示主画布** - 不要空白背景
+2. **滚动条导航** - 通过浏览器原生滚动条移动画布
+3. **鼠标缩放保留** - 滚轮缩放以鼠标位置为中心
+4. **禁用拖拽** - 不能通过鼠标拖拽移动画布
 
 ## 修复方案
 
 ### 文件: `src/components/pixel/InfiniteCanvas.tsx`
 
-1. **取消初始居中**
-   - `centerOnInit={false}` - 画布从左上角开始
-   - 初始位置设为 (0, 0)
-   
-2. **鼠标位置缩放**
-   - `react-zoom-pan-pinch` 默认已支持鼠标位置缩放
-   - 确保不调用 `centerView()` 覆盖缩放行为
+完全重构为简化版本：
 
-3. **修改 fitToView 逻辑**
-   - 使用 `setTransform(x, y, scale)` 代替 `centerView()`
-   - 保持内容在左上角对齐
+1. **移除 `TransformWrapper`** - 不再使用 `react-zoom-pan-pinch` 的拖拽功能
+2. **使用 CSS scale + overflow-auto** - 通过 CSS transform 实现缩放，浏览器滚动条实现平移
+3. **鼠标滚轮缩放** - 自定义 `onWheel` 事件，计算鼠标位置并调整滚动偏移
+4. **移除棋盘格背景** - 简洁的纯色背景
 
-4. **移除不必要的边距**
-   - 减少 `contentStyle` 中的额外 padding (48px → 0)
-   - 标尺直接贴边显示
-
-### 关键代码变更
+### 核心代码变更
 
 ```typescript
-// TransformWrapper 配置
-<TransformWrapper
-  ref={transformRef}
-  initialScale={1}           // 初始 100% 缩放
-  initialPositionX={0}       // 从左上角开始
-  initialPositionY={0}
-  minScale={0.05}
-  maxScale={5}
-  centerOnInit={false}       // 不居中
-  limitToBounds={false}      // 允许拖拽超出边界
-  wheel={{ step: 0.05 }}     // 默认已是鼠标位置缩放
-  panning={{ disabled: false }}
-  onTransformed={handleTransform}
-  doubleClick={{ disabled: true }}
+// 移除 TransformWrapper，使用简单的 overflow-auto 容器
+<div 
+  ref={containerRef}
+  className="flex-1 overflow-auto bg-muted/10 rounded-b-2xl"
+  onWheel={handleWheel}
 >
+  <div 
+    style={{ 
+      transform: `scale(${zoom})`,
+      transformOrigin: 'top left',
+      width: canvasWidth,
+      height: canvasHeight,
+    }}
+  >
+    {/* Rulers and Grid */}
+  </div>
+</div>
 
-// fitToView 修改为左上角对齐
-const fitToView = useCallback(() => {
-  if (!containerRef.current || !transformRef.current) return;
-  
+// 鼠标位置缩放逻辑
+const handleWheel = useCallback((e: React.WheelEvent) => {
+  e.preventDefault();
   const container = containerRef.current;
-  const containerWidth = container.clientWidth;
-  const containerHeight = container.clientHeight;
+  if (!container) return;
   
-  const scaleX = containerWidth / canvasWidth;
-  const scaleY = containerHeight / canvasHeight;
-  const scale = Math.min(scaleX, scaleY, 1);
+  // 获取鼠标在容器中的位置
+  const rect = container.getBoundingClientRect();
+  const mouseX = e.clientX - rect.left + container.scrollLeft;
+  const mouseY = e.clientY - rect.top + container.scrollTop;
   
-  // 设置为左上角对齐，不居中
-  transformRef.current.setTransform(0, 0, scale);
-  setCurrentZoom(scale);
-}, [canvasWidth, canvasHeight]);
-
-// TransformComponent 移除额外边距
-<TransformComponent
-  wrapperStyle={{ width: '100%', height: '100%' }}
-  contentStyle={{ width: canvasWidth, height: canvasHeight }}
->
+  // 计算缩放前后的鼠标对应画布坐标
+  const oldZoom = zoom;
+  const delta = e.deltaY > 0 ? 0.9 : 1.1; // 缩小/放大
+  const newZoom = Math.max(0.1, Math.min(5, oldZoom * delta));
+  
+  // 计算新的滚动位置以保持鼠标指向的点不变
+  const canvasX = mouseX / oldZoom;
+  const canvasY = mouseY / oldZoom;
+  const newScrollX = canvasX * newZoom - (e.clientX - rect.left);
+  const newScrollY = canvasY * newZoom - (e.clientY - rect.top);
+  
+  setZoom(newZoom);
+  
+  // 延迟设置滚动位置（等待 scale 更新）
+  requestAnimationFrame(() => {
+    container.scrollLeft = newScrollX;
+    container.scrollTop = newScrollY;
+  });
+}, [zoom]);
 ```
 
-### 布局调整
+### 布局结构
 
 ```typescript
-// 主内容区域直接从 (0,0) 开始
-<div 
-  className="relative"
-  style={{ 
-    width: canvasWidth,
-    height: canvasHeight,
-  }}
->
-  {/* Grid 内容 */}
-  {children}
-  
-  {/* 叠加标尺（固定在视口边缘，不随画布移动） */}
+<div className="flex flex-col h-full">
+  {/* Controls Bar - 缩放控制 */}
+  <div className="flex items-center justify-between p-2 border-b">
+    <Button onClick={zoomIn}>+</Button>
+    <Slider value={zoom} ... />
+    <Button onClick={zoomOut}>-</Button>
+    <Button onClick={fitToView}>Fit</Button>
+  </div>
+
+  {/* Canvas Area - 简单滚动容器 */}
+  <div 
+    ref={containerRef}
+    className="flex-1 overflow-auto bg-muted/10"
+    onWheel={handleWheel}
+  >
+    {/* 缩放后的内容 */}
+    <div style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }}>
+      {/* Rulers */}
+      <div className="flex">
+        <div className="w-6" /> {/* 左上角空白 */}
+        <div className="h-5">{horizontalRuler}</div>
+      </div>
+      <div className="flex">
+        <div className="w-6">{verticalRuler}</div>
+        <div>{children}</div> {/* Grid content */}
+      </div>
+    </div>
+  </div>
 </div>
 ```
 
@@ -99,11 +120,28 @@ const fitToView = useCallback(() => {
 
 | 文件 | 修改内容 |
 |------|---------|
-| `src/components/pixel/InfiniteCanvas.tsx` | 1. centerOnInit=false<br>2. initialPosition=(0,0)<br>3. fitToView 使用 setTransform<br>4. 移除内容区额外边距 |
+| `src/components/pixel/InfiniteCanvas.tsx` | 1. 移除 `react-zoom-pan-pinch`<br>2. 使用 `overflow-auto` 容器<br>3. 自定义 `onWheel` 实现鼠标位置缩放<br>4. 移除棋盘格背景<br>5. 标尺改为固定位置 |
 
 ## 预期结果
 
-1. **左上角起始** - 画布内容从左上角开始显示，不再有空白区域
-2. **鼠标位置缩放** - 滚轮缩放时以鼠标所在位置为中心
-3. **平滑拖拽** - 按住鼠标可自由拖拽画布
-4. **无漂移** - 缩放后画布不会移出视野
+1. **只显示画布** - 无空白背景，无棋盘格
+2. **滚动条导航** - 放大后通过浏览器滚动条移动
+3. **鼠标缩放** - 滚轮缩放以鼠标位置为中心
+4. **无拖拽** - 不能通过鼠标拖拽移动画布
+
+## 技术细节
+
+鼠标位置缩放的数学原理：
+
+```
+缩放前: 
+  - 鼠标在容器中的位置 = (mouseX, mouseY)
+  - 对应画布坐标 = (mouseX / oldZoom, mouseY / oldZoom)
+
+缩放后:
+  - 画布坐标在新缩放下的位置 = (canvasX * newZoom, canvasY * newZoom)
+  - 需要的滚动偏移 = 新位置 - 鼠标在视口中的位置
+```
+
+这样确保鼠标指向的那个像素点在缩放后仍然在鼠标下方。
+
