@@ -1,26 +1,24 @@
 import { motion } from 'framer-motion';
 import { useYarnCluesStore, PixelTool, PixelCell } from '@/store/useYarnCluesStore';
 import { 
-  Grid3X3, Upload, Palette, ZoomIn, ZoomOut, Pencil, Eraser, PaintBucket, Pipette, 
-  Settings, Square, RotateCw, Copy, Move, Grid, Eye, EyeOff, Layers, Replace,
-  FlipHorizontal, Sliders, FileDown, Table, Lock, Unlock, Maximize, Plus
+  Grid3X3, Upload, Palette, Pencil, Eraser, PaintBucket, Pipette, 
+  Square, RotateCw, Copy, Move, Grid, Eye, EyeOff, Layers, Replace,
+  FlipHorizontal, Sliders, Lock, Unlock, Plus
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { SymmetryTools, SymmetryMode, getSymmetricPoints } from '@/components/pixel/SymmetryTools';
 import { ColorLegend } from '@/components/pixel/ColorLegend';
 import { StitchTypeSelector, StitchType, getStitchRatio } from '@/components/pixel/StitchTypeSelector';
 import { InfiniteCanvas } from '@/components/pixel/InfiniteCanvas';
-import { YarnStashPalette, StashColor, findNearestColor } from '@/components/pixel/YarnStashPalette';
+import { StashColor } from '@/components/pixel/YarnStashPalette';
 import { ImageCropDialog } from '@/components/pixel/ImageCropDialog';
 import { CanvasSizeDialog } from '@/components/pixel/CanvasSizeDialog';
 import { ColorLibrary } from '@/components/pixel/ColorLibrary';
-import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -170,106 +168,7 @@ const tools: { type: ExtendedTool; icon: typeof Pencil; label: string }[] = [
   { type: 'replace', icon: Replace, label: 'Replace' },
 ];
 
-// Ruler component with numbers - using cellWidth/cellHeight for stitch ratio
-function Ruler({ 
-  type, 
-  size, 
-  cellWidth,
-  cellHeight,
-  showGridLines = true, 
-}: { 
-  type: 'horizontal' | 'vertical'; 
-  size: number; 
-  cellWidth: number;
-  cellHeight: number;
-  showGridLines?: boolean;
-}) {
-  const rulerSize = 24;
-  const markers = useMemo(() => {
-    const items = [];
-    for (let i = 0; i < size; i++) {
-      const isMajor = (i + 1) % 10 === 0;
-      const isMinor = (i + 1) % 5 === 0;
-      items.push({ index: i, isMajor, isMinor, label: i + 1 });
-    }
-    return items;
-  }, [size]);
-
-  // Cell size includes border when grid lines are shown
-  const effectiveCellWidth = cellWidth + (showGridLines ? 1 : 0);
-  const effectiveCellHeight = cellHeight + (showGridLines ? 1 : 0);
-
-  if (type === 'horizontal') {
-    return (
-      <div 
-        className="flex bg-muted/40 border-b border-border/50 select-none"
-        style={{ marginLeft: rulerSize, height: rulerSize }}
-      >
-        {markers.map(({ index, isMajor, isMinor, label }) => (
-          <div
-            key={index}
-            className="relative flex items-end justify-center"
-            style={{ 
-              width: effectiveCellWidth, 
-              borderRight: isMajor ? '2px solid hsl(var(--primary) / 0.5)' : '1px solid transparent'
-            }}
-          >
-            {isMajor && (
-              <>
-                <span className="text-[9px] font-medium text-muted-foreground pb-0.5">
-                  {label}
-                </span>
-                {/* Tick line connecting to grid */}
-                <div 
-                  className="absolute bottom-0 right-0 w-[2px] bg-primary/50"
-                  style={{ height: 8, transform: 'translateX(1px)' }}
-                />
-              </>
-            )}
-            {!isMajor && isMinor && (
-              <div className="w-[1px] h-2 bg-muted-foreground/30" />
-            )}
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  return (
-    <div 
-      className="flex flex-col bg-muted/40 border-r border-border/50 select-none"
-      style={{ width: rulerSize }}
-    >
-      <div style={{ height: rulerSize }} /> {/* Corner spacer */}
-      {markers.map(({ index, isMajor, isMinor, label }) => (
-        <div
-          key={index}
-          className="relative flex items-center justify-end pr-1"
-          style={{ 
-            height: effectiveCellHeight, 
-            borderBottom: isMajor ? '2px solid hsl(var(--primary) / 0.5)' : '1px solid transparent'
-          }}
-        >
-          {isMajor && (
-            <>
-              <span className="text-[9px] font-medium text-muted-foreground">
-                {label}
-              </span>
-              {/* Tick line connecting to grid */}
-              <div 
-                className="absolute bottom-0 right-0 h-[2px] bg-primary/50"
-                style={{ width: 8, transform: 'translateY(1px)' }}
-              />
-            </>
-          )}
-          {!isMajor && isMinor && (
-            <div className="h-[1px] w-2 bg-muted-foreground/30" />
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
+// Ruler component moved to InfiniteCanvas component
 
 export default function PixelGenerator() {
   const { 
@@ -297,7 +196,6 @@ export default function PixelGenerator() {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [useDithering, setUseDithering] = useState(true);
-  const [showSettings, setShowSettings] = useState(false);
   const [showGridLines, setShowGridLines] = useState(true);
   const [currentTool, setCurrentTool] = useState<ExtendedTool>('pencil');
   const [symmetryMode, setSymmetryMode] = useState<SymmetryMode>('none');
@@ -315,12 +213,11 @@ export default function PixelGenerator() {
   const [pendingCroppedImage, setPendingCroppedImage] = useState<{ url: string; width: number; height: number } | null>(null);
   const [lockAspectRatio, setLockAspectRatio] = useState(true);
   const [manualHeight, setManualHeight] = useState(customGridHeight);
-  const [previewZoom, setPreviewZoom] = useState(100);
   const [emptyCanvasColor, setEmptyCanvasColor] = useState('#FDFBF7');
   const [customColor, setCustomColor] = useState('#6B8E23');
   
-  // State for tracking imported dimensions from CanvasSizeDialog
-  const [importedDimensions, setImportedDimensions] = useState<{ width: number; height: number } | null>(null);
+  // Canvas scaling state
+  const [canvasScale, setCanvasScale] = useState(100);
   
   // Selection state
   const [selection, setSelection] = useState<SelectionState>({
@@ -382,24 +279,18 @@ export default function PixelGenerator() {
 
   const handleCanvasSizeConfirm = useCallback((canvasWidth: number, canvasHeight: number) => {
     if (pendingCroppedImage) {
-      // Store the exact dimensions from dialog - these will be used directly in processImage
-      setImportedDimensions({ width: canvasWidth, height: canvasHeight });
-      setCustomGridDimensions(canvasWidth, canvasHeight);
-      setUploadedImage(pendingCroppedImage.url);
+      const imageUrl = pendingCroppedImage.url;
       setPendingCroppedImage(null);
+      setCustomGridDimensions(canvasWidth, canvasHeight);
+      
+      // Directly process image with confirmed dimensions - bypass state dependency issues
+      processImageWithDimensions(imageUrl, canvasWidth, canvasHeight);
     }
   }, [pendingCroppedImage, setCustomGridDimensions]);
-
-  // Add custom color to palette
-  const addColorToPalette = useCallback((color: string) => {
-    if (!colorPalette.includes(color)) {
-      setColorPalette([...colorPalette, color]);
-    }
-    setSelectedColor(color);
-  }, [colorPalette, setColorPalette, setSelectedColor]);
-
-  const processImage = useCallback(() => {
-    if (!uploadedImage || !canvasRef.current) return;
+  
+  // Process image with explicit dimensions (bypasses state sync issues)
+  const processImageWithDimensions = useCallback((imageUrl: string, targetWidth: number, targetHeight: number) => {
+    if (!canvasRef.current) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -407,16 +298,8 @@ export default function PixelGenerator() {
 
     const img = new Image();
     img.onload = () => {
-      // Use imported dimensions if available (from CanvasSizeDialog), otherwise calculate
-      const targetWidth = importedDimensions?.width ?? customGridWidth;
-      const targetHeight = importedDimensions?.height ?? calculatedHeight;
-      
-      // Clear imported dimensions after using them
-      if (importedDimensions) {
-        setImportedDimensions(null);
-      }
-      
       setGridDimensions(targetWidth, targetHeight);
+      setUploadedImage(imageUrl);
 
       canvas.width = targetWidth;
       canvas.height = targetHeight;
@@ -429,7 +312,6 @@ export default function PixelGenerator() {
       
       // If limit to stash palette is enabled, map to stash colors
       if (limitToPalette && stashColors.length > 0) {
-        // Replace each k-means color with nearest stash color
         const stashRgb = stashColors.map(c => {
           const match = c.hex.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
           if (match) {
@@ -460,7 +342,7 @@ export default function PixelGenerator() {
       }
       setPixelGrid(newGrid);
       
-      // Auto-detect background (most frequent color)
+      // Auto-detect background
       const colorCounts: Record<string, number> = {};
       for (const cell of newGrid) {
         colorCounts[cell.color] = (colorCounts[cell.color] || 0) + 1;
@@ -470,14 +352,49 @@ export default function PixelGenerator() {
         setIgnoredColor(null);
       }
     };
-    img.src = uploadedImage;
-  }, [uploadedImage, colorCount, customGridWidth, calculatedHeight, useDithering, limitToPalette, stashColors, importedDimensions, setGridDimensions, setColorPalette, setPixelGrid]);
+    img.src = imageUrl;
+  }, [colorCount, useDithering, limitToPalette, stashColors, setGridDimensions, setColorPalette, setPixelGrid]);
 
-  useEffect(() => {
-    if (uploadedImage) {
-      processImage();
+  // Add custom color to palette
+  const addColorToPalette = useCallback((color: string) => {
+    if (!colorPalette.includes(color)) {
+      setColorPalette([...colorPalette, color]);
     }
-  }, [uploadedImage, colorCount, customGridWidth, useDithering, processImage]);
+    setSelectedColor(color);
+  }, [colorPalette, setColorPalette, setSelectedColor]);
+
+  // Scale canvas proportionally (preserves existing edits using nearest-neighbor)
+  const scaleCanvas = useCallback((newScale: number) => {
+    if (pixelGrid.length === 0) return;
+    
+    const scaleFactor = newScale / 100;
+    const newWidth = Math.round(gridWidth * scaleFactor);
+    const newHeight = Math.round(gridHeight * scaleFactor);
+    
+    // Minimum size limit
+    if (newWidth < 10 || newHeight < 10) return;
+    if (newWidth > 500 || newHeight > 500) return;
+    
+    // Nearest-neighbor scaling to preserve edits
+    const newGrid: PixelCell[] = [];
+    for (let y = 0; y < newHeight; y++) {
+      for (let x = 0; x < newWidth; x++) {
+        // Map to original coordinates
+        const srcX = Math.floor(x / scaleFactor);
+        const srcY = Math.floor(y / scaleFactor);
+        const srcCell = pixelGrid.find(c => c.x === srcX && c.y === srcY);
+        newGrid.push({ 
+          x, 
+          y, 
+          color: srcCell?.color || '#FDFBF7' 
+        });
+      }
+    }
+    
+    setGridDimensions(newWidth, newHeight);
+    setPixelGrid(newGrid);
+    setCanvasScale(100); // Reset slider after applying
+  }, [pixelGrid, gridWidth, gridHeight, setGridDimensions, setPixelGrid]);
 
   // Cell sizing that responds to stitch type ratio
   // SC = 1:1 (square), HDC = 1:1.5, DC = 1:2
@@ -738,12 +655,7 @@ export default function PixelGenerator() {
     );
   };
 
-  // Mouse wheel zoom handler
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? -10 : 10;
-    setPreviewZoom(prev => Math.max(25, Math.min(200, prev + delta)));
-  }, []);
+  // Removed handleWheel - using InfiniteCanvas TransformWrapper instead
 
   return (
     <motion.div
@@ -793,19 +705,9 @@ export default function PixelGenerator() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Upload & Settings */}
         <motion.div variants={itemVariants} className="glass-card p-6 space-y-5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Upload className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-medium">Image Upload</h2>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowSettings(!showSettings)}
-              className="rounded-xl"
-            >
-              <Settings className="w-4 h-4" />
-            </Button>
+          <div className="flex items-center gap-2">
+            <Upload className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-medium">Image Upload</h2>
           </div>
 
           <input
@@ -833,91 +735,118 @@ export default function PixelGenerator() {
             <StitchTypeSelector value={stitchType} onChange={setStitchType} />
           </div>
 
-          {showSettings && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              className="space-y-4 border-t border-border/30 pt-4"
-            >
-              {/* Dimension inputs with lock toggle */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs">Dimensions (stitches)</Label>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 rounded-lg"
-                        onClick={() => setLockAspectRatio(!lockAspectRatio)}
-                      >
-                        {lockAspectRatio ? (
-                          <Lock className="w-3.5 h-3.5 text-primary" />
-                        ) : (
-                          <Unlock className="w-3.5 h-3.5 text-muted-foreground" />
-                        )}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {lockAspectRatio ? 'Unlock aspect ratio' : 'Lock aspect ratio'}
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <Label className="text-[10px] text-muted-foreground">Width</Label>
-                    <Input
-                      type="number"
-                      value={customGridWidth}
-                      onChange={(e) => setCustomGridDimensions(Number(e.target.value), customGridHeight)}
-                      className="h-9"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[10px] text-muted-foreground">Height</Label>
-                    <Input
-                      type="number"
-                      value={lockAspectRatio ? calculatedHeight : manualHeight}
-                      onChange={(e) => {
-                        if (!lockAspectRatio) {
-                          setManualHeight(Number(e.target.value));
-                        }
-                      }}
-                      disabled={lockAspectRatio}
-                      className={`h-9 ${lockAspectRatio ? 'opacity-60' : ''}`}
-                    />
-                  </div>
-                </div>
-                
-                {lockAspectRatio && (
-                  <p className="text-[10px] text-muted-foreground">
-                    Height auto-calculated from stitch ratio
-                  </p>
-                )}
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="dithering"
-                  checked={useDithering}
-                  onChange={(e) => setUseDithering(e.target.checked)}
-                  className="rounded"
+          {/* Canvas Dimensions - Always visible */}
+          <div className="space-y-3 border-t border-border/30 pt-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-medium">Canvas Dimensions (stitches)</Label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 rounded-lg"
+                    onClick={() => setLockAspectRatio(!lockAspectRatio)}
+                  >
+                    {lockAspectRatio ? (
+                      <Lock className="w-3.5 h-3.5 text-primary" />
+                    ) : (
+                      <Unlock className="w-3.5 h-3.5 text-muted-foreground" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {lockAspectRatio ? 'Unlock aspect ratio' : 'Lock aspect ratio'}
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-[10px] text-muted-foreground">Width</Label>
+                <Input
+                  type="number"
+                  value={customGridWidth}
+                  onChange={(e) => setCustomGridDimensions(Number(e.target.value), customGridHeight)}
+                  className="h-9"
                 />
-                <Label htmlFor="dithering" className="text-sm">Floyd-Steinberg Dithering</Label>
               </div>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => createEmptyGrid()}
-                className="w-full rounded-xl"
-              >
-                Create Empty Canvas
-              </Button>
-            </motion.div>
+              <div className="space-y-1">
+                <Label className="text-[10px] text-muted-foreground">Height</Label>
+                <Input
+                  type="number"
+                  value={lockAspectRatio ? calculatedHeight : manualHeight}
+                  onChange={(e) => {
+                    if (!lockAspectRatio) {
+                      setManualHeight(Number(e.target.value));
+                    }
+                  }}
+                  disabled={lockAspectRatio}
+                  className={`h-9 ${lockAspectRatio ? 'opacity-60' : ''}`}
+                />
+              </div>
+            </div>
+            
+            {lockAspectRatio && (
+              <p className="text-[10px] text-muted-foreground">
+                Height auto-calculated from stitch ratio
+              </p>
+            )}
+          </div>
+          
+          {/* Scale Canvas (when grid exists) */}
+          {pixelGrid.length > 0 && (
+            <div className="space-y-2 border-t border-border/30 pt-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">Scale Canvas</Label>
+                <span className="text-xs text-muted-foreground">{canvasScale}%</span>
+              </div>
+              <div className="flex gap-2">
+                <Slider
+                  value={[canvasScale]}
+                  onValueChange={([val]) => setCanvasScale(val)}
+                  min={50}
+                  max={200}
+                  step={10}
+                  className="flex-1"
+                />
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => scaleCanvas(canvasScale)}
+                  disabled={canvasScale === 100}
+                  className="rounded-xl"
+                >
+                  Apply
+                </Button>
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Preview: {Math.round(gridWidth * canvasScale / 100)} × {Math.round(gridHeight * canvasScale / 100)} stitches
+              </p>
+            </div>
           )}
+          
+          {/* Dithering Toggle & Create Canvas */}
+          <div className="space-y-3 border-t border-border/30 pt-4">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="dithering"
+                checked={useDithering}
+                onChange={(e) => setUseDithering(e.target.checked)}
+                className="rounded"
+              />
+              <Label htmlFor="dithering" className="text-sm">Floyd-Steinberg Dithering</Label>
+            </div>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => createEmptyGrid()}
+              className="w-full rounded-xl"
+            >
+              Create Empty Canvas
+            </Button>
+          </div>
 
           {/* Color Count Slider */}
           <div className="space-y-3">
@@ -1120,7 +1049,7 @@ export default function PixelGenerator() {
         </motion.div>
 
         {/* Main Grid Area */}
-        <motion.div variants={itemVariants} className="lg:col-span-2 glass-card p-6">
+        <motion.div variants={itemVariants} className="lg:col-span-2 glass-card p-6 min-h-[500px] flex flex-col">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-medium">Yarn Grid Preview</h2>
             <div className="flex items-center gap-3">
@@ -1133,77 +1062,28 @@ export default function PixelGenerator() {
           <canvas ref={canvasRef} className="hidden" />
 
           {pixelGrid.length > 0 ? (
-            <div className="space-y-3">
-              {/* Zoom controls */}
-              <div className="flex items-center gap-3 p-2 bg-muted/30 rounded-xl">
-                <ZoomOut className="w-4 h-4 text-muted-foreground" />
-                <Slider
-                  value={[previewZoom]}
-                  onValueChange={([val]) => setPreviewZoom(val)}
-                  min={25}
-                  max={200}
-                  step={5}
-                  className="flex-1"
-                />
-                <ZoomIn className="w-4 h-4 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground w-12 text-right">{previewZoom}%</span>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-7 w-7 rounded-lg"
-                      onClick={() => setPreviewZoom(100)}
-                    >
-                      <Maximize className="w-3.5 h-3.5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Reset Zoom</TooltipContent>
-                </Tooltip>
-              </div>
-
-              <div 
-                className="relative overflow-auto max-h-[600px] rounded-2xl bg-muted/20"
-                onWheel={handleWheel}
+            <div className="flex-1">
+              <InfiniteCanvas
+                width={gridWidth}
+                height={gridHeight}
+                cellWidth={cellWidth}
+                cellHeight={cellHeight}
+                showGridLines={showGridLines}
+                onShowGridLinesChange={setShowGridLines}
+                uploadedImage={uploadedImage}
+                traceOpacity={traceOpacity}
+                autoFitOnMount={true}
               >
+                {/* Grid without gap - using cell borders instead */}
                 <div 
-                  className="relative inline-flex origin-top-left"
-                  style={{ transform: `scale(${previewZoom / 100})` }}
+                  className="inline-grid gap-0"
+                  style={{ 
+                    gridTemplateColumns: `repeat(${gridWidth}, ${cellWidth + (showGridLines ? 1 : 0)}px)`,
+                  }}
                 >
-                  {/* Trace image overlay - positioned inside zoom container to match grid */}
-                  {uploadedImage && traceOpacity > 0 && (
-                    <div 
-                      className="absolute pointer-events-none z-10"
-                      style={{ 
-                        left: 24, // ruler width
-                        top: 24, // ruler height
-                        width: gridWidth * (cellWidth + (showGridLines ? 1 : 0)),
-                        height: gridHeight * (cellHeight + (showGridLines ? 1 : 0)),
-                        backgroundImage: `url(${uploadedImage})`,
-                        backgroundSize: '100% 100%',
-                        opacity: traceOpacity / 100,
-                        mixBlendMode: 'multiply',
-                      }}
-                    />
-                  )}
-                  
-                  <Ruler type="vertical" size={gridHeight} cellWidth={cellWidth} cellHeight={cellHeight} showGridLines={showGridLines} />
-                  
-                  <div className="flex flex-col">
-                    <Ruler type="horizontal" size={gridWidth} cellWidth={cellWidth} cellHeight={cellHeight} showGridLines={showGridLines} />
-                    
-                    {/* Grid without gap - using cell borders instead */}
-                    <div 
-                      className="inline-grid gap-0"
-                      style={{ 
-                        gridTemplateColumns: `repeat(${gridWidth}, ${cellWidth + (showGridLines ? 1 : 0)}px)`,
-                      }}
-                    >
-                      {pixelGrid.map((cell, i) => renderCell(cell, i))}
-                    </div>
-                  </div>
+                  {pixelGrid.map((cell, i) => renderCell(cell, i))}
                 </div>
-              </div>
+              </InfiniteCanvas>
             </div>
           ) : (
             <div className="space-y-6">
