@@ -1,240 +1,250 @@
 
 
-# Pixel Generator Enhancement Plan
+# Pixel Generator Fixes - Stitch Ratio, Grid Lines & Import Consistency
 
 ## Issues Identified
 
-### 1. No Canvas Size Selection When Importing Images
-**Current Behavior**: When importing an image, the crop dialog opens but doesn't let the user choose what canvas size the cropped image will be placed on. The `customGridWidth` and auto-calculated height are used, which may not match the cropped image's aspect ratio.
+### 1. Cell Size Doesn't Change with Stitch Type
+**Current Problem**: The code uses a fixed `cellSize = 14` (line 461), but you want cells to visually reflect the stitch ratio:
+- SC: 1:1 (square, e.g., 14×14)
+- HDC: 1:1.5 (taller, e.g., 14×21)
+- DC: 1:2 (tall, e.g., 14×28)
 
-**User Request**: Let users choose canvas dimensions (width × height) after cropping, with auto-suggested values based on the cropped image's aspect ratio to ensure the full image displays in the preview.
-
-### 2. Cell Size Not Fixed - Changes Based on Stitch Ratio
-**Current Behavior** (Lines 433-434):
+**Fix**: Change from fixed `cellSize` to `cellWidth` and `cellHeight` that respond to `stitchRatio`:
 ```typescript
 const cellWidth = 14;
-const cellHeight = cellWidth * combinedRatio;
+const cellHeight = cellWidth * getStitchRatio(stitchType);
 ```
-This causes cells to change height when `combinedRatio` changes (via stitch type or gauge). SC should be the baseline (1:1 square cells).
 
-**Fix**: Use a fixed base cell size (e.g., 14×14 pixels) for SC, and only apply ratio deformation during canvas creation/image processing, not during display. Display cells should always be squares for pixel-perfect editing.
+### 2. Grid Lines Not Showing for Non-10×10 Subdivisions
+**Current Problem**: In `renderCell` (lines 680-715), only major 10×10 lines use `majorBorderStyle`, and regular cells use 1px border. But the logic `(cell.x + 1) % 10 === 0` only catches every 10th cell, leaving cells 1-9 with thin borders that may not display consistently.
 
-### 3. No Color Picker When Editing Canvas
-**Current Behavior**: The ColorLibrary only shows when `pixelGrid.length === 0` (empty canvas state). Once a canvas/image is loaded, users cannot add new colors beyond the extracted palette.
+**Fix**: Ensure ALL cells have visible border lines, not just major ones:
+```typescript
+const borderStyle = showGridLines ? '1px solid rgba(0,0,0,0.15)' : 'none';
+```
+Also add visible minor tick marks at 5-cell intervals in the ruler.
 
-**User Request**: Add a color picker widget to the editing interface so users can add custom colors to the palette.
+### 3. Ruler Numbers Don't Align with 10×10 Major Lines
+**Current Problem**: The ruler shows numbers at 10/20/30 positions, but the alignment may drift due to cell sizing. The ruler tick marks need to visually connect with the grid's major lines.
 
-### 4. Combined Ratio Not Adjustable
-**Current Behavior**: The Combined Ratio is displayed as read-only (Lines 1019-1030). Changing it requires changing the stitch type or gauge data.
+**Fix**: 
+1. Update `Ruler` component to use `cellWidth` and `cellHeight` separately (not a single `cellSize`)
+2. Add a visual tick line extending from the ruler number to the grid edge
+3. Ensure `effectiveCellSize` calculation accounts for the correct dimension (width for horizontal ruler, height for vertical)
 
-**User Request**: Make Combined Ratio adjustable via a slider/input, and sync the canvas display when it changes.
+### 4. Delete Combined Ratio Feature
+**Current Problem**: You don't need the "Combined Ratio" manual control section (lines 1096-1174).
+
+**Fix**: Remove:
+- `useManualRatio` and `manualRatio` state variables
+- The entire "Combined Ratio" UI section
+- Keep using `stitchRatio` directly from stitch type selection
+
+### 5. Image Import Size Inconsistent in Preview
+**Current Problem**: When selecting canvas size in `CanvasSizeDialog`, the dimensions are passed to `handleCanvasSizeConfirm`, which calls `setCustomGridDimensions(canvasWidth, canvasHeight)`. However, `processImage` uses `customGridWidth` and `calculatedHeight` (which depends on lock/ratio settings), not the dimensions directly from the dialog.
+
+**Flow Issue**:
+1. Dialog confirms width=80, height=60
+2. `setCustomGridDimensions(80, 60)` is called
+3. But `processImage` uses `calculatedHeight` which is computed from `customGridWidth / combinedRatio`
+4. If `lockAspectRatio` is true, the imported height is overwritten!
+
+**Fix**: 
+1. After canvas size confirmation, process image directly with the confirmed dimensions
+2. Bypass the `calculatedHeight` logic for imported images
+3. Store the confirmed dimensions and use them directly in `processImage`
 
 ---
 
-## Solution Architecture
+## Implementation Plan
 
-### Phase 1: Add Canvas Size Selection Dialog After Cropping
+### Phase 1: Make Cell Size Respond to Stitch Type
 
-**New Flow**:
-1. User uploads image → Crop dialog opens
-2. User crops image → **Canvas Size Dialog** opens
-3. Dialog shows:
-   - Cropped image dimensions (e.g., "Original: 800×600")
-   - Suggested canvas size based on aspect ratio (e.g., "Suggested: 80×60 stitches")
-   - Width/Height inputs (editable)
-   - Lock aspect ratio toggle (default: locked to cropped image ratio)
-   - Preview showing how image will map to grid
-4. User confirms → Image is processed onto the chosen canvas size
+**File**: `src/pages/PixelGenerator.tsx`
 
-**New Component**: `CanvasSizeDialog.tsx`
+Replace fixed cell size with ratio-aware dimensions:
 
-### Phase 2: Fix Cell Size to Be Always Square (SC = 1:1)
-
-**Change**: Remove `combinedRatio` from cell height calculation. Cells are always square on screen. The ratio only affects:
-- How the cropped image is processed (scaling during quantization)
-- The suggested canvas dimensions
-- Ruler aspect ratio information (informational only)
-
-**Before**:
 ```typescript
+// Line ~461: Replace const cellSize = 14;
 const cellWidth = 14;
-const cellHeight = cellWidth * combinedRatio; // Variable height
+const cellHeight = Math.round(cellWidth * getStitchRatio(stitchType));
 ```
 
-**After**:
+Update all `cellSize` references:
+- `renderCell`: Use `cellWidth` and `cellHeight`
+- `Ruler`: Pass `cellWidth` for horizontal, `cellHeight` for vertical
+- Grid template: Use appropriate dimension
+- Trace image overlay: Use `cellWidth` and `cellHeight`
+
+### Phase 2: Fix Grid Line Display
+
+**File**: `src/pages/PixelGenerator.tsx` (`renderCell` function)
+
+Ensure all cells have visible borders:
+
 ```typescript
-const cellSize = 14; // Always square for editing
-// Ratio is applied during image processing, not display
+const renderCell = (cell: PixelCell, index: number) => {
+  const isMajorX = (cell.x + 1) % 10 === 0;
+  const isMajorY = (cell.y + 1) % 10 === 0;
+  
+  // All cells get visible thin border
+  const thinBorder = showGridLines ? '1px solid rgba(0,0,0,0.12)' : 'none';
+  // Major lines are thicker
+  const majorBorder = showGridLines ? '2px solid hsl(var(--primary) / 0.5)' : 'none';
+
+  return (
+    <div
+      style={{ 
+        width: cellWidth, 
+        height: cellHeight,
+        backgroundColor: cell.color,
+        borderRight: isMajorX ? majorBorder : thinBorder,
+        borderBottom: isMajorY ? majorBorder : thinBorder,
+        boxSizing: 'content-box',
+      }}
+      // ...handlers
+    />
+  );
+};
 ```
 
-### Phase 3: Add Color Picker to Editing Interface
+### Phase 3: Fix Ruler Alignment with Tick Lines
 
-**Add to Left Panel** (when `pixelGrid.length > 0`):
-1. Custom color input (HTML5 color picker + hex input)
-2. "Add to Palette" button that appends color to `colorPalette`
-3. Show ColorLibrary as collapsible panel for quick access
+**File**: `src/pages/PixelGenerator.tsx` (`Ruler` component)
 
-**UI Placement**: Below the "Project Palette" section
+Update to use separate width/height and add connecting tick lines:
 
-### Phase 4: Make Combined Ratio Adjustable
+```typescript
+function Ruler({ 
+  type, 
+  size, 
+  cellWidth,
+  cellHeight,
+  showGridLines = true, 
+}: { 
+  type: 'horizontal' | 'vertical'; 
+  size: number; 
+  cellWidth: number;
+  cellHeight: number;
+  showGridLines?: boolean;
+}) {
+  const rulerSize = 24;
+  const effectiveCellWidth = cellWidth + (showGridLines ? 1 : 0);
+  const effectiveCellHeight = cellHeight + (showGridLines ? 1 : 0);
+  
+  // For horizontal ruler, use width; for vertical, use height
+  const effectiveCellSize = type === 'horizontal' ? effectiveCellWidth : effectiveCellHeight;
+  
+  // ... rest with tick marks connecting to grid
+}
+```
 
-**Replace Read-Only Display with Controls**:
-1. Slider: Range 0.5 to 3.0, step 0.1
-2. Input: Manual number entry
-3. Preset buttons: 1:1 (SC), 1:1.5 (HDC), 1:2 (DC)
+Add tick lines that extend from the ruler to connect with major grid lines.
 
-**Sync Behavior**: When ratio changes:
-- Update the `combinedRatio` state
-- Recalculate suggested canvas height if aspect lock is on
-- Show info message: "Ratio affects canvas proportions, not cell display"
+### Phase 4: Remove Combined Ratio Section
+
+**File**: `src/pages/PixelGenerator.tsx`
+
+Remove:
+1. State variables (lines 306-307):
+   - `useManualRatio`
+   - `manualRatio`
+
+2. The ratio calculation (line 329):
+   - Change to: `const combinedRatio = baseGaugeRatio * stitchRatio;`
+
+3. The entire UI block (lines 1096-1174) - the "frosted-panel" with Combined Ratio controls
+
+### Phase 5: Fix Image Import Dimensions
+
+**File**: `src/pages/PixelGenerator.tsx`
+
+Create a state to track if dimensions came from import dialog:
+
+```typescript
+const [importedDimensions, setImportedDimensions] = useState<{ width: number; height: number } | null>(null);
+
+const handleCanvasSizeConfirm = useCallback((canvasWidth: number, canvasHeight: number) => {
+  if (pendingCroppedImage) {
+    // Store the exact dimensions from dialog
+    setImportedDimensions({ width: canvasWidth, height: canvasHeight });
+    setCustomGridDimensions(canvasWidth, canvasHeight);
+    setUploadedImage(pendingCroppedImage.url);
+    setPendingCroppedImage(null);
+  }
+}, [pendingCroppedImage, setCustomGridDimensions]);
+```
+
+Update `processImage` to use imported dimensions:
+
+```typescript
+const processImage = useCallback(() => {
+  if (!uploadedImage || !canvasRef.current) return;
+  
+  // Use imported dimensions if available, otherwise calculate
+  const targetWidth = importedDimensions?.width ?? customGridWidth;
+  const targetHeight = importedDimensions?.height ?? calculatedHeight;
+  
+  // Clear imported dimensions after use
+  // ... rest of processing
+}, [uploadedImage, importedDimensions, customGridWidth, calculatedHeight, ...]);
+```
 
 ---
 
-## Files to Modify/Create
+## Files to Modify
 
-| File | Action |
-|------|--------|
-| `src/components/pixel/CanvasSizeDialog.tsx` | **CREATE** - Dialog for canvas dimensions after cropping |
-| `src/pages/PixelGenerator.tsx` | **MODIFY** - Integrate new dialog, fix cell sizing, add color picker, adjustable ratio |
-| `src/components/pixel/ImageCropDialog.tsx` | **MODIFY** - Return cropped dimensions along with URL |
+| File | Changes |
+|------|---------|
+| `src/pages/PixelGenerator.tsx` | All fixes: cell sizing, grid lines, ruler, remove ratio, fix import |
 
 ---
 
 ## Technical Details
 
-### CanvasSizeDialog Interface
+### Updated Ruler Component Signature
+
 ```typescript
-interface CanvasSizeDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  croppedImageUrl: string;
-  croppedWidth: number;   // Natural pixel dimensions
-  croppedHeight: number;
-  defaultRatio: number;   // Current combinedRatio
-  onConfirm: (width: number, height: number) => void;
-}
+function Ruler({ 
+  type, 
+  size, 
+  cellWidth,
+  cellHeight,
+  showGridLines = true, 
+}: { 
+  type: 'horizontal' | 'vertical'; 
+  size: number; 
+  cellWidth: number;
+  cellHeight: number;
+  showGridLines?: boolean;
+})
 ```
 
-### Suggested Canvas Calculation
+### Cell Border Widths
+
 ```typescript
-// Based on cropped image aspect and target width
-const aspectRatio = croppedWidth / croppedHeight;
-const suggestedWidth = 60; // Default or user preference
-const suggestedHeight = Math.round(suggestedWidth / aspectRatio);
+// Major (10×10): 2px solid with primary color tint
+// Minor (all others): 1px solid with subtle opacity
+const borderThickness = isMajor ? 2 : 1;
 ```
 
-### Fixed Cell Size Implementation
-```typescript
-// Always square cells for pixel editing
-const cellSize = 14;
+### Grid Template Update
 
-// In renderCell:
+```typescript
 style={{ 
-  width: cellSize, 
-  height: cellSize,  // No ratio multiplication
-  backgroundColor: cell.color,
-  // ...borders
+  gridTemplateColumns: `repeat(${gridWidth}, ${cellWidth + (showGridLines ? 1 : 0)}px)`,
+  gridAutoRows: `${cellHeight + (showGridLines ? 1 : 0)}px`,
 }}
 ```
-
-### Color Picker UI
-```typescript
-<div className="space-y-3 border-t border-border/30 pt-4">
-  <div className="flex items-center gap-2">
-    <Palette className="w-4 h-4 text-muted-foreground" />
-    <span className="text-sm font-medium">Add Custom Color</span>
-  </div>
-  <div className="flex gap-2">
-    <input
-      type="color"
-      value={customColor}
-      onChange={(e) => setCustomColor(e.target.value)}
-      className="w-10 h-10 rounded-lg cursor-pointer"
-    />
-    <Input
-      value={customColor}
-      onChange={(e) => setCustomColor(e.target.value)}
-      placeholder="#FFFFFF"
-      className="flex-1"
-    />
-    <Button
-      variant="outline"
-      size="icon"
-      onClick={() => addColorToPalette(customColor)}
-    >
-      <Plus className="w-4 h-4" />
-    </Button>
-  </div>
-</div>
-```
-
-### Adjustable Combined Ratio
-```typescript
-const [manualRatio, setManualRatio] = useState(combinedRatio);
-const [useManualRatio, setUseManualRatio] = useState(false);
-
-const effectiveRatio = useManualRatio ? manualRatio : combinedRatio;
-
-// UI:
-<div className="space-y-2">
-  <div className="flex items-center justify-between">
-    <span className="text-sm">Combined Ratio</span>
-    <Switch
-      checked={useManualRatio}
-      onCheckedChange={setUseManualRatio}
-    />
-  </div>
-  {useManualRatio ? (
-    <div className="flex gap-2">
-      <Slider
-        value={[manualRatio]}
-        onValueChange={([v]) => setManualRatio(v)}
-        min={0.5}
-        max={3}
-        step={0.1}
-      />
-      <Input
-        type="number"
-        value={manualRatio}
-        onChange={(e) => setManualRatio(Number(e.target.value))}
-        className="w-20"
-      />
-    </div>
-  ) : (
-    <p className="text-2xl font-semibold">{combinedRatio.toFixed(2)}</p>
-  )}
-</div>
-```
-
----
-
-## User Flow Summary
-
-### Importing Image:
-1. Click "Upload image" → Select file
-2. **Crop Dialog**: Pan/zoom, select crop area, choose aspect preset
-3. **Canvas Size Dialog**: See suggested dimensions, adjust if needed, preview
-4. Confirm → Grid generated with exact canvas size, image fills entire grid
-
-### Creating Empty Canvas:
-1. Set Width/Height in settings
-2. Optionally adjust Combined Ratio
-3. Pick a fill color from Color Library or custom picker
-4. Click "Create Canvas"
-
-### Editing:
-1. Fixed square cells (no distortion during editing)
-2. Use color picker to add new colors beyond extracted palette
-3. All palette colors available for drawing
 
 ---
 
 ## Expected Outcome
 
-1. **Canvas size control**: Users choose exact grid dimensions after cropping
-2. **Auto-suggestions**: System recommends dimensions matching cropped image aspect ratio
-3. **Fixed cell display**: Cells are always square (14×14px) regardless of stitch ratio
-4. **Color picker access**: Users can add any color to their palette while editing
-5. **Adjustable ratio**: Combined Ratio can be manually overridden with slider/input
-6. **Complete image display**: Imported images fill the entire canvas without clipping
+1. **Stitch-responsive cells**: SC shows square cells, HDC shows 1.5x tall cells, DC shows 2x tall cells
+2. **Visible grid lines**: All cell borders visible, 10×10 major lines thicker and colored
+3. **Aligned rulers**: Numbers 10/20/30 perfectly align with major grid lines, tick marks connect to grid
+4. **Simplified UI**: No Combined Ratio section (uses stitch type directly)
+5. **Correct import**: Image fills the exact canvas dimensions selected in the dialog
 
