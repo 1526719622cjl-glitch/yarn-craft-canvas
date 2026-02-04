@@ -1,159 +1,230 @@
 
 
-# Swatch Lab + Pixel Generator Fix Plan
+# Pixel Generator Bug Fixes Plan
 
-## Part 1: Smart Yarn Calculator Fix
+## Issues Identified
 
-### Issue
-The current multi-yarn calculation splits the target requirements evenly across all yarns (`reqGrams / yarnCount`). This is incorrect - when holding 2 yarns together, you need the **full target length/weight of EACH yarn**, not half of each.
+### 1. Grid Cell Aspect Ratio Changes During Zoom
+**Current Problem**: The zoom slider changes the CSS `transform: scale()` of the entire grid container, but the individual cell sizes are calculated based on `combinedRatio` which includes stitch type ratio. The `previewZoom` slider scales everything together, but the underlying cell proportions are affected by the ratio calculation.
 
-**Example**: If project needs 500m total and you're using 2 yarns held together, you need 500m of Yarn A AND 500m of Yarn B (not 250m each).
-
-### Solution
-Change the calculation logic so each yarn independently calculates based on the **full** target requirement:
-
+**Root Cause** (Line 428-429):
+```typescript
+const cellWidth = 14;
+const cellHeight = cellWidth * combinedRatio;
 ```
-Current (wrong): Yarn A = 500m / 2 = 250m, Yarn B = 250m
-Fixed (correct): Yarn A = 500m, Yarn B = 500m
-```
+This is correct for the cell aspect ratio based on stitch type. However, the zoom control is using CSS `transform: scale()` which should maintain proportions. The actual issue is that the **grid gap** changes relative to cell size when zooming.
 
-### File Changed
-- `src/components/swatch/SmartYarnCalculator.tsx`: Remove the `/yarnCount` division in multi-yarn mode
+**Fix**: Keep cells at fixed proportions. The current implementation is correct, but we need to ensure the grid uses `gap-0` consistently regardless of zoom level, or scale the gap proportionally.
+
+### 2. Mouse Wheel Zoom Not Working
+**Current Problem**: The preview area uses a manual `previewZoom` slider (lines 1033-1058) with CSS `transform: scale()`, but there's no mouse wheel event handler for zooming.
+
+**Fix**: Add `onWheel` event handler to the preview container that adjusts `previewZoom` based on `deltaY`.
+
+### 3. Trace Image Doesn't Match Grid
+**Current Problem**: The trace image overlay (lines 1064-1074) uses:
+```typescript
+backgroundSize: '100% 100%',
+```
+But the grid itself is inside a container that's scaled by `previewZoom / 100`. The trace image is positioned with `absolute inset-0` which covers the entire container, not the scaled grid.
+
+**Root Cause**: 
+- The trace overlay is **outside** the zoom-transformed container
+- The grid is inside a `transform: scale()` wrapper
+- These don't align when zoom changes
+
+**Fix**: Move the trace image **inside** the scaled container, or calculate its size to match the grid's actual pixel dimensions (`gridWidth * cellWidth` × `gridHeight * cellHeight`).
+
+### 4. Ruler Numbers Don't Match Actual Grid Cells
+**Current Problem**: The `Ruler` component (lines 173-248) calculates marker positions using `cellSize`:
+```typescript
+style={{ width: cellSize + 1, ...}}
+```
+But the grid itself has `gap-[1px]` when `showGridLines` is true (line 1086):
+```typescript
+className={`inline-grid ${showGridLines ? 'gap-[1px]' : 'gap-0'}`}
+```
+This creates a cumulative offset - each row/column adds 1px of gap, causing rulers and cells to drift apart.
+
+**Fix**: Either:
+1. Remove the gap from the grid and use borders on cells instead (already done partially)
+2. OR adjust ruler positioning to account for cumulative gaps
+3. Best approach: Use consistent cell borders instead of grid gap
+
+### 5. Drawing Doesn't Change Color (Color Doesn't Apply)
+**Current Problem**: When clicking to paint, the `handleCellClick` function calls `paintWithSymmetry(x, y, selectedColor)`, which calls `paintPixel` from the store. Looking at the store's `paintPixel`:
+```typescript
+paintPixel: (x, y, color) => {
+  const { pixelGrid, gridWidth, gridHeight } = get();
+  const idx = pixelGrid.findIndex(p => p.x === x && p.y === y);
+  if (idx >= 0) {
+    const newGrid = [...pixelGrid];
+    newGrid[idx] = { ...newGrid[idx], color };
+    set({ pixelGrid: newGrid });
+  }
+},
+```
+This looks correct. The issue might be:
+1. The `selectedColor` not being updated when clicking palette colors
+2. The eyedropper tool switching to pencil but not correctly setting color
+3. The grid not re-rendering after state change
+
+**Likely Cause**: In `handlePaletteColorClick` (line 624-628), the color is set correctly. However, if the user is in a different tool mode and clicks a palette color, it may not switch to pencil mode properly.
+
+**Testing needed**: Check if `selectedColor` state updates correctly and if grid cells re-render.
 
 ---
 
-## Part 2: Pixel Generator Enhancements
+## Implementation Plan
 
-### 2.1 Image Cropping After Upload
+### Phase 1: Fix Trace Image Alignment
 
-**New Component**: `ImageCropDialog.tsx`
-- Uses `react-zoom-pan-pinch` (already installed) for pan/zoom
-- Manual crop selection via drag handles
-- Preset aspect ratio buttons: Free, 1:1, 4:3, 16:9, 3:4, Portrait, Landscape
-- Apply/Cancel buttons
+Move the trace overlay inside the zoom-scaled container and calculate exact dimensions:
 
-**Flow Change**:
-1. User clicks "Upload image"
-2. After file selection, cropping dialog opens
-3. User adjusts crop area (drag/zoom/preset buttons)
-4. User clicks "Apply" - cropped image is passed to the existing `processImage` function
+**File**: `src/pages/PixelGenerator.tsx` (lines 1060-1094)
 
-### 2.2 Custom Height Input
+Change the trace image from using `inset-0` to using calculated dimensions that match the grid:
+```typescript
+{uploadedImage && traceOpacity > 0 && (
+  <div 
+    className="absolute pointer-events-none z-0"
+    style={{ 
+      // Position at grid start (after rulers)
+      left: 24, // ruler width
+      top: 24,  // ruler height
+      width: gridWidth * cellWidth,
+      height: gridHeight * cellHeight,
+      backgroundImage: `url(${uploadedImage})`,
+      backgroundSize: '100% 100%',
+      opacity: traceOpacity / 100,
+      mixBlendMode: 'multiply',
+    }}
+  />
+)}
+```
 
-**Current**: Only "Target Width" input, height auto-calculated from stitch ratio
-**New**: Add separate "Target Height" input option with a toggle
+### Phase 2: Fix Ruler Alignment (Remove Grid Gap)
 
-- When "Lock Ratio" is ON (default): Height = Width / stitchRatio (current behavior)
-- When "Lock Ratio" is OFF: User can enter both width and height independently
+The grid currently uses `gap-[1px]` which causes cumulative offset. Change to use cell borders instead:
 
-**UI Change**: Add a lock/unlock toggle next to dimensions
+**File**: `src/pages/PixelGenerator.tsx`
 
-### 2.3 Preview Zoom Controls
+1. Remove the `gap-[1px]` from the grid container (line 1086)
+2. Cell borders are already implemented via className in `renderCell`
+3. Update ruler cellSize to match exact cell dimensions
 
-**Current**: Basic overflow-scroll preview
-**New**: Wrap preview in zoom/pan controls
+### Phase 3: Add Mouse Wheel Zoom
 
-- Add zoom slider (10% - 400%)
-- Add "Fit to View" button
-- Pan on drag (already have InfiniteCanvas, but not used in main grid area)
+**File**: `src/pages/PixelGenerator.tsx`
 
-### 2.4 Color Library for Empty Canvas Mode
+Add wheel event handler to the preview container:
+```typescript
+const handleWheel = useCallback((e: React.WheelEvent) => {
+  e.preventDefault();
+  const delta = e.deltaY > 0 ? -10 : 10;
+  setPreviewZoom(prev => Math.max(25, Math.min(200, prev + delta)));
+}, []);
 
-**Current**: When no image uploaded, shows "Upload an image or create an empty canvas" with only a create button
-**New**: Show a color palette picker
+// Add to container:
+<div 
+  className="relative overflow-auto..."
+  onWheel={handleWheel}
+>
+```
 
-- Display a curated color library (common yarn colors)
-- Categories: Neutrals, Pastels, Brights, Earth Tones
-- Allow user to select a base fill color before creating empty canvas
-- Also show the Yarn Stash palette if colors are saved
+### Phase 4: Add Click-Drag Panning
+
+Currently only spacebar-drag works in InfiniteCanvas. Add mouse drag panning for the preview area:
+
+**File**: `src/pages/PixelGenerator.tsx`
+
+Add pan state and handlers:
+```typescript
+const [isPanning, setIsPanning] = useState(false);
+const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+const scrollRef = useRef<HTMLDivElement>(null);
+```
+
+### Phase 5: Fix Color Drawing Issue
+
+**File**: `src/pages/PixelGenerator.tsx`
+
+Debug the color application by:
+1. Ensuring `selectedColor` is correctly passed to `paintWithSymmetry`
+2. Checking if grid cell re-rendering occurs after `paintPixel` updates state
+3. Adding console logging to trace the flow
+
+**Likely fix**: The grid uses `gap-[1px]` which may be causing rendering issues. Also verify that the cell's `backgroundColor` style correctly receives the updated color.
 
 ---
 
-## Files to Create/Modify
+## Files to Modify
 
-| File | Action |
-|------|--------|
-| `src/components/swatch/SmartYarnCalculator.tsx` | Fix multi-yarn calculation logic |
-| `src/components/pixel/ImageCropDialog.tsx` | NEW - Image cropping dialog component |
-| `src/components/pixel/ColorLibrary.tsx` | NEW - Default color palette component |
-| `src/pages/PixelGenerator.tsx` | Integrate cropping, add height input, add preview zoom, add color library |
+| File | Changes |
+|------|---------|
+| `src/pages/PixelGenerator.tsx` | Fix trace image positioning, remove grid gap, add wheel zoom, fix color painting flow |
 
 ---
 
 ## Technical Details
 
-### SmartYarnCalculator Fix
-
+### Corrected Trace Image Position
 ```typescript
-// BEFORE (line 145-157):
-const yarnGrams = (reqGrams / yarnCount) * bufferMultiplier;
-
-// AFTER:
-const yarnGrams = reqGrams * bufferMultiplier; // Full requirement per yarn
+// Inside the zoom-scaled container, position trace relative to grid
+<div 
+  className="absolute pointer-events-none z-0"
+  style={{ 
+    left: 24, // after vertical ruler
+    top: 24,  // after horizontal ruler
+    width: gridWidth * cellWidth,
+    height: gridHeight * cellHeight,
+    backgroundImage: `url(${uploadedImage})`,
+    backgroundSize: '100% 100%',
+    opacity: traceOpacity / 100,
+    mixBlendMode: 'multiply',
+  }}
+/>
 ```
 
-### ImageCropDialog Implementation
-
+### Grid Without Gap (Using Cell Borders)
 ```typescript
-interface ImageCropDialogProps {
-  imageUrl: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onCropComplete: (croppedImageUrl: string) => void;
-}
+<div 
+  className="inline-grid"
+  style={{ 
+    gridTemplateColumns: `repeat(${gridWidth}, ${cellWidth}px)`,
+  }}
+>
+  {pixelGrid.map((cell, i) => renderCell(cell, i))}
+</div>
 
-// Preset ratios
-const ASPECT_PRESETS = [
-  { label: 'Free', value: null },
-  { label: '1:1', value: 1 },
-  { label: '4:3', value: 4/3 },
-  { label: '3:4', value: 3/4 },
-  { label: '16:9', value: 16/9 },
-];
+// Cell border styling in renderCell:
+style={{ 
+  width: cellWidth, 
+  height: cellHeight,
+  backgroundColor: cell.color,
+  borderRight: showGridLines ? '1px solid rgba(0,0,0,0.1)' : 'none',
+  borderBottom: showGridLines ? '1px solid rgba(0,0,0,0.1)' : 'none',
+}}
 ```
 
-### Color Library Structure
-
+### Mouse Wheel Zoom Handler
 ```typescript
-interface ColorCategory {
-  name: string;
-  colors: { hex: string; name: string }[];
-}
-
-const COLOR_LIBRARY: ColorCategory[] = [
-  {
-    name: 'Neutrals',
-    colors: [
-      { hex: '#FFFFFF', name: 'White' },
-      { hex: '#F5F5DC', name: 'Beige' },
-      { hex: '#D3D3D3', name: 'Light Grey' },
-      // ...
-    ]
-  },
-  // Pastels, Brights, Earth Tones...
-];
-```
-
-### PixelGenerator Dimension Changes
-
-```typescript
-// New state
-const [lockAspectRatio, setLockAspectRatio] = useState(true);
-const [customHeight, setCustomHeight] = useState(customGridHeight);
-
-// Calculated height respects lock
-const targetHeight = lockAspectRatio 
-  ? Math.round(customGridWidth / combinedRatio)
-  : customHeight;
+const handleWheel = useCallback((e: React.WheelEvent) => {
+  if (e.ctrlKey || e.metaKey) {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -10 : 10;
+    setPreviewZoom(prev => Math.max(25, Math.min(200, prev + delta)));
+  }
+}, []);
 ```
 
 ---
 
 ## Expected Outcome
 
-1. **Multi-yarn calculator**: Each yarn shows the full target requirement, total balls is the sum across all yarns
-2. **Image cropping**: Users can select a specific region of their image before conversion
-3. **Flexible dimensions**: Users can override the auto-calculated height when needed
-4. **Preview zoom**: Large patterns are easier to navigate
-5. **Color library**: Empty canvas creation is more intuitive with preset colors
+1. **Fixed aspect ratio**: Grid cells maintain consistent proportions at all zoom levels
+2. **Mouse wheel zoom**: Ctrl/Cmd + scroll wheel zooms in/out
+3. **Aligned trace image**: The uploaded image overlay exactly matches the grid dimensions
+4. **Aligned rulers**: Ruler tick marks match actual grid cell positions
+5. **Working color painting**: Selected colors correctly apply when drawing
 
