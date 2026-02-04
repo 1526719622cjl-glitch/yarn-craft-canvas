@@ -135,16 +135,16 @@ export function SmartYarnCalculator() {
       let totalBalls = 0;
       let totalLen = 0;
 
-      // For simplicity: split requirements evenly across yarns
-      const yarnCount = yarns.length;
+      // Each yarn held together needs the FULL target requirement
+      // When holding 2 yarns together, you need 500m of EACH yarn, not 250m each
       
       yarns.forEach((yarn) => {
         const ballWt = parseFloat(yarn.ballWeight) || 0;
         const ballLen = parseFloat(yarn.ballLength) || 0;
         
         if (reqGrams > 0 && ballWt > 0) {
-          // Split grams evenly
-          const yarnGrams = (reqGrams / yarnCount) * bufferMultiplier;
+          // Full grams requirement per yarn (not split)
+          const yarnGrams = reqGrams * bufferMultiplier;
           const balls = Math.ceil(yarnGrams / ballWt);
           const meters = ballLen > 0 ? balls * ballLen : 0;
           
@@ -152,8 +152,8 @@ export function SmartYarnCalculator() {
           totalBalls += balls;
           totalLen += meters;
         } else if (reqMeters > 0 && ballLen > 0) {
-          // Split meters evenly
-          const yarnMeters = (reqMeters / yarnCount) * bufferMultiplier;
+          // Full meters requirement per yarn (not split)
+          const yarnMeters = reqMeters * bufferMultiplier;
           const balls = Math.ceil(yarnMeters / ballLen);
           
           perYarnResults.push({ label: yarn.label, balls, meters: Math.round(balls * ballLen) });
