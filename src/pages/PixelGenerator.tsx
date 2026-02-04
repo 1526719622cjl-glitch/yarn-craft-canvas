@@ -1,9 +1,9 @@
 import { motion } from 'framer-motion';
 import { useYarnCluesStore, PixelTool, PixelCell } from '@/store/useYarnCluesStore';
 import { 
-  Grid3X3, Upload, Palette, ZoomIn, Pencil, Eraser, PaintBucket, Pipette, 
+  Grid3X3, Upload, Palette, ZoomIn, ZoomOut, Pencil, Eraser, PaintBucket, Pipette, 
   Settings, Square, RotateCw, Copy, Move, Grid, Eye, EyeOff, Layers, Replace,
-  FlipHorizontal, Sliders, FileDown, Table
+  FlipHorizontal, Sliders, FileDown, Table, Lock, Unlock, Maximize
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,6 +17,9 @@ import { ColorLegend } from '@/components/pixel/ColorLegend';
 import { StitchTypeSelector, StitchType, getStitchRatio } from '@/components/pixel/StitchTypeSelector';
 import { InfiniteCanvas } from '@/components/pixel/InfiniteCanvas';
 import { YarnStashPalette, StashColor, findNearestColor } from '@/components/pixel/YarnStashPalette';
+import { ImageCropDialog } from '@/components/pixel/ImageCropDialog';
+import { ColorLibrary } from '@/components/pixel/ColorLibrary';
+import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -282,6 +285,14 @@ export default function PixelGenerator() {
   const [limitToPalette, setLimitToPalette] = useState(false);
   const [showSymbols, setShowSymbols] = useState(false);
   
+  // New state for enhancements
+  const [showCropDialog, setShowCropDialog] = useState(false);
+  const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(null);
+  const [lockAspectRatio, setLockAspectRatio] = useState(true);
+  const [manualHeight, setManualHeight] = useState(customGridHeight);
+  const [previewZoom, setPreviewZoom] = useState(100);
+  const [emptyCanvasColor, setEmptyCanvasColor] = useState('#FDFBF7');
+  
   // Selection state
   const [selection, setSelection] = useState<SelectionState>({
     startX: 0,
@@ -303,10 +314,20 @@ export default function PixelGenerator() {
   const stitchRatio = getStitchRatio(stitchType);
   const combinedRatio = baseGaugeRatio * stitchRatio;
 
-  // Calculate target height based on width and stitch ratio
+  // Calculate target height based on width and stitch ratio (or use manual height)
   const calculatedHeight = useMemo(() => {
-    return Math.round(customGridWidth / combinedRatio);
-  }, [customGridWidth, combinedRatio]);
+    if (lockAspectRatio) {
+      return Math.round(customGridWidth / combinedRatio);
+    }
+    return manualHeight;
+  }, [customGridWidth, combinedRatio, lockAspectRatio, manualHeight]);
+
+  // Sync manual height with calculated when lock is enabled
+  useEffect(() => {
+    if (lockAspectRatio) {
+      setManualHeight(Math.round(customGridWidth / combinedRatio));
+    }
+  }, [customGridWidth, combinedRatio, lockAspectRatio]);
 
   const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -314,9 +335,19 @@ export default function PixelGenerator() {
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      setUploadedImage(event.target?.result as string);
+      const imageUrl = event.target?.result as string;
+      setPendingImageUrl(imageUrl);
+      setShowCropDialog(true);
     };
     reader.readAsDataURL(file);
+    
+    // Reset input so same file can be selected again
+    e.target.value = '';
+  }, []);
+
+  const handleCropComplete = useCallback((croppedImageUrl: string) => {
+    setUploadedImage(croppedImageUrl);
+    setPendingImageUrl(null);
   }, []);
 
   const processImage = useCallback(() => {
@@ -567,9 +598,9 @@ export default function PixelGenerator() {
     });
   };
 
-  const createEmptyGrid = () => {
+  const createEmptyGrid = (fillColor?: string) => {
     const newGrid: PixelCell[] = [];
-    const defaultColor = colorPalette[0] || '#FDFBF7';
+    const defaultColor = fillColor || emptyCanvasColor || colorPalette[0] || '#FDFBF7';
     for (let y = 0; y < calculatedHeight; y++) {
       for (let x = 0; x < customGridWidth; x++) {
         newGrid.push({ x, y, color: defaultColor });
@@ -577,6 +608,7 @@ export default function PixelGenerator() {
     }
     setGridDimensions(customGridWidth, calculatedHeight);
     setPixelGrid(newGrid);
+    setColorPalette([defaultColor]);
   };
 
   const handleToolChange = (tool: ExtendedTool) => {
@@ -655,6 +687,16 @@ export default function PixelGenerator() {
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
+      {/* Image Crop Dialog */}
+      {pendingImageUrl && (
+        <ImageCropDialog
+          imageUrl={pendingImageUrl}
+          open={showCropDialog}
+          onOpenChange={setShowCropDialog}
+          onCropComplete={handleCropComplete}
+        />
+      )}
+
       {/* Header */}
       <motion.div variants={itemVariants} className="space-y-2">
         <div className="flex items-center gap-3">
@@ -717,17 +759,62 @@ export default function PixelGenerator() {
               animate={{ opacity: 1, height: 'auto' }}
               className="space-y-4 border-t border-border/30 pt-4"
             >
-              <div className="space-y-2">
-                <Label className="text-xs">Target Width (stitches)</Label>
-                <Input
-                  type="number"
-                  value={customGridWidth}
-                  onChange={(e) => setCustomGridDimensions(Number(e.target.value), customGridHeight)}
-                  className="h-9"
-                />
-                <p className="text-[10px] text-muted-foreground">
-                  Height auto-calculated: {calculatedHeight} rows
-                </p>
+              {/* Dimension inputs with lock toggle */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Dimensions (stitches)</Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 rounded-lg"
+                        onClick={() => setLockAspectRatio(!lockAspectRatio)}
+                      >
+                        {lockAspectRatio ? (
+                          <Lock className="w-3.5 h-3.5 text-primary" />
+                        ) : (
+                          <Unlock className="w-3.5 h-3.5 text-muted-foreground" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {lockAspectRatio ? 'Unlock aspect ratio' : 'Lock aspect ratio'}
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-muted-foreground">Width</Label>
+                    <Input
+                      type="number"
+                      value={customGridWidth}
+                      onChange={(e) => setCustomGridDimensions(Number(e.target.value), customGridHeight)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-muted-foreground">Height</Label>
+                    <Input
+                      type="number"
+                      value={lockAspectRatio ? calculatedHeight : manualHeight}
+                      onChange={(e) => {
+                        if (!lockAspectRatio) {
+                          setManualHeight(Number(e.target.value));
+                        }
+                      }}
+                      disabled={lockAspectRatio}
+                      className={`h-9 ${lockAspectRatio ? 'opacity-60' : ''}`}
+                    />
+                  </div>
+                </div>
+                
+                {lockAspectRatio && (
+                  <p className="text-[10px] text-muted-foreground">
+                    Height auto-calculated from stitch ratio
+                  </p>
+                )}
               </div>
               
               <div className="flex items-center gap-2">
@@ -744,7 +831,7 @@ export default function PixelGenerator() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={createEmptyGrid}
+                onClick={() => createEmptyGrid()}
                 className="w-full rounded-xl"
               >
                 Create Empty Canvas
@@ -931,53 +1018,116 @@ export default function PixelGenerator() {
         <motion.div variants={itemVariants} className="lg:col-span-2 glass-card p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-medium">Yarn Grid Preview</h2>
-            <span className="text-sm text-muted-foreground">
-              {gridWidth} × {gridHeight} stitches
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-muted-foreground">
+                {gridWidth} × {gridHeight} stitches
+              </span>
+            </div>
           </div>
 
           <canvas ref={canvasRef} className="hidden" />
 
           {pixelGrid.length > 0 ? (
-            <div 
-              className="relative overflow-auto max-h-[600px] rounded-2xl bg-muted/20"
-            >
-              {/* Trace image overlay */}
-              {uploadedImage && traceOpacity > 0 && (
-                <div 
-                  className="absolute inset-0 pointer-events-none z-10"
-                  style={{ 
-                    backgroundImage: `url(${uploadedImage})`,
-                    backgroundSize: '100% 100%',
-                    opacity: traceOpacity / 100,
-                    mixBlendMode: 'multiply',
-                  }}
+            <div className="space-y-3">
+              {/* Zoom controls */}
+              <div className="flex items-center gap-3 p-2 bg-muted/30 rounded-xl">
+                <ZoomOut className="w-4 h-4 text-muted-foreground" />
+                <Slider
+                  value={[previewZoom]}
+                  onValueChange={([val]) => setPreviewZoom(val)}
+                  min={25}
+                  max={200}
+                  step={5}
+                  className="flex-1"
                 />
-              )}
-              
-              <div className="inline-flex">
-                <Ruler type="vertical" size={gridHeight} cellSize={cellHeight} />
-                
-                <div className="flex flex-col">
-                  <Ruler type="horizontal" size={gridWidth} cellSize={cellWidth} />
-                  
+                <ZoomIn className="w-4 h-4 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground w-12 text-right">{previewZoom}%</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-7 w-7 rounded-lg"
+                      onClick={() => setPreviewZoom(100)}
+                    >
+                      <Maximize className="w-3.5 h-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Reset Zoom</TooltipContent>
+                </Tooltip>
+              </div>
+
+              <div 
+                className="relative overflow-auto max-h-[600px] rounded-2xl bg-muted/20"
+              >
+                {/* Trace image overlay */}
+                {uploadedImage && traceOpacity > 0 && (
                   <div 
-                    className={`inline-grid ${showGridLines ? 'gap-[1px]' : 'gap-0'}`}
+                    className="absolute inset-0 pointer-events-none z-10"
                     style={{ 
-                      gridTemplateColumns: `repeat(${gridWidth}, ${cellWidth}px)`,
+                      backgroundImage: `url(${uploadedImage})`,
+                      backgroundSize: '100% 100%',
+                      opacity: traceOpacity / 100,
+                      mixBlendMode: 'multiply',
                     }}
-                  >
-                    {pixelGrid.map((cell, i) => renderCell(cell, i))}
+                  />
+                )}
+                
+                <div 
+                  className="inline-flex origin-top-left"
+                  style={{ transform: `scale(${previewZoom / 100})` }}
+                >
+                  <Ruler type="vertical" size={gridHeight} cellSize={cellHeight} />
+                  
+                  <div className="flex flex-col">
+                    <Ruler type="horizontal" size={gridWidth} cellSize={cellWidth} />
+                    
+                    <div 
+                      className={`inline-grid ${showGridLines ? 'gap-[1px]' : 'gap-0'}`}
+                      style={{ 
+                        gridTemplateColumns: `repeat(${gridWidth}, ${cellWidth}px)`,
+                      }}
+                    >
+                      {pixelGrid.map((cell, i) => renderCell(cell, i))}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="h-64 flex items-center justify-center rounded-2xl bg-muted/20">
-              <div className="text-center">
-                <p className="text-muted-foreground mb-2">Upload an image or create an empty canvas</p>
-                <Button variant="outline" onClick={createEmptyGrid} className="rounded-xl">
-                  Create {customGridWidth}×{calculatedHeight} Canvas
+            <div className="space-y-6">
+              <div className="h-40 flex items-center justify-center rounded-2xl bg-muted/20 border-2 border-dashed border-border">
+                <div className="text-center">
+                  <p className="text-muted-foreground mb-3">Upload an image or create an empty canvas</p>
+                  <Button variant="outline" onClick={() => createEmptyGrid()} className="rounded-xl">
+                    Create {customGridWidth}×{calculatedHeight} Canvas
+                  </Button>
+                </div>
+              </div>
+              
+              {/* Color Library for empty canvas */}
+              <ColorLibrary 
+                onColorSelect={(color) => {
+                  setEmptyCanvasColor(color);
+                  setSelectedColor(color);
+                }}
+                selectedColor={emptyCanvasColor}
+              />
+              
+              <div className="flex items-center gap-3">
+                <div 
+                  className="w-10 h-10 rounded-xl shadow-sm border border-border"
+                  style={{ backgroundColor: emptyCanvasColor }}
+                />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Selected Fill Color</p>
+                  <p className="text-xs text-muted-foreground">{emptyCanvasColor}</p>
+                </div>
+                <Button 
+                  onClick={() => createEmptyGrid(emptyCanvasColor)} 
+                  className="rounded-xl"
+                >
+                  Create Canvas
                 </Button>
               </div>
             </div>
