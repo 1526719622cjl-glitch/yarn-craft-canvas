@@ -30,6 +30,8 @@ export function InfiniteCanvas({
   autoFitOnMount = true,
 }: InfiniteCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const horizontalRulerRef = useRef<HTMLDivElement>(null);
+  const verticalRulerRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
   const [aspectLocked, setAspectLocked] = useState(true);
 
@@ -41,13 +43,26 @@ export function InfiniteCanvas({
   const showLODGrid = useMemo(() => zoom >= 0.3, [zoom]);
   const showLODLabels = useMemo(() => zoom >= 0.5, [zoom]);
 
+  // Sync ruler scroll with canvas scroll
+  const handleScroll = useCallback(() => {
+    if (!containerRef.current) return;
+    const { scrollLeft, scrollTop } = containerRef.current;
+    
+    if (horizontalRulerRef.current) {
+      horizontalRulerRef.current.scrollLeft = scrollLeft;
+    }
+    if (verticalRulerRef.current) {
+      verticalRulerRef.current.scrollTop = scrollTop;
+    }
+  }, []);
+
   // Fit to view calculation
   const fitToView = useCallback(() => {
     if (!containerRef.current) return;
     
     const container = containerRef.current;
-    const containerWidth = container.clientWidth - 40;
-    const containerHeight = container.clientHeight - 40;
+    const containerWidth = container.clientWidth - 20;
+    const containerHeight = container.clientHeight - 20;
     
     if (canvasWidth <= 0 || canvasHeight <= 0) return;
     
@@ -57,7 +72,6 @@ export function InfiniteCanvas({
     
     setZoom(scale);
     
-    // Reset scroll to top-left
     requestAnimationFrame(() => {
       if (containerRef.current) {
         containerRef.current.scrollLeft = 0;
@@ -89,7 +103,6 @@ export function InfiniteCanvas({
     const mouseXInViewport = e.clientX - rect.left;
     const mouseYInViewport = e.clientY - rect.top;
     
-    // Mouse position in scrolled content
     const mouseX = mouseXInViewport + container.scrollLeft;
     const mouseY = mouseYInViewport + container.scrollTop;
 
@@ -97,11 +110,9 @@ export function InfiniteCanvas({
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
     const newZoom = Math.max(0.1, Math.min(5, oldZoom * delta));
 
-    // Calculate canvas coordinate under mouse
     const canvasX = mouseX / oldZoom;
     const canvasY = mouseY / oldZoom;
     
-    // New scroll position to keep the same canvas point under mouse
     const newScrollX = canvasX * newZoom - mouseXInViewport;
     const newScrollY = canvasY * newZoom - mouseYInViewport;
 
@@ -138,22 +149,24 @@ export function InfiniteCanvas({
 
     const majorLines: React.ReactNode[] = [];
     
-    for (let x = 10; x < width; x += 10) {
+    // Vertical lines at 10, 20, 30... (after every 10th cell)
+    for (let x = 10; x <= width; x += 10) {
       majorLines.push(
         <div
           key={`v-${x}`}
-          className="absolute top-0 bottom-0 bg-primary/20 pointer-events-none"
-          style={{ left: x * cellWidth, width: 2 }}
+          className="absolute top-0 bottom-0 bg-primary/30 pointer-events-none"
+          style={{ left: x * cellWidth - 1, width: 2 }}
         />
       );
     }
     
-    for (let y = 10; y < height; y += 10) {
+    // Horizontal lines at 10, 20, 30... (after every 10th cell)
+    for (let y = 10; y <= height; y += 10) {
       majorLines.push(
         <div
           key={`h-${y}`}
-          className="absolute left-0 right-0 bg-primary/20 pointer-events-none"
-          style={{ top: y * cellHeight, height: 2 }}
+          className="absolute left-0 right-0 bg-primary/30 pointer-events-none"
+          style={{ top: y * cellHeight - 1, height: 2 }}
         />
       );
     }
@@ -161,51 +174,54 @@ export function InfiniteCanvas({
     return majorLines;
   }, [width, height, cellWidth, cellHeight, showLODGrid, showGridLines]);
 
-  // Horizontal ruler
+  // Horizontal ruler - numbers aligned to grid lines
   const horizontalRuler = useMemo(() => {
     if (!showLODLabels) return null;
     
     const markers: React.ReactNode[] = [];
-    for (let x = 0; x < width; x++) {
-      if ((x + 1) % 10 === 0) {
-        markers.push(
-          <div
-            key={x}
-            className="absolute text-[9px] font-medium text-muted-foreground"
-            style={{ left: x * cellWidth + cellWidth / 2 - 8, top: 4 }}
-          >
-            {x + 1}
-          </div>
-        );
-      }
+    for (let lineNum = 10; lineNum <= width; lineNum += 10) {
+      markers.push(
+        <div
+          key={lineNum}
+          className="absolute text-[9px] font-medium text-muted-foreground"
+          style={{ 
+            left: lineNum * cellWidth,
+            transform: 'translateX(-50%)',
+            top: 2
+          }}
+        >
+          {lineNum}
+        </div>
+      );
     }
     return markers;
   }, [width, cellWidth, showLODLabels]);
 
-  // Vertical ruler
+  // Vertical ruler - numbers aligned to grid lines
   const verticalRuler = useMemo(() => {
     if (!showLODLabels) return null;
     
     const markers: React.ReactNode[] = [];
-    for (let y = 0; y < height; y++) {
-      if ((y + 1) % 10 === 0) {
-        markers.push(
-          <div
-            key={y}
-            className="absolute text-[9px] font-medium text-muted-foreground"
-            style={{ top: y * cellHeight + cellHeight / 2 - 6, left: 4 }}
-          >
-            {y + 1}
-          </div>
-        );
-      }
+    for (let lineNum = 10; lineNum <= height; lineNum += 10) {
+      markers.push(
+        <div
+          key={lineNum}
+          className="absolute text-[9px] font-medium text-muted-foreground"
+          style={{ 
+            top: lineNum * cellHeight,
+            transform: 'translateY(-50%)',
+            left: 2
+          }}
+        >
+          {lineNum}
+        </div>
+      );
     }
     return markers;
   }, [height, cellHeight, showLODLabels]);
 
-  // Scaled dimensions for the wrapper
-  const scaledWidth = canvasWidth * zoom + 24; // 24 for left ruler
-  const scaledHeight = canvasHeight * zoom + 20; // 20 for top ruler
+  const scaledCanvasWidth = canvasWidth * zoom;
+  const scaledCanvasHeight = canvasHeight * zoom;
 
   return (
     <div className="flex flex-col h-full">
@@ -317,92 +333,102 @@ export function InfiniteCanvas({
         </div>
       </div>
 
-      {/* Canvas Area - Scrollable Container */}
-      <div 
-        ref={containerRef}
-        className="flex-1 overflow-auto bg-muted/10 rounded-b-2xl"
-        onWheel={handleWheel}
-        style={{ cursor: 'crosshair' }}
-      >
-        {/* Scaled Content Wrapper */}
-        <div 
-          style={{ 
-            width: scaledWidth,
-            height: scaledHeight,
-            minWidth: '100%',
-            minHeight: '100%',
-          }}
-        >
-          {/* Transform Container */}
+      {/* Canvas Area with Fixed Rulers */}
+      <div className="flex-1 flex flex-col min-h-0 bg-muted/10 rounded-b-2xl overflow-hidden">
+        {/* Top Row: Corner + Horizontal Ruler */}
+        <div className="flex shrink-0">
+          {/* Top-left corner */}
+          <div className="w-6 h-5 bg-muted/60 border-r border-b border-border/40 shrink-0" />
+          
+          {/* Horizontal Ruler - synced with canvas scroll */}
           <div 
-            style={{ 
-              transform: `scale(${zoom})`,
-              transformOrigin: 'top left',
-              width: canvasWidth + 24,
-              height: canvasHeight + 20,
-            }}
+            ref={horizontalRulerRef}
+            className="flex-1 h-5 bg-muted/60 border-b border-border/40 overflow-hidden"
           >
-            {/* Trace image background */}
-            {uploadedImage && traceOpacity > 0 && (
-              <div 
-                className="absolute pointer-events-none z-0"
-                style={{ 
-                  left: 24,
-                  top: 20,
-                  width: canvasWidth,
-                  height: canvasHeight,
-                  backgroundImage: `url(${uploadedImage})`,
-                  backgroundSize: '100% 100%',
-                  opacity: traceOpacity / 100,
-                  mixBlendMode: 'multiply',
-                }}
-              />
-            )}
-
-            {/* Horizontal Ruler */}
             <div 
-              className="absolute top-0 left-6 h-5 bg-muted/60 border-b border-border/40"
-              style={{ width: canvasWidth }}
+              className="relative h-full"
+              style={{ 
+                width: scaledCanvasWidth,
+                transform: `scaleX(${zoom})`,
+                transformOrigin: 'left top'
+              }}
             >
               {horizontalRuler}
             </div>
-
-            {/* Vertical Ruler */}
+          </div>
+        </div>
+        
+        {/* Bottom Row: Vertical Ruler + Scrollable Canvas */}
+        <div className="flex-1 flex min-h-0">
+          {/* Vertical Ruler - synced with canvas scroll */}
+          <div 
+            ref={verticalRulerRef}
+            className="w-6 bg-muted/60 border-r border-border/40 overflow-hidden shrink-0"
+          >
             <div 
-              className="absolute left-0 top-5 w-6 bg-muted/60 border-r border-border/40"
-              style={{ height: canvasHeight }}
+              className="relative w-full"
+              style={{ 
+                height: scaledCanvasHeight,
+                transform: `scaleY(${zoom})`,
+                transformOrigin: 'left top'
+              }}
             >
               {verticalRuler}
             </div>
+          </div>
+          
+          {/* Scrollable Canvas - scrollbars here, adjacent to canvas */}
+          <div 
+            ref={containerRef}
+            className="flex-1 overflow-auto"
+            onWheel={handleWheel}
+            onScroll={handleScroll}
+            style={{ cursor: 'crosshair' }}
+          >
+            {/* Sized container for proper scrollbar range */}
+            <div style={{ width: scaledCanvasWidth, height: scaledCanvasHeight }}>
+              {/* Scaled content */}
+              <div 
+                className="relative"
+                style={{ 
+                  transform: `scale(${zoom})`,
+                  transformOrigin: 'top left',
+                  width: canvasWidth,
+                  height: canvasHeight,
+                }}
+              >
+                {/* Trace image background */}
+                {uploadedImage && traceOpacity > 0 && (
+                  <div 
+                    className="absolute inset-0 pointer-events-none z-0"
+                    style={{ 
+                      backgroundImage: `url(${uploadedImage})`,
+                      backgroundSize: '100% 100%',
+                      opacity: traceOpacity / 100,
+                      mixBlendMode: 'multiply',
+                    }}
+                  />
+                )}
 
-            {/* Main Grid Content */}
-            <div 
-              className="absolute"
-              style={{ 
-                top: 20,
-                left: 24,
-                width: canvasWidth,
-                height: canvasHeight,
-              }}
-            >
-              {/* Grid overlay for major lines */}
-              <div className="absolute inset-0 pointer-events-none z-10">
-                {gridOverlay}
+                {/* Grid overlay for major lines */}
+                <div className="absolute inset-0 pointer-events-none z-10">
+                  {gridOverlay}
+                </div>
+
+                {/* Children (grid cells) */}
+                {children}
               </div>
-
-              {/* Children (grid cells) */}
-              {children}
             </div>
           </div>
         </div>
-
-        {/* LOD indicator */}
-        {!showLODGrid && (
-          <div className="fixed bottom-4 left-4 px-3 py-1.5 rounded-full bg-primary/20 backdrop-blur-sm text-xs text-primary font-medium">
-            Macro View (zoom in for details)
-          </div>
-        )}
       </div>
+
+      {/* LOD indicator */}
+      {!showLODGrid && (
+        <div className="absolute bottom-4 left-4 px-3 py-1.5 rounded-full bg-primary/20 backdrop-blur-sm text-xs text-primary font-medium">
+          Macro View (zoom in for details)
+        </div>
+      )}
     </div>
   );
 }
