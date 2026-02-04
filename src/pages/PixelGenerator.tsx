@@ -457,6 +457,7 @@ export default function PixelGenerator() {
   }, [uploadedImage, colorCount, customGridWidth, useDithering, processImage]);
 
   // Fixed square cells for editing (ratio only affects image processing, not display)
+  // All cells are 14x14px for consistent pixel-perfect editing
   const cellSize = 14;
 
   // Selection helpers
