@@ -1031,22 +1031,6 @@ export default function PixelGenerator() {
             </motion.div>
           )}
 
-          {/* Grid Toggle */}
-          <div className="flex items-center justify-between border-t border-border/30 pt-4">
-            <div className="flex items-center gap-2">
-              <Grid className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm">Grid Lines</span>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowGridLines(!showGridLines)}
-              className="rounded-xl"
-            >
-              {showGridLines ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-            </Button>
-          </div>
-
         </motion.div>
 
         {/* Main Area - Preview + Color Legend stacked */}

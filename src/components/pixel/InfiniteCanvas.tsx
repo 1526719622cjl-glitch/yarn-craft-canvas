@@ -143,83 +143,61 @@ export function InfiniteCanvas({
     }
   }, []);
 
-  // Generate grid overlay for major lines (every 10)
-  const gridOverlay = useMemo(() => {
-    if (!showLODGrid || !showGridLines) return null;
+  // Grid overlay removed - using cell borders for 10x10 major lines instead
 
-    const majorLines: React.ReactNode[] = [];
-    
-    // Vertical lines at 10, 20, 30... (after every 10th cell)
-    // Position = lineNum * cellWidth (right edge of lineNum-th cell)
-    for (let lineNum = 10; lineNum <= width; lineNum += 10) {
-      majorLines.push(
-        <div
-          key={`v-${lineNum}`}
-          className="absolute top-0 bottom-0 bg-primary/40 pointer-events-none"
-          style={{ left: lineNum * cellWidth, width: 2 }}
-        />
-      );
-    }
-    
-    // Horizontal lines at 10, 20, 30... (after every 10th cell)
-    for (let lineNum = 10; lineNum <= height; lineNum += 10) {
-      majorLines.push(
-        <div
-          key={`h-${lineNum}`}
-          className="absolute left-0 right-0 bg-primary/40 pointer-events-none"
-          style={{ top: lineNum * cellHeight, height: 2 }}
-        />
-      );
-    }
-    
-    return majorLines;
-  }, [width, height, cellWidth, cellHeight, showLODGrid, showGridLines]);
-
-  // Horizontal ruler - numbers aligned to grid lines
+  // Horizontal ruler - numbers aligned to 10th cell right edges
+  // Cell 10's right edge = 10 * cellWidth, but with 1px border, need adjustment
   const horizontalRuler = useMemo(() => {
     if (!showLODLabels) return null;
     
     const markers: React.ReactNode[] = [];
-    for (let lineNum = 10; lineNum <= width; lineNum += 10) {
+    // Numbers at 10, 20, 30... aligned to the right edge of those cells
+    for (let cellNum = 10; cellNum <= width; cellNum += 10) {
+      // Position at the right edge of cell (cellNum * cellWidth)
+      // Account for the additional border width
+      const position = cellNum * (cellWidth + (showGridLines ? 1 : 0));
       markers.push(
         <div
-          key={lineNum}
-          className="absolute text-[9px] font-medium text-muted-foreground"
+          key={cellNum}
+          className="absolute text-[9px] font-medium text-muted-foreground whitespace-nowrap"
           style={{ 
-            left: lineNum * cellWidth,
+            left: position,
             transform: 'translateX(-50%)',
             top: 2
           }}
         >
-          {lineNum}
+          {cellNum}
         </div>
       );
     }
     return markers;
-  }, [width, cellWidth, showLODLabels]);
+  }, [width, cellWidth, showLODLabels, showGridLines]);
 
-  // Vertical ruler - numbers aligned to grid lines
+  // Vertical ruler - numbers aligned to 10th cell bottom edges
   const verticalRuler = useMemo(() => {
     if (!showLODLabels) return null;
     
     const markers: React.ReactNode[] = [];
-    for (let lineNum = 10; lineNum <= height; lineNum += 10) {
+    for (let cellNum = 10; cellNum <= height; cellNum += 10) {
+      // Position at the bottom edge of cell (cellNum * cellHeight)
+      // Account for the additional border width
+      const position = cellNum * (cellHeight + (showGridLines ? 1 : 0));
       markers.push(
         <div
-          key={lineNum}
-          className="absolute text-[9px] font-medium text-muted-foreground"
+          key={cellNum}
+          className="absolute text-[9px] font-medium text-muted-foreground whitespace-nowrap"
           style={{ 
-            top: lineNum * cellHeight,
+            top: position,
             transform: 'translateY(-50%)',
             left: 2
           }}
         >
-          {lineNum}
+          {cellNum}
         </div>
       );
     }
     return markers;
-  }, [height, cellHeight, showLODLabels]);
+  }, [height, cellHeight, showLODLabels, showGridLines]);
 
   const scaledCanvasWidth = canvasWidth * zoom;
   const scaledCanvasHeight = canvasHeight * zoom;
@@ -411,10 +389,7 @@ export function InfiniteCanvas({
                   />
                 )}
 
-                {/* Grid overlay for major lines */}
-                <div className="absolute inset-0 pointer-events-none z-10">
-                  {gridOverlay}
-                </div>
+                {/* Grid overlay removed - using cell borders */}
 
                 {/* Children (grid cells) */}
                 {children}
