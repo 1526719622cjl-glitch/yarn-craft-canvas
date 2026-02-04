@@ -141,10 +141,10 @@ export function YarnGaugeVault({ onLoadYarn, compact = false }: YarnGaugeVaultPr
       weight: (newYarn.weight || null) as YarnWeight | null,
       status: 'new' as YarnStatus,
       folder_id: selectedFolderId,
-      stitches_per_10cm: gaugeData.stitchDensity * 10,
-      rows_per_10cm: gaugeData.rowDensity * 10,
-      post_wash_width_cm: swatchData.swatchWidth,
-      post_wash_height_cm: swatchData.swatchHeight,
+      stitches_per_10cm: gaugeData.postWashStitchDensity * 10,
+      rows_per_10cm: gaugeData.postWashRowDensity * 10,
+      post_wash_width_cm: swatchData.postWashWidth,
+      post_wash_height_cm: swatchData.postWashHeight,
       meters_per_ball: null,
       grams_per_ball: null,
       balls_in_stock: 0,
@@ -163,15 +163,22 @@ export function YarnGaugeVault({ onLoadYarn, compact = false }: YarnGaugeVaultPr
   };
 
   const handleLoadYarn = (yarn: YarnEntry) => {
-    // Load yarn data into swatch calculator
-    const stitchDensity = yarn.stitches_per_10cm ? yarn.stitches_per_10cm / 10 : gaugeData.stitchDensity;
-    const rowDensity = yarn.rows_per_10cm ? yarn.rows_per_10cm / 10 : gaugeData.rowDensity;
+    // Load yarn data into swatch calculator using the new dual-dimension system
+    const stitchDensity = yarn.stitches_per_10cm ? yarn.stitches_per_10cm / 10 : gaugeData.postWashStitchDensity;
+    const rowDensity = yarn.rows_per_10cm ? yarn.rows_per_10cm / 10 : gaugeData.postWashRowDensity;
+    const postWidth = yarn.post_wash_width_cm || 10;
+    const postHeight = yarn.post_wash_height_cm || 10;
     
     setSwatchData({
-      swatchWidth: yarn.post_wash_width_cm || 10,
-      swatchHeight: yarn.post_wash_height_cm || 10,
-      stitchesPostWash: Math.round(stitchDensity * (yarn.post_wash_width_cm || 10)),
-      rowsPostWash: Math.round(rowDensity * (yarn.post_wash_height_cm || 10)),
+      // For loaded yarn, assume pre-wash = post-wash (no shrinkage data stored)
+      preWashWidth: postWidth,
+      preWashHeight: postHeight,
+      stitchesPreWash: Math.round(stitchDensity * postWidth),
+      rowsPreWash: Math.round(rowDensity * postHeight),
+      postWashWidth: postWidth,
+      postWashHeight: postHeight,
+      stitchesPostWash: Math.round(stitchDensity * postWidth),
+      rowsPostWash: Math.round(rowDensity * postHeight),
     });
     
     onLoadYarn?.(yarn);
@@ -502,10 +509,10 @@ export function YarnGaugeVault({ onLoadYarn, compact = false }: YarnGaugeVaultPr
                 <div className="frosted-panel">
                   <p className="text-xs text-muted-foreground mb-2">Current Gauge (will be saved):</p>
                   <p className="text-sm font-medium">
-                    {gaugeData?.stitchDensity?.toFixed(1) ?? '0'} st/cm × {gaugeData?.rowDensity?.toFixed(1) ?? '0'} rows/cm
+                    {gaugeData?.postWashStitchDensity?.toFixed(1) ?? '0'} st/cm × {gaugeData?.postWashRowDensity?.toFixed(1) ?? '0'} rows/cm
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Swatch: {swatchData?.swatchWidth ?? 10} × {swatchData?.swatchHeight ?? 10} cm
+                    Swatch: {swatchData?.postWashWidth ?? 10} × {swatchData?.postWashHeight ?? 10} cm
                   </p>
                 </div>
 
