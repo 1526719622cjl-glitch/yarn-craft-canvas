@@ -1,6 +1,5 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { TransformWrapper, TransformComponent, ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
-import { ZoomIn, ZoomOut, Maximize, Home, Eye, EyeOff, Lock, Unlock, Move } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize, Home, Eye, EyeOff, Lock, Unlock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -30,96 +29,108 @@ export function InfiniteCanvas({
   traceOpacity = 0,
   autoFitOnMount = true,
 }: InfiniteCanvasProps) {
-  const transformRef = useRef<ReactZoomPanPinchRef>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [currentZoom, setCurrentZoom] = useState(1);
-  const [isPanning, setIsPanning] = useState(false);
+  const [zoom, setZoom] = useState(1);
   const [aspectLocked, setAspectLocked] = useState(true);
-  const [hasInitialized, setHasInitialized] = useState(false);
 
   // Calculate total canvas size
   const canvasWidth = width * cellWidth;
   const canvasHeight = height * cellHeight;
 
   // LOD: Hide grid lines when zoomed out below 30%
-  const showLODGrid = useMemo(() => currentZoom >= 0.3, [currentZoom]);
-  const showLODLabels = useMemo(() => currentZoom >= 0.5, [currentZoom]);
-  
-  // CRITICAL: Fit to view calculation - ensures entire pattern is visible
+  const showLODGrid = useMemo(() => zoom >= 0.3, [zoom]);
+  const showLODLabels = useMemo(() => zoom >= 0.5, [zoom]);
+
+  // Fit to view calculation
   const fitToView = useCallback(() => {
-    if (!containerRef.current || !transformRef.current) return;
+    if (!containerRef.current) return;
     
     const container = containerRef.current;
-    const containerWidth = container.clientWidth - 80; // padding for rulers
-    const containerHeight = container.clientHeight - 80;
+    const containerWidth = container.clientWidth - 40;
+    const containerHeight = container.clientHeight - 40;
     
     if (canvasWidth <= 0 || canvasHeight <= 0) return;
     
     const scaleX = containerWidth / canvasWidth;
     const scaleY = containerHeight / canvasHeight;
-    // Scale to fit the entire pattern, cap at 100% (never zoom in past 1:1)
     const scale = Math.min(scaleX, scaleY, 1);
     
-    // Center and apply scale
-    transformRef.current.centerView(scale);
-    setCurrentZoom(scale);
+    setZoom(scale);
+    
+    // Reset scroll to top-left
+    requestAnimationFrame(() => {
+      if (containerRef.current) {
+        containerRef.current.scrollLeft = 0;
+        containerRef.current.scrollTop = 0;
+      }
+    });
   }, [canvasWidth, canvasHeight]);
 
-  // CRITICAL: Auto-fit on mount and dimension changes - immediate zoom-to-fit
+  // Auto-fit on mount
   useEffect(() => {
     if (!autoFitOnMount) return;
-    
-    // Immediate fit on first render
-    const immediateTimer = setTimeout(() => {
-      fitToView();
-      setHasInitialized(true);
-    }, 50);
-    
-    // Delayed fit for when dimensions settle
-    const delayedTimer = setTimeout(fitToView, 200);
-    
-    return () => {
-      clearTimeout(immediateTimer);
-      clearTimeout(delayedTimer);
-    };
+    const timer = setTimeout(fitToView, 100);
+    return () => clearTimeout(timer);
   }, [fitToView, autoFitOnMount]);
 
-  // Re-fit when dimensions change significantly
+  // Re-fit when dimensions change
   useEffect(() => {
-    if (hasInitialized) {
-      const timer = setTimeout(fitToView, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [width, height, hasInitialized, fitToView]);
+    const timer = setTimeout(fitToView, 100);
+    return () => clearTimeout(timer);
+  }, [width, height, fitToView]);
 
-  // Handle zoom change for LOD
-  const handleTransform = useCallback((ref: ReactZoomPanPinchRef) => {
-    setCurrentZoom(ref.state.scale);
+  // Mouse wheel zoom with cursor-centered behavior
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const container = containerRef.current;
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+    const mouseXInViewport = e.clientX - rect.left;
+    const mouseYInViewport = e.clientY - rect.top;
+    
+    // Mouse position in scrolled content
+    const mouseX = mouseXInViewport + container.scrollLeft;
+    const mouseY = mouseYInViewport + container.scrollTop;
+
+    const oldZoom = zoom;
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    const newZoom = Math.max(0.1, Math.min(5, oldZoom * delta));
+
+    // Calculate canvas coordinate under mouse
+    const canvasX = mouseX / oldZoom;
+    const canvasY = mouseY / oldZoom;
+    
+    // New scroll position to keep the same canvas point under mouse
+    const newScrollX = canvasX * newZoom - mouseXInViewport;
+    const newScrollY = canvasY * newZoom - mouseYInViewport;
+
+    setZoom(newZoom);
+
+    requestAnimationFrame(() => {
+      if (containerRef.current) {
+        containerRef.current.scrollLeft = Math.max(0, newScrollX);
+        containerRef.current.scrollTop = Math.max(0, newScrollY);
+      }
+    });
+  }, [zoom]);
+
+  // Zoom controls
+  const zoomIn = useCallback(() => {
+    setZoom(prev => Math.min(5, prev * 1.2));
   }, []);
 
-  // Spacebar pan mode
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && !isPanning) {
-        e.preventDefault();
-        setIsPanning(true);
-        document.body.style.cursor = 'grab';
-      }
-    };
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.code === 'Space') {
-        setIsPanning(false);
-        document.body.style.cursor = 'default';
-      }
-    };
-    
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, [isPanning]);
+  const zoomOut = useCallback(() => {
+    setZoom(prev => Math.max(0.1, prev * 0.8));
+  }, []);
+
+  const resetZoom = useCallback(() => {
+    setZoom(1);
+    if (containerRef.current) {
+      containerRef.current.scrollLeft = 0;
+      containerRef.current.scrollTop = 0;
+    }
+  }, []);
 
   // Generate grid overlay for major lines (every 10)
   const gridOverlay = useMemo(() => {
@@ -127,30 +138,22 @@ export function InfiniteCanvas({
 
     const majorLines: React.ReactNode[] = [];
     
-    // Vertical lines every 10 stitches
     for (let x = 10; x < width; x += 10) {
       majorLines.push(
         <div
           key={`v-${x}`}
           className="absolute top-0 bottom-0 bg-primary/20 pointer-events-none"
-          style={{ 
-            left: x * cellWidth,
-            width: 2,
-          }}
+          style={{ left: x * cellWidth, width: 2 }}
         />
       );
     }
     
-    // Horizontal lines every 10 rows
     for (let y = 10; y < height; y += 10) {
       majorLines.push(
         <div
           key={`h-${y}`}
           className="absolute left-0 right-0 bg-primary/20 pointer-events-none"
-          style={{ 
-            top: y * cellHeight,
-            height: 2,
-          }}
+          style={{ top: y * cellHeight, height: 2 }}
         />
       );
     }
@@ -158,7 +161,7 @@ export function InfiniteCanvas({
     return majorLines;
   }, [width, height, cellWidth, cellHeight, showLODGrid, showGridLines]);
 
-  // Axis rulers
+  // Horizontal ruler
   const horizontalRuler = useMemo(() => {
     if (!showLODLabels) return null;
     
@@ -179,6 +182,7 @@ export function InfiniteCanvas({
     return markers;
   }, [width, cellWidth, showLODLabels]);
 
+  // Vertical ruler
   const verticalRuler = useMemo(() => {
     if (!showLODLabels) return null;
     
@@ -199,6 +203,10 @@ export function InfiniteCanvas({
     return markers;
   }, [height, cellHeight, showLODLabels]);
 
+  // Scaled dimensions for the wrapper
+  const scaledWidth = canvasWidth * zoom + 24; // 24 for left ruler
+  const scaledHeight = canvasHeight * zoom + 20; // 20 for top ruler
+
   return (
     <div className="flex flex-col h-full">
       {/* Controls Bar */}
@@ -209,7 +217,7 @@ export function InfiniteCanvas({
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => transformRef.current?.zoomIn()}
+                onClick={zoomIn}
                 className="h-8 w-8 rounded-lg"
               >
                 <ZoomIn className="w-4 h-4" />
@@ -223,7 +231,7 @@ export function InfiniteCanvas({
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => transformRef.current?.zoomOut()}
+                onClick={zoomOut}
                 className="h-8 w-8 rounded-lg"
               >
                 <ZoomOut className="w-4 h-4" />
@@ -243,7 +251,7 @@ export function InfiniteCanvas({
                 <Maximize className="w-4 h-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Fit to View (Zoom-to-Fit)</TooltipContent>
+            <TooltipContent>Fit to View</TooltipContent>
           </Tooltip>
           
           <Tooltip>
@@ -251,7 +259,7 @@ export function InfiniteCanvas({
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => transformRef.current?.resetTransform()}
+                onClick={resetZoom}
                 className="h-8 w-8 rounded-lg"
               >
                 <Home className="w-4 h-4" />
@@ -293,18 +301,11 @@ export function InfiniteCanvas({
 
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted-foreground">
-            {Math.round(currentZoom * 100)}%
+            {Math.round(zoom * 100)}%
           </span>
           <Slider
-            value={[currentZoom * 100]}
-            onValueChange={([val]) => {
-              const scale = val / 100;
-              transformRef.current?.setTransform(
-                transformRef.current.state.positionX,
-                transformRef.current.state.positionY,
-                scale
-              );
-            }}
+            value={[zoom * 100]}
+            onValueChange={([val]) => setZoom(val / 100)}
             min={10}
             max={500}
             step={5}
@@ -316,37 +317,30 @@ export function InfiniteCanvas({
         </div>
       </div>
 
-      {/* Canvas Area */}
+      {/* Canvas Area - Scrollable Container */}
       <div 
         ref={containerRef}
-        className="flex-1 overflow-hidden bg-muted/10 rounded-b-2xl relative"
-        style={{ 
-          cursor: isPanning ? 'grab' : 'crosshair',
-          // Checkerboard pattern for transparency
-          backgroundImage: `
-            linear-gradient(45deg, hsl(var(--muted)) 25%, transparent 25%),
-            linear-gradient(-45deg, hsl(var(--muted)) 25%, transparent 25%),
-            linear-gradient(45deg, transparent 75%, hsl(var(--muted)) 75%),
-            linear-gradient(-45deg, transparent 75%, hsl(var(--muted)) 75%)
-          `,
-          backgroundSize: '20px 20px',
-          backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
-        }}
+        className="flex-1 overflow-auto bg-muted/10 rounded-b-2xl"
+        onWheel={handleWheel}
+        style={{ cursor: 'crosshair' }}
       >
-        <TransformWrapper
-          ref={transformRef}
-          initialScale={0.5}
-          minScale={0.05}
-          maxScale={5}
-          wheel={{ step: 0.05 }}
-          panning={{ disabled: false }}
-          onTransformed={handleTransform}
-          doubleClick={{ disabled: true }}
-          centerOnInit={true}
+        {/* Scaled Content Wrapper */}
+        <div 
+          style={{ 
+            width: scaledWidth,
+            height: scaledHeight,
+            minWidth: '100%',
+            minHeight: '100%',
+          }}
         >
-          <TransformComponent
-            wrapperStyle={{ width: '100%', height: '100%' }}
-            contentStyle={{ width: canvasWidth + 48, height: canvasHeight + 48 }}
+          {/* Transform Container */}
+          <div 
+            style={{ 
+              transform: `scale(${zoom})`,
+              transformOrigin: 'top left',
+              width: canvasWidth + 24,
+              height: canvasHeight + 20,
+            }}
           >
             {/* Trace image background */}
             {uploadedImage && traceOpacity > 0 && (
@@ -367,7 +361,7 @@ export function InfiniteCanvas({
 
             {/* Horizontal Ruler */}
             <div 
-              className="absolute top-0 left-6 right-0 h-5 bg-muted/60 border-b border-border/40 z-10"
+              className="absolute top-0 left-6 h-5 bg-muted/60 border-b border-border/40"
               style={{ width: canvasWidth }}
             >
               {horizontalRuler}
@@ -375,7 +369,7 @@ export function InfiniteCanvas({
 
             {/* Vertical Ruler */}
             <div 
-              className="absolute left-0 top-5 bottom-0 w-6 bg-muted/60 border-r border-border/40 z-10"
+              className="absolute left-0 top-5 w-6 bg-muted/60 border-r border-border/40"
               style={{ height: canvasHeight }}
             >
               {verticalRuler}
@@ -399,21 +393,13 @@ export function InfiniteCanvas({
               {/* Children (grid cells) */}
               {children}
             </div>
-          </TransformComponent>
-        </TransformWrapper>
+          </div>
+        </div>
 
         {/* LOD indicator */}
         {!showLODGrid && (
-          <div className="absolute bottom-4 left-4 px-3 py-1.5 rounded-full bg-primary/20 backdrop-blur-sm text-xs text-primary font-medium">
+          <div className="fixed bottom-4 left-4 px-3 py-1.5 rounded-full bg-primary/20 backdrop-blur-sm text-xs text-primary font-medium">
             Macro View (zoom in for details)
-          </div>
-        )}
-        
-        {/* Pan hint */}
-        {isPanning && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-muted/80 backdrop-blur-sm text-xs text-muted-foreground flex items-center gap-2">
-            <Move className="w-3 h-3" />
-            Drag to pan
           </div>
         )}
       </div>
