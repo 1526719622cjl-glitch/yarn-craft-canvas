@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { Ruler, Grid3X3, Sparkles, Package, LogOut, LogIn, User } from 'lucide-react';
+import { Ruler, Grid3X3, Sparkles, LogOut, LogIn, User } from 'lucide-react';
 import { CrochetHookIcon, KnittingNeedlesIcon } from '@/components/icons';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,6 @@ const navItems = [
   { path: '/pixel', icon: Grid3X3, label: 'Pixel Generator', description: 'Image to Grid' },
   { path: '/crochet', icon: CrochetHookIcon, label: 'Crochet Engine', description: 'Pattern Parser' },
   { path: '/knitting', icon: KnittingNeedlesIcon, label: 'Knitting Engine', description: 'Chart Designer' },
-  { path: '/vault', icon: Package, label: 'Yarn Vault', description: 'My Library' },
 ];
 
 export function Sidebar() {
