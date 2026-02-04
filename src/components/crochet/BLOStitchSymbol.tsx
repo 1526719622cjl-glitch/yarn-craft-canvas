@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import { CrochetStitch } from '@/store/useYarnCluesStore';
+import { CrochetStitchType } from '@/lib/crochetStitchTypes';
+import { getSymbolPath } from '@/lib/crochetSymbolPaths';
 
 interface BLOStitchSymbolProps {
   type: CrochetStitch;
@@ -19,76 +21,9 @@ export function BLOStitchSymbol({
   className = '',
 }: BLOStitchSymbolProps) {
   const stitchData = useMemo(() => {
-    // Base stitch paths (simplified for demonstration)
-    const paths: Record<CrochetStitch, { path: string; viewBox: string }> = {
-      sc: { 
-        path: 'M 6,18 L 18,6 M 6,6 L 18,18', // X shape
-        viewBox: '0 0 24 24' 
-      },
-      hdc: { 
-        path: 'M 12,4 L 12,20 M 8,4 L 16,4', // T shape
-        viewBox: '0 0 24 24' 
-      },
-      dc: { 
-        path: 'M 12,2 L 12,22 M 8,2 L 16,2 M 8,10 L 16,10', // F shape (T with extra bar)
-        viewBox: '0 0 24 24' 
-      },
-      tr: { 
-        path: 'M 12,2 L 12,22 M 8,2 L 16,2 M 8,8 L 16,8 M 8,14 L 16,14', // E shape
-        viewBox: '0 0 24 24' 
-      },
-      dtr: { 
-        path: 'M 12,2 L 12,22 M 8,2 L 16,2 M 8,7 L 16,7 M 8,12 L 16,12 M 8,17 L 16,17',
-        viewBox: '0 0 24 24' 
-      },
-      inc: { 
-        path: 'M 4,20 L 12,4 L 20,20', // V shape
-        viewBox: '0 0 24 24' 
-      },
-      dec: { 
-        path: 'M 4,4 L 12,20 L 20,4', // Inverted V (A shape)
-        viewBox: '0 0 24 24' 
-      },
-      chain: { 
-        path: 'M 8,12 a 4,4 0 1,0 8,0 a 4,4 0 1,0 -8,0', // O shape
-        viewBox: '0 0 24 24' 
-      },
-      slip: { 
-        path: 'M 8,12 L 16,12 M 12,8 L 12,16', // + shape
-        viewBox: '0 0 24 24' 
-      },
-      magic: { 
-        path: 'M 12,4 a 8,8 0 1,0 0,16 a 8,8 0 1,0 0,-16 M 12,8 L 12,12', // Circle with line
-        viewBox: '0 0 24 24' 
-      },
-      blo: { 
-        path: 'M 6,18 L 18,6 M 6,6 L 18,18 M 4,22 L 20,22', // X with underline
-        viewBox: '0 0 24 24' 
-      },
-      flo: { 
-        path: 'M 6,18 L 18,6 M 6,6 L 18,18 M 4,2 L 20,2', // X with overline
-        viewBox: '0 0 24 24' 
-      },
-      spike: { 
-        path: 'M 12,4 L 6,20 M 12,4 L 18,20 M 12,4 L 12,24',
-        viewBox: '0 0 24 24' 
-      },
-      popcorn: { 
-        path: 'M 12,6 a 6,6 0 1,0 0,12 a 6,6 0 1,0 0,-12 M 12,6 L 12,2 M 8,8 L 4,4 M 16,8 L 20,4',
-        viewBox: '0 0 24 24' 
-      },
-      bobble: { 
-        path: 'M 12,8 a 4,4 0 1,0 0,8 a 4,4 0 1,0 0,-8 M 12,4 L 12,8 M 12,16 L 12,20',
-        viewBox: '0 0 24 24' 
-      },
-      puff: { 
-        path: 'M 8,10 Q 12,4 16,10 Q 12,16 8,10',
-        viewBox: '0 0 24 24' 
-      },
-    };
-    
-    const match = paths[type] || paths.sc;
-    return { basePath: match.path, viewBox: match.viewBox };
+    // Use enhanced symbol paths from the library
+    const symbolPath = getSymbolPath(type as CrochetStitchType);
+    return { basePath: symbolPath.path, viewBox: symbolPath.viewBox };
   }, [type]);
 
   // Additional modifier path

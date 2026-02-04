@@ -1,4 +1,6 @@
 import { CrochetStitch } from '@/store/useYarnCluesStore';
+import { CrochetStitchType, STITCH_DATABASE } from '@/lib/crochetStitchTypes';
+import { getSymbolPath, SymbolPath } from '@/lib/crochetSymbolPaths';
 
 interface StitchSymbolProps {
   type: CrochetStitch;
@@ -10,74 +12,11 @@ interface StitchSymbolProps {
   onClick?: () => void;
 }
 
-// SVG Path definitions for JIS standard crochet symbols
-const SYMBOL_PATHS: Record<CrochetStitch, { path: string; filled?: boolean; viewBox?: string }> = {
-  sc: {
-    path: 'M 6,6 L 18,18 M 18,6 L 6,18',
-    viewBox: '0 0 24 24',
-  },
-  chain: {
-    path: 'M 12,12 m -8,0 a 8,4 0 1,0 16,0 a 8,4 0 1,0 -16,0',
-    viewBox: '0 0 24 24',
-  },
-  slip: {
-    path: 'M 12,12 m -3,0 a 3,3 0 1,0 6,0 a 3,3 0 1,0 -6,0',
-    filled: true,
-    viewBox: '0 0 24 24',
-  },
-  hdc: {
-    path: 'M 12,4 L 12,20 M 6,4 L 18,4',
-    viewBox: '0 0 24 24',
-  },
-  dc: {
-    path: 'M 12,2 L 12,22 M 6,2 L 18,2 M 8,11 L 16,9',
-    viewBox: '0 0 24 24',
-  },
-  tr: {
-    path: 'M 12,2 L 12,22 M 6,2 L 18,2 M 8,9 L 16,7 M 8,14 L 16,12',
-    viewBox: '0 0 24 24',
-  },
-  dtr: {
-    path: 'M 12,1 L 12,23 M 6,1 L 18,1 M 8,7 L 16,5 M 8,12 L 16,10 M 8,17 L 16,15',
-    viewBox: '0 0 24 24',
-  },
-  inc: {
-    path: 'M 12,20 L 4,4 M 12,20 L 20,4',
-    viewBox: '0 0 24 24',
-  },
-  dec: {
-    path: 'M 4,20 L 12,4 M 20,20 L 12,4',
-    viewBox: '0 0 24 24',
-  },
-  magic: {
-    path: 'M 12,12 m -9,0 a 9,9 0 1,0 18,0 a 9,9 0 1,0 -18,0 M 12,12 m -3,0 a 3,3 0 1,0 6,0 a 3,3 0 1,0 -6,0',
-    viewBox: '0 0 24 24',
-  },
-  blo: {
-    path: 'M 6,16 L 18,4 M 6,4 L 18,16 M 12,20 m -2,0 a 2,2 0 1,0 4,0 a 2,2 0 1,0 -4,0',
-    viewBox: '0 0 24 24',
-  },
-  flo: {
-    path: 'M 6,18 L 18,6 M 6,6 L 18,18 M 12,2 m -2,0 a 2,2 0 1,0 4,0 a 2,2 0 1,0 -4,0',
-    viewBox: '0 0 24 24',
-  },
-  spike: {
-    path: 'M 12,2 L 12,22 M 6,12 L 18,12',
-    viewBox: '0 0 24 24',
-  },
-  popcorn: {
-    path: 'M 12,12 m -8,0 a 8,8 0 1,0 16,0 a 8,8 0 1,0 -16,0',
-    viewBox: '0 0 24 24',
-  },
-  bobble: {
-    path: 'M 12,3 Q 4,3 4,12 Q 4,21 12,21 Q 20,21 20,12 Q 20,3 12,3',
-    viewBox: '0 0 24 24',
-  },
-  puff: {
-    path: 'M 4,12 Q 4,6 12,6 Q 20,6 20,12 Q 20,18 12,18 Q 4,18 4,12 M 12,6 L 12,18',
-    viewBox: '0 0 24 24',
-  },
-};
+// Use the enhanced symbol paths, with fallback for legacy types
+function getSymbolDef(type: CrochetStitch): SymbolPath {
+  return getSymbolPath(type as CrochetStitchType);
+}
+// Legacy symbol paths kept for backward compatibility (now uses enhanced paths from lib)
 
 export function StitchSymbol({ 
   type, 
@@ -88,7 +27,7 @@ export function StitchSymbol({
   isHighlighted = false,
   onClick 
 }: StitchSymbolProps) {
-  const symbolDef = SYMBOL_PATHS[type] || SYMBOL_PATHS.sc;
+  const symbolDef = getSymbolDef(type);
   const strokeColor = color || 'currentColor';
   
   return (
@@ -110,10 +49,22 @@ export function StitchSymbol({
         d={symbolDef.path}
         fill={symbolDef.filled ? strokeColor : 'none'}
         stroke={symbolDef.filled ? 'none' : strokeColor}
-        strokeWidth="2"
+        strokeWidth={symbolDef.strokeWidth || 2}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+      {/* Secondary path for modifiers */}
+      {symbolDef.secondaryPath && (
+        <path
+          d={symbolDef.secondaryPath}
+          fill={symbolDef.secondaryFilled ? strokeColor : 'none'}
+          stroke={symbolDef.secondaryFilled ? 'none' : strokeColor}
+          strokeWidth={(symbolDef.strokeWidth || 2) * 0.8}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity={0.8}
+        />
+      )}
     </svg>
   );
 }
@@ -193,23 +144,12 @@ export function BPdcSymbol({ size = 24, color }: { size?: number; color?: string
 }
 
 export function getStitchDisplayName(type: CrochetStitch): string {
-  const names: Record<CrochetStitch, string> = {
-    chain: 'Chain (CH)',
-    slip: 'Slip Stitch (SL)',
-    sc: 'Single Crochet (SC)',
-    hdc: 'Half Double Crochet (HDC)',
-    dc: 'Double Crochet (DC)',
-    tr: 'Treble Crochet (TR)',
-    dtr: 'Double Treble (DTR)',
-    inc: 'Increase (V)',
-    dec: 'Decrease (A)',
-    magic: 'Magic Ring',
-    blo: 'Back Loop Only',
-    flo: 'Front Loop Only',
-    spike: 'Spike Stitch',
-    popcorn: 'Popcorn',
-    bobble: 'Bobble',
-    puff: 'Puff Stitch',
-  };
-  return names[type] || type;
+  // Use enhanced database if available
+  const info = STITCH_DATABASE[type as CrochetStitchType];
+  if (info) {
+    return `${info.name} (${info.abbreviation.toUpperCase()})`;
+  }
+  
+  // Fallback for any missing types
+  return type.charAt(0).toUpperCase() + type.slice(1);
 }

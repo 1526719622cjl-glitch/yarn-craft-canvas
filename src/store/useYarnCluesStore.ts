@@ -60,24 +60,11 @@ export interface PixelCell {
 // Pixel editor tool
 export type PixelTool = 'pencil' | 'eraser' | 'bucket' | 'eyedropper';
 
-// Crochet stitch types (Complete JIS standard)
-export type CrochetStitch = 
-  | 'chain'    // CH - 鎖編み
-  | 'slip'     // SL - 引き抜き編み
-  | 'sc'       // X - 細編み (single crochet)
-  | 'hdc'      // T - 中長編み (half double crochet)
-  | 'dc'       // F - 長編み (double crochet)
-  | 'tr'       // E - 長々編み (treble crochet)
-  | 'dtr'      // W - 三つ巻き長編み (double treble)
-  | 'inc'      // V - 増し目 (increase)
-  | 'dec'      // A - 減らし目 (decrease/inverted V)
-  | 'magic'    // Magic ring
-  | 'blo'      // Back loop only
-  | 'flo'      // Front loop only
-  | 'spike'    // Spike stitch
-  | 'popcorn'  // Popcorn stitch
-  | 'bobble'   // Bobble stitch
-  | 'puff';    // Puff stitch
+// Import comprehensive stitch types from dedicated module
+import { CrochetStitchType } from '@/lib/crochetStitchTypes';
+
+// Re-export for backward compatibility
+export type CrochetStitch = CrochetStitchType;
 
 // Knitting stitch types
 export type KnittingStitch = 
