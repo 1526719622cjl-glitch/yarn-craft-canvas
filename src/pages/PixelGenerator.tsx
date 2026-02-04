@@ -170,16 +170,18 @@ const tools: { type: ExtendedTool; icon: typeof Pencil; label: string }[] = [
   { type: 'replace', icon: Replace, label: 'Replace' },
 ];
 
-// Ruler component with numbers - fixed alignment (no gap offset)
+// Ruler component with numbers - using cellWidth/cellHeight for stitch ratio
 function Ruler({ 
   type, 
   size, 
-  cellSize,
+  cellWidth,
+  cellHeight,
   showGridLines = true, 
 }: { 
   type: 'horizontal' | 'vertical'; 
   size: number; 
-  cellSize: number;
+  cellWidth: number;
+  cellHeight: number;
   showGridLines?: boolean;
 }) {
   const rulerSize = 24;
@@ -194,7 +196,8 @@ function Ruler({
   }, [size]);
 
   // Cell size includes border when grid lines are shown
-  const effectiveCellSize = cellSize + (showGridLines ? 1 : 0);
+  const effectiveCellWidth = cellWidth + (showGridLines ? 1 : 0);
+  const effectiveCellHeight = cellHeight + (showGridLines ? 1 : 0);
 
   if (type === 'horizontal') {
     return (
@@ -205,16 +208,23 @@ function Ruler({
         {markers.map(({ index, isMajor, isMinor, label }) => (
           <div
             key={index}
-            className="relative flex items-end justify-center border-r"
+            className="relative flex items-end justify-center"
             style={{ 
-              width: effectiveCellSize, 
-              borderColor: isMajor ? 'hsl(var(--primary) / 0.3)' : 'transparent'
+              width: effectiveCellWidth, 
+              borderRight: isMajor ? '2px solid hsl(var(--primary) / 0.5)' : '1px solid transparent'
             }}
           >
             {isMajor && (
-              <span className="text-[9px] font-medium text-muted-foreground pb-0.5">
-                {label}
-              </span>
+              <>
+                <span className="text-[9px] font-medium text-muted-foreground pb-0.5">
+                  {label}
+                </span>
+                {/* Tick line connecting to grid */}
+                <div 
+                  className="absolute bottom-0 right-0 w-[2px] bg-primary/50"
+                  style={{ height: 8, transform: 'translateX(1px)' }}
+                />
+              </>
             )}
             {!isMajor && isMinor && (
               <div className="w-[1px] h-2 bg-muted-foreground/30" />
@@ -234,16 +244,23 @@ function Ruler({
       {markers.map(({ index, isMajor, isMinor, label }) => (
         <div
           key={index}
-          className="relative flex items-center justify-end border-b pr-1"
+          className="relative flex items-center justify-end pr-1"
           style={{ 
-            height: effectiveCellSize, 
-            borderColor: isMajor ? 'hsl(var(--primary) / 0.3)' : 'transparent'
+            height: effectiveCellHeight, 
+            borderBottom: isMajor ? '2px solid hsl(var(--primary) / 0.5)' : '1px solid transparent'
           }}
         >
           {isMajor && (
-            <span className="text-[9px] font-medium text-muted-foreground">
-              {label}
-            </span>
+            <>
+              <span className="text-[9px] font-medium text-muted-foreground">
+                {label}
+              </span>
+              {/* Tick line connecting to grid */}
+              <div 
+                className="absolute bottom-0 right-0 h-[2px] bg-primary/50"
+                style={{ width: 8, transform: 'translateY(1px)' }}
+              />
+            </>
           )}
           {!isMajor && isMinor && (
             <div className="h-[1px] w-2 bg-muted-foreground/30" />
@@ -302,9 +319,8 @@ export default function PixelGenerator() {
   const [emptyCanvasColor, setEmptyCanvasColor] = useState('#FDFBF7');
   const [customColor, setCustomColor] = useState('#6B8E23');
   
-  // Manual ratio controls
-  const [useManualRatio, setUseManualRatio] = useState(false);
-  const [manualRatio, setManualRatio] = useState(1.0);
+  // State for tracking imported dimensions from CanvasSizeDialog
+  const [importedDimensions, setImportedDimensions] = useState<{ width: number; height: number } | null>(null);
   
   // Selection state
   const [selection, setSelection] = useState<SelectionState>({
@@ -325,8 +341,7 @@ export default function PixelGenerator() {
     ? gaugeData.gaugeRatio 
     : 1;
   const stitchRatio = getStitchRatio(stitchType);
-  const autoRatio = baseGaugeRatio * stitchRatio;
-  const combinedRatio = useManualRatio ? manualRatio : autoRatio;
+  const combinedRatio = baseGaugeRatio * stitchRatio;
 
   // Calculate target height based on width and stitch ratio (or use manual height)
   const calculatedHeight = useMemo(() => {
@@ -367,6 +382,8 @@ export default function PixelGenerator() {
 
   const handleCanvasSizeConfirm = useCallback((canvasWidth: number, canvasHeight: number) => {
     if (pendingCroppedImage) {
+      // Store the exact dimensions from dialog - these will be used directly in processImage
+      setImportedDimensions({ width: canvasWidth, height: canvasHeight });
       setCustomGridDimensions(canvasWidth, canvasHeight);
       setUploadedImage(pendingCroppedImage.url);
       setPendingCroppedImage(null);
@@ -390,8 +407,14 @@ export default function PixelGenerator() {
 
     const img = new Image();
     img.onload = () => {
-      const targetWidth = customGridWidth;
-      const targetHeight = calculatedHeight;
+      // Use imported dimensions if available (from CanvasSizeDialog), otherwise calculate
+      const targetWidth = importedDimensions?.width ?? customGridWidth;
+      const targetHeight = importedDimensions?.height ?? calculatedHeight;
+      
+      // Clear imported dimensions after using them
+      if (importedDimensions) {
+        setImportedDimensions(null);
+      }
       
       setGridDimensions(targetWidth, targetHeight);
 
@@ -448,7 +471,7 @@ export default function PixelGenerator() {
       }
     };
     img.src = uploadedImage;
-  }, [uploadedImage, colorCount, customGridWidth, calculatedHeight, useDithering, limitToPalette, stashColors, setGridDimensions, setColorPalette, setPixelGrid]);
+  }, [uploadedImage, colorCount, customGridWidth, calculatedHeight, useDithering, limitToPalette, stashColors, importedDimensions, setGridDimensions, setColorPalette, setPixelGrid]);
 
   useEffect(() => {
     if (uploadedImage) {
@@ -456,9 +479,10 @@ export default function PixelGenerator() {
     }
   }, [uploadedImage, colorCount, customGridWidth, useDithering, processImage]);
 
-  // Fixed square cells for editing (ratio only affects image processing, not display)
-  // All cells are 14x14px for consistent pixel-perfect editing
-  const cellSize = 14;
+  // Cell sizing that responds to stitch type ratio
+  // SC = 1:1 (square), HDC = 1:1.5, DC = 1:2
+  const cellWidth = 14;
+  const cellHeight = Math.round(cellWidth * stitchRatio);
 
   // Selection helpers
   const getSelectionBounds = () => {
@@ -701,8 +725,8 @@ export default function PixelGenerator() {
           ${isSelectionBorder ? 'ring-2 ring-primary' : ''}
         `}
         style={{ 
-          width: cellSize, 
-          height: cellSize,
+          width: cellWidth, 
+          height: cellHeight,
           backgroundColor: cell.color,
           borderRight: isMajorX ? majorBorderStyle : borderStyle,
           borderBottom: isMajorY ? majorBorderStyle : borderStyle,
@@ -1093,85 +1117,6 @@ export default function PixelGenerator() {
             </Button>
           </div>
 
-          <div className="frosted-panel space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ZoomIn className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Combined Ratio</span>
-              </div>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">Manual</span>
-                    <Switch
-                      checked={useManualRatio}
-                      onCheckedChange={setUseManualRatio}
-                    />
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>Toggle manual ratio control</TooltipContent>
-              </Tooltip>
-            </div>
-            
-            {useManualRatio ? (
-              <div className="space-y-3">
-                <div className="flex gap-2 items-center">
-                  <Slider
-                    value={[manualRatio]}
-                    onValueChange={([val]) => setManualRatio(val)}
-                    min={0.5}
-                    max={3}
-                    step={0.1}
-                    className="flex-1"
-                  />
-                  <Input
-                    type="number"
-                    value={manualRatio}
-                    onChange={(e) => setManualRatio(Number(e.target.value))}
-                    step={0.1}
-                    min={0.5}
-                    max={3}
-                    className="w-16 h-8 text-sm"
-                  />
-                </div>
-                <div className="flex gap-1">
-                  <Button 
-                    variant={manualRatio === 1 ? 'default' : 'outline'} 
-                    size="sm" 
-                    onClick={() => setManualRatio(1)}
-                    className="flex-1 rounded-lg text-xs h-7"
-                  >
-                    1:1 SC
-                  </Button>
-                  <Button 
-                    variant={manualRatio === 1.5 ? 'default' : 'outline'} 
-                    size="sm" 
-                    onClick={() => setManualRatio(1.5)}
-                    className="flex-1 rounded-lg text-xs h-7"
-                  >
-                    1:1.5 HDC
-                  </Button>
-                  <Button 
-                    variant={manualRatio === 2 ? 'default' : 'outline'} 
-                    size="sm" 
-                    onClick={() => setManualRatio(2)}
-                    className="flex-1 rounded-lg text-xs h-7"
-                  >
-                    1:2 DC
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <p className="text-2xl font-display font-semibold text-primary">
-                  {combinedRatio.toFixed(2)}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Gauge × Stitch Type (auto)
-                </p>
-              </>
-            )}
-          </div>
         </motion.div>
 
         {/* Main Grid Area */}
@@ -1232,8 +1177,8 @@ export default function PixelGenerator() {
                       style={{ 
                         left: 24, // ruler width
                         top: 24, // ruler height
-                        width: gridWidth * (cellSize + (showGridLines ? 1 : 0)),
-                        height: gridHeight * (cellSize + (showGridLines ? 1 : 0)),
+                        width: gridWidth * (cellWidth + (showGridLines ? 1 : 0)),
+                        height: gridHeight * (cellHeight + (showGridLines ? 1 : 0)),
                         backgroundImage: `url(${uploadedImage})`,
                         backgroundSize: '100% 100%',
                         opacity: traceOpacity / 100,
@@ -1242,16 +1187,16 @@ export default function PixelGenerator() {
                     />
                   )}
                   
-                  <Ruler type="vertical" size={gridHeight} cellSize={cellSize} showGridLines={showGridLines} />
+                  <Ruler type="vertical" size={gridHeight} cellWidth={cellWidth} cellHeight={cellHeight} showGridLines={showGridLines} />
                   
                   <div className="flex flex-col">
-                    <Ruler type="horizontal" size={gridWidth} cellSize={cellSize} showGridLines={showGridLines} />
+                    <Ruler type="horizontal" size={gridWidth} cellWidth={cellWidth} cellHeight={cellHeight} showGridLines={showGridLines} />
                     
                     {/* Grid without gap - using cell borders instead */}
                     <div 
                       className="inline-grid gap-0"
                       style={{ 
-                        gridTemplateColumns: `repeat(${gridWidth}, ${cellSize + (showGridLines ? 1 : 0)}px)`,
+                        gridTemplateColumns: `repeat(${gridWidth}, ${cellWidth + (showGridLines ? 1 : 0)}px)`,
                       }}
                     >
                       {pixelGrid.map((cell, i) => renderCell(cell, i))}
