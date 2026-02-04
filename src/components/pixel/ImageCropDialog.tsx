@@ -9,7 +9,7 @@ interface ImageCropDialogProps {
   imageUrl: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCropComplete: (croppedImageUrl: string) => void;
+  onCropComplete: (croppedImageUrl: string, width: number, height: number) => void;
 }
 
 interface CropArea {
@@ -153,8 +153,8 @@ export function ImageCropDialog({ imageUrl, open, onOpenChange, onCropComplete }
     // Calculate crop coordinates in natural image space
     const naturalX = Math.max(0, (cropArea.x - imgOffsetX) * scaleX);
     const naturalY = Math.max(0, (cropArea.y - imgOffsetY) * scaleY);
-    const naturalWidth = cropArea.width * scaleX;
-    const naturalHeight = cropArea.height * scaleY;
+    const naturalWidth = Math.round(cropArea.width * scaleX);
+    const naturalHeight = Math.round(cropArea.height * scaleY);
 
     // Create cropped image
     const canvas = document.createElement('canvas');
@@ -176,13 +176,17 @@ export function ImageCropDialog({ imageUrl, open, onOpenChange, onCropComplete }
       );
       
       const croppedUrl = canvas.toDataURL('image/png');
-      onCropComplete(croppedUrl);
+      onCropComplete(croppedUrl, naturalWidth, naturalHeight);
       onOpenChange(false);
     }
   };
 
   const handleSkip = () => {
-    onCropComplete(imageUrl);
+    // When skipping, use the full image dimensions
+    const img = imageRef.current;
+    const width = img?.naturalWidth || 800;
+    const height = img?.naturalHeight || 600;
+    onCropComplete(imageUrl, width, height);
     onOpenChange(false);
   };
 
