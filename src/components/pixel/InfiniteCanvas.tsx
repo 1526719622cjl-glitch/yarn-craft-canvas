@@ -150,23 +150,24 @@ export function InfiniteCanvas({
     const majorLines: React.ReactNode[] = [];
     
     // Vertical lines at 10, 20, 30... (after every 10th cell)
-    for (let x = 10; x <= width; x += 10) {
+    // Position = lineNum * cellWidth (right edge of lineNum-th cell)
+    for (let lineNum = 10; lineNum <= width; lineNum += 10) {
       majorLines.push(
         <div
-          key={`v-${x}`}
-          className="absolute top-0 bottom-0 bg-primary/30 pointer-events-none"
-          style={{ left: x * cellWidth - 1, width: 2 }}
+          key={`v-${lineNum}`}
+          className="absolute top-0 bottom-0 bg-primary/40 pointer-events-none"
+          style={{ left: lineNum * cellWidth, width: 2 }}
         />
       );
     }
     
     // Horizontal lines at 10, 20, 30... (after every 10th cell)
-    for (let y = 10; y <= height; y += 10) {
+    for (let lineNum = 10; lineNum <= height; lineNum += 10) {
       majorLines.push(
         <div
-          key={`h-${y}`}
-          className="absolute left-0 right-0 bg-primary/30 pointer-events-none"
-          style={{ top: y * cellHeight - 1, height: 2 }}
+          key={`h-${lineNum}`}
+          className="absolute left-0 right-0 bg-primary/40 pointer-events-none"
+          style={{ top: lineNum * cellHeight, height: 2 }}
         />
       );
     }
