@@ -45,13 +45,13 @@ export function InfiniteCanvas({
   const showLODGrid = useMemo(() => currentZoom >= 0.3, [currentZoom]);
   const showLODLabels = useMemo(() => currentZoom >= 0.5, [currentZoom]);
   
-  // CRITICAL: Fit to view calculation - ensures entire pattern is visible
+  // Fit to view calculation - aligns to top-left corner
   const fitToView = useCallback(() => {
     if (!containerRef.current || !transformRef.current) return;
     
     const container = containerRef.current;
-    const containerWidth = container.clientWidth - 80; // padding for rulers
-    const containerHeight = container.clientHeight - 80;
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
     
     if (canvasWidth <= 0 || canvasHeight <= 0) return;
     
@@ -60,8 +60,8 @@ export function InfiniteCanvas({
     // Scale to fit the entire pattern, cap at 100% (never zoom in past 1:1)
     const scale = Math.min(scaleX, scaleY, 1);
     
-    // Center and apply scale
-    transformRef.current.centerView(scale);
+    // Set to top-left alignment, no centering
+    transformRef.current.setTransform(0, 0, scale);
     setCurrentZoom(scale);
   }, [canvasWidth, canvasHeight]);
 
@@ -335,26 +335,29 @@ export function InfiniteCanvas({
       >
         <TransformWrapper
           ref={transformRef}
-          initialScale={0.5}
+          initialScale={1}
+          initialPositionX={0}
+          initialPositionY={0}
           minScale={0.05}
           maxScale={5}
           wheel={{ step: 0.05 }}
           panning={{ disabled: false }}
           onTransformed={handleTransform}
           doubleClick={{ disabled: true }}
-          centerOnInit={true}
+          centerOnInit={false}
+          limitToBounds={false}
         >
           <TransformComponent
             wrapperStyle={{ width: '100%', height: '100%' }}
-            contentStyle={{ width: canvasWidth + 48, height: canvasHeight + 48 }}
+            contentStyle={{ width: canvasWidth, height: canvasHeight }}
           >
             {/* Trace image background */}
             {uploadedImage && traceOpacity > 0 && (
               <div 
                 className="absolute pointer-events-none z-0"
                 style={{ 
-                  left: 24,
-                  top: 20,
+                  left: 0,
+                  top: 0,
                   width: canvasWidth,
                   height: canvasHeight,
                   backgroundImage: `url(${uploadedImage})`,
@@ -365,28 +368,10 @@ export function InfiniteCanvas({
               />
             )}
 
-            {/* Horizontal Ruler */}
+            {/* Main Grid Content - starts from top-left (0,0) */}
             <div 
-              className="absolute top-0 left-6 right-0 h-5 bg-muted/60 border-b border-border/40 z-10"
-              style={{ width: canvasWidth }}
-            >
-              {horizontalRuler}
-            </div>
-
-            {/* Vertical Ruler */}
-            <div 
-              className="absolute left-0 top-5 bottom-0 w-6 bg-muted/60 border-r border-border/40 z-10"
-              style={{ height: canvasHeight }}
-            >
-              {verticalRuler}
-            </div>
-
-            {/* Main Grid Content */}
-            <div 
-              className="absolute"
+              className="relative"
               style={{ 
-                top: 20,
-                left: 24,
                 width: canvasWidth,
                 height: canvasHeight,
               }}
