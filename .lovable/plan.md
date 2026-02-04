@@ -1,147 +1,234 @@
 
 
-# 画布简化方案 - 滚动条导航 + 鼠标缩放
+# 画布布局优化 - 滚动条位置与标尺对齐
 
 ## 问题分析
 
-当前的 `InfiniteCanvas` 使用 `react-zoom-pan-pinch` 实现了一个"无限画布"模式，会显示：
-- 棋盘格背景（表示透明区域）
-- 允许拖拽平移到画布外的空白区域
-- 标尺随画布移动
-
-这与您期望的简洁界面不符。
-
-## 用户需求
-
-1. **只显示主画布** - 不要空白背景
-2. **滚动条导航** - 通过浏览器原生滚动条移动画布
-3. **鼠标缩放保留** - 滚轮缩放以鼠标位置为中心
-4. **禁用拖拽** - 不能通过鼠标拖拽移动画布
+当前存在三个问题：
+1. **滚动条位置不对** - 滚动条在整个 UI 最底端，而不是紧贴画布外侧
+2. **标尺数字位置错误** - 10/20/30 等数字没有精准对齐到主格线位置
+3. **主格线定位** - 异色粗线应该在第10条格线**之后**，而不是之前
 
 ## 修复方案
 
 ### 文件: `src/components/pixel/InfiniteCanvas.tsx`
 
-完全重构为简化版本：
+#### 1. 滚动条位置调整
 
-1. **移除 `TransformWrapper`** - 不再使用 `react-zoom-pan-pinch` 的拖拽功能
-2. **使用 CSS scale + overflow-auto** - 通过 CSS transform 实现缩放，浏览器滚动条实现平移
-3. **鼠标滚轮缩放** - 自定义 `onWheel` 事件，计算鼠标位置并调整滚动偏移
-4. **移除棋盘格背景** - 简洁的纯色背景
-
-### 核心代码变更
+将滚动容器从最外层移到画布区域内部，使滚动条紧贴画布边缘：
 
 ```typescript
-// 移除 TransformWrapper，使用简单的 overflow-auto 容器
-<div 
-  ref={containerRef}
-  className="flex-1 overflow-auto bg-muted/10 rounded-b-2xl"
-  onWheel={handleWheel}
->
-  <div 
-    style={{ 
-      transform: `scale(${zoom})`,
-      transformOrigin: 'top left',
-      width: canvasWidth,
-      height: canvasHeight,
-    }}
-  >
-    {/* Rulers and Grid */}
-  </div>
+// 当前结构（滚动条在最外层）
+<div className="flex-1 overflow-auto">  {/* 滚动条在这里 */}
+  <div>...</div>  {/* 标尺 + 画布 */}
 </div>
 
-// 鼠标位置缩放逻辑
-const handleWheel = useCallback((e: React.WheelEvent) => {
-  e.preventDefault();
-  const container = containerRef.current;
-  if (!container) return;
-  
-  // 获取鼠标在容器中的位置
-  const rect = container.getBoundingClientRect();
-  const mouseX = e.clientX - rect.left + container.scrollLeft;
-  const mouseY = e.clientY - rect.top + container.scrollTop;
-  
-  // 计算缩放前后的鼠标对应画布坐标
-  const oldZoom = zoom;
-  const delta = e.deltaY > 0 ? 0.9 : 1.1; // 缩小/放大
-  const newZoom = Math.max(0.1, Math.min(5, oldZoom * delta));
-  
-  // 计算新的滚动位置以保持鼠标指向的点不变
-  const canvasX = mouseX / oldZoom;
-  const canvasY = mouseY / oldZoom;
-  const newScrollX = canvasX * newZoom - (e.clientX - rect.left);
-  const newScrollY = canvasY * newZoom - (e.clientY - rect.top);
-  
-  setZoom(newZoom);
-  
-  // 延迟设置滚动位置（等待 scale 更新）
-  requestAnimationFrame(() => {
-    container.scrollLeft = newScrollX;
-    container.scrollTop = newScrollY;
-  });
-}, [zoom]);
-```
-
-### 布局结构
-
-```typescript
-<div className="flex flex-col h-full">
-  {/* Controls Bar - 缩放控制 */}
-  <div className="flex items-center justify-between p-2 border-b">
-    <Button onClick={zoomIn}>+</Button>
-    <Slider value={zoom} ... />
-    <Button onClick={zoomOut}>-</Button>
-    <Button onClick={fitToView}>Fit</Button>
+// 修改为（固定标尺 + 画布区域滚动）
+<div className="flex-1 flex flex-col">
+  {/* 固定的水平标尺区域 */}
+  <div className="flex">
+    <div className="w-6" />  {/* 左上角空白 */}
+    <div className="flex-1 overflow-hidden">{horizontalRuler}</div>
   </div>
-
-  {/* Canvas Area - 简单滚动容器 */}
-  <div 
-    ref={containerRef}
-    className="flex-1 overflow-auto bg-muted/10"
-    onWheel={handleWheel}
-  >
-    {/* 缩放后的内容 */}
-    <div style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }}>
-      {/* Rulers */}
-      <div className="flex">
-        <div className="w-6" /> {/* 左上角空白 */}
-        <div className="h-5">{horizontalRuler}</div>
-      </div>
-      <div className="flex">
-        <div className="w-6">{verticalRuler}</div>
-        <div>{children}</div> {/* Grid content */}
-      </div>
+  
+  {/* 垂直标尺 + 可滚动画布 */}
+  <div className="flex-1 flex">
+    <div className="w-6 overflow-hidden">{verticalRuler}</div>
+    <div className="flex-1 overflow-auto" ref={containerRef}>  {/* 滚动条紧贴画布 */}
+      {children}
     </div>
   </div>
 </div>
+```
+
+#### 2. 标尺数字精准对齐
+
+标尺数字应该对齐到主格线位置（第10/20/30条线的右边缘）：
+
+```typescript
+// 当前：数字在第 x 个格子的中心
+style={{ left: x * cellWidth + cellWidth / 2 - 8, top: 4 }}
+
+// 修正：数字对齐到第 10/20/30 条格线的右边缘
+// 第10条格线在 index=9 的格子右边，即 10 * cellWidth 位置
+for (let lineNum = 10; lineNum <= width; lineNum += 10) {
+  markers.push(
+    <div
+      key={lineNum}
+      className="absolute text-[9px] font-medium text-muted-foreground text-right"
+      style={{ 
+        left: lineNum * cellWidth - 12,  // 数字右对齐到格线位置
+        top: 4,
+        width: 12,
+      }}
+    >
+      {lineNum}
+    </div>
+  );
+}
+```
+
+#### 3. 主格线位置修正
+
+主格线应该在每10个格子**之后**绘制（即第10/20/30个格子的右边缘）：
+
+```typescript
+// 当前：从 x=10 开始，位置在 10*cellWidth（第11格子左边）
+for (let x = 10; x < width; x += 10) {
+  style={{ left: x * cellWidth }}  // 这是正确的
+}
+
+// 确认：这个位置是第10格子的右边缘，也就是第10条竖线的位置
+// 如果 width=100，则绘制在 10, 20, 30, ..., 90 位置
+```
+
+### 布局结构图
+
+```
+┌─────────────────────────────────────────┐
+│  Controls Bar (缩放控制)                 │
+├────┬────────────────────────────────┬───┤
+│    │    10    20    30    40       │ ↑ │  ← 水平标尺（固定）
+├────┼────────────────────────────────┼───┤
+│ 10 │┌──────────────────────────────┐│   │
+│    ││                              ││   │
+│ 20 ││      画布内容区域            ││ ↕ │  ← 滚动条在画布右侧
+│    ││                              ││   │
+│ 30 ││                              ││   │
+│    │└──────────────────────────────┘│   │
+├────┴────────────────────────────────┴───┤
+│    ← ─────────── →                      │  ← 水平滚动条在画布底部
+└─────────────────────────────────────────┘
 ```
 
 ## 修改文件
 
 | 文件 | 修改内容 |
 |------|---------|
-| `src/components/pixel/InfiniteCanvas.tsx` | 1. 移除 `react-zoom-pan-pinch`<br>2. 使用 `overflow-auto` 容器<br>3. 自定义 `onWheel` 实现鼠标位置缩放<br>4. 移除棋盘格背景<br>5. 标尺改为固定位置 |
+| `src/components/pixel/InfiniteCanvas.tsx` | 1. 重构布局使滚动条紧贴画布<br>2. 标尺数字精准对齐格线<br>3. 保持现有的鼠标缩放功能 |
+
+## 关键代码变更
+
+### 标尺数字对齐修正
+
+```typescript
+// 水平标尺 - 数字对齐到格线
+const horizontalRuler = useMemo(() => {
+  if (!showLODLabels) return null;
+  
+  const markers: React.ReactNode[] = [];
+  for (let lineNum = 10; lineNum <= width; lineNum += 10) {
+    markers.push(
+      <div
+        key={lineNum}
+        className="absolute text-[9px] font-medium text-muted-foreground"
+        style={{ 
+          // 数字中心对齐到格线位置
+          left: lineNum * cellWidth,
+          transform: 'translateX(-50%)',
+          top: 4 
+        }}
+      >
+        {lineNum}
+      </div>
+    );
+  }
+  return markers;
+}, [width, cellWidth, showLODLabels]);
+
+// 垂直标尺 - 数字对齐到格线
+const verticalRuler = useMemo(() => {
+  if (!showLODLabels) return null;
+  
+  const markers: React.ReactNode[] = [];
+  for (let lineNum = 10; lineNum <= height; lineNum += 10) {
+    markers.push(
+      <div
+        key={lineNum}
+        className="absolute text-[9px] font-medium text-muted-foreground"
+        style={{ 
+          // 数字中心对齐到格线位置
+          top: lineNum * cellHeight,
+          transform: 'translateY(-50%)',
+          left: 2 
+        }}
+      >
+        {lineNum}
+      </div>
+    );
+  }
+  return markers;
+}, [height, cellHeight, showLODLabels]);
+```
+
+### 滚动区域重构
+
+```typescript
+return (
+  <div className="flex flex-col h-full">
+    {/* Controls Bar */}
+    <div className="flex items-center justify-between p-2 ...">
+      {/* ... 控制按钮 ... */}
+    </div>
+
+    {/* Canvas Area with Rulers */}
+    <div className="flex-1 flex flex-col min-h-0 bg-muted/10 rounded-b-2xl">
+      {/* Top: Corner + Horizontal Ruler */}
+      <div className="flex shrink-0">
+        <div className="w-6 h-5 bg-muted/60" /> {/* 左上角 */}
+        <div 
+          className="h-5 bg-muted/60 border-b border-border/40 relative overflow-hidden"
+          style={{ width: canvasWidth * zoom }}
+        >
+          <div style={{ transform: `scaleX(${zoom})`, transformOrigin: 'left' }}>
+            {horizontalRuler}
+          </div>
+        </div>
+      </div>
+      
+      {/* Bottom: Vertical Ruler + Scrollable Canvas */}
+      <div className="flex-1 flex min-h-0">
+        {/* Vertical Ruler */}
+        <div 
+          className="w-6 bg-muted/60 border-r border-border/40 relative overflow-hidden shrink-0"
+          style={{ height: canvasHeight * zoom }}
+        >
+          <div style={{ transform: `scaleY(${zoom})`, transformOrigin: 'top' }}>
+            {verticalRuler}
+          </div>
+        </div>
+        
+        {/* Scrollable Canvas - 滚动条在这里 */}
+        <div 
+          ref={containerRef}
+          className="flex-1 overflow-auto"
+          onWheel={handleWheel}
+          style={{ cursor: 'crosshair' }}
+        >
+          <div style={{ 
+            width: canvasWidth * zoom, 
+            height: canvasHeight * zoom 
+          }}>
+            <div style={{ 
+              transform: `scale(${zoom})`,
+              transformOrigin: 'top left',
+              width: canvasWidth,
+              height: canvasHeight,
+            }}>
+              {/* 主格线 + 画布内容 */}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+```
 
 ## 预期结果
 
-1. **只显示画布** - 无空白背景，无棋盘格
-2. **滚动条导航** - 放大后通过浏览器滚动条移动
-3. **鼠标缩放** - 滚轮缩放以鼠标位置为中心
-4. **无拖拽** - 不能通过鼠标拖拽移动画布
-
-## 技术细节
-
-鼠标位置缩放的数学原理：
-
-```
-缩放前: 
-  - 鼠标在容器中的位置 = (mouseX, mouseY)
-  - 对应画布坐标 = (mouseX / oldZoom, mouseY / oldZoom)
-
-缩放后:
-  - 画布坐标在新缩放下的位置 = (canvasX * newZoom, canvasY * newZoom)
-  - 需要的滚动偏移 = 新位置 - 鼠标在视口中的位置
-```
-
-这样确保鼠标指向的那个像素点在缩放后仍然在鼠标下方。
+1. **滚动条位置** - 水平滚动条在画布正下方，垂直滚动条在画布右侧
+2. **标尺数字对齐** - 10/20/30 精准对齐到对应的主格线位置
+3. **主格线** - 仅保留 10×10 的异色粗线，位置正确
+4. **缩放功能** - 保留鼠标位置为中心的缩放功能
 
