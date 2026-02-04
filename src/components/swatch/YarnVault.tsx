@@ -316,7 +316,7 @@ export function YarnVault() {
                   </Button>
                 </div>
                 <div className="text-sm text-muted-foreground space-y-1">
-                  <p>Density: {yarn.gaugeData?.stitchDensity?.toFixed(1) ?? '0'} st/cm × {yarn.gaugeData?.rowDensity?.toFixed(1) ?? '0'} rows/cm</p>
+                  <p>Density: {yarn.gaugeData?.postWashStitchDensity?.toFixed(1) ?? '0'} st/cm × {yarn.gaugeData?.postWashRowDensity?.toFixed(1) ?? '0'} rows/cm</p>
                   <p>Ratio: {yarn.gaugeData?.gaugeRatio?.toFixed(2) ?? '1.00'}</p>
                   {yarn.notes && (
                     <p className="text-xs italic truncate">{yarn.notes}</p>

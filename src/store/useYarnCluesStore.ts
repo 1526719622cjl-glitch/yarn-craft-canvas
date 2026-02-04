@@ -1,23 +1,36 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-// Flexible swatch data for gauge calculations
+// Flexible swatch data for gauge calculations - dual dimension system
 export interface SwatchData {
-  swatchWidth: number; // cm
-  swatchHeight: number; // cm
+  // Pre-wash swatch (independent dimensions - no restrictions)
+  preWashWidth: number;      // cm
+  preWashHeight: number;     // cm
   stitchesPreWash: number;
   rowsPreWash: number;
+  
+  // Post-wash swatch (same swatch after washing)
+  postWashWidth: number;     // cm
+  postWashHeight: number;    // cm
   stitchesPostWash: number;
   rowsPostWash: number;
 }
 
 // Calculated gauge values
 export interface GaugeData {
-  stitchDensity: number; // stitches per cm
-  rowDensity: number; // rows per cm
-  gaugeRatio: number; // stitch width / row height
-  shrinkageStitches: number; // % change
-  shrinkageRows: number; // % change
+  // Pre-wash gauge (raw swatch)
+  preWashStitchDensity: number; // stitches per cm
+  preWashRowDensity: number; // rows per cm
+  // Post-wash gauge (after blocking)
+  postWashStitchDensity: number; // stitches per cm
+  postWashRowDensity: number; // rows per cm
+  gaugeRatio: number; // stitch width / row height (post-wash)
+  // Shrinkage/expansion percentages
+  widthShrinkage: number; // % change (positive = shrinkage, negative = growth)
+  heightShrinkage: number; // % change
+  // Compensation factors
+  widthFactor: number; // pre/post multiplier
+  heightFactor: number; // pre/post multiplier
 }
 
 // Saved yarn record
@@ -159,21 +172,27 @@ interface YarnCluesStore {
 export const useYarnCluesStore = create<YarnCluesStore>()(
   persist(
     (set, get) => ({
-      // Initial Swatch Data - flexible dimensions
+      // Initial Swatch Data - dual dimension system
       swatchData: {
-        swatchWidth: 10,
-        swatchHeight: 10,
+        preWashWidth: 10,
+        preWashHeight: 10,
         stitchesPreWash: 20,
         rowsPreWash: 28,
+        postWashWidth: 10,
+        postWashHeight: 10,
         stitchesPostWash: 20,
         rowsPostWash: 28,
       },
       gaugeData: {
-        stitchDensity: 2,
-        rowDensity: 2.8,
+        preWashStitchDensity: 2,
+        preWashRowDensity: 2.8,
+        postWashStitchDensity: 2,
+        postWashRowDensity: 2.8,
         gaugeRatio: 0.714,
-        shrinkageStitches: 0,
-        shrinkageRows: 0,
+        widthShrinkage: 0,
+        heightShrinkage: 0,
+        widthFactor: 1,
+        heightFactor: 1,
       },
       projectPlan: {
         targetWidth: 50,
@@ -192,20 +211,55 @@ export const useYarnCluesStore = create<YarnCluesStore>()(
 
       calculateGauge: () => {
         const { swatchData } = get();
-        const stitchDensity = swatchData.stitchesPostWash / swatchData.swatchWidth;
-        const rowDensity = swatchData.rowsPostWash / swatchData.swatchHeight;
-        const gaugeRatio = (swatchData.swatchWidth / swatchData.stitchesPostWash) / (swatchData.swatchHeight / swatchData.rowsPostWash);
         
-        const shrinkageStitches = ((swatchData.stitchesPostWash - swatchData.stitchesPreWash) / swatchData.stitchesPreWash) * 100;
-        const shrinkageRows = ((swatchData.rowsPostWash - swatchData.rowsPreWash) / swatchData.rowsPreWash) * 100;
+        // Pre-wash gauge (raw measurements)
+        const preWashStitchDensity = swatchData.preWashWidth > 0 
+          ? swatchData.stitchesPreWash / swatchData.preWashWidth 
+          : 0;
+        const preWashRowDensity = swatchData.preWashHeight > 0 
+          ? swatchData.rowsPreWash / swatchData.preWashHeight 
+          : 0;
+        
+        // Post-wash gauge (after blocking)
+        const postWashStitchDensity = swatchData.postWashWidth > 0 
+          ? swatchData.stitchesPostWash / swatchData.postWashWidth 
+          : 0;
+        const postWashRowDensity = swatchData.postWashHeight > 0 
+          ? swatchData.rowsPostWash / swatchData.postWashHeight 
+          : 0;
+        
+        // Gauge ratio (post-wash, for aspect ratio)
+        const gaugeRatio = postWashStitchDensity > 0 && postWashRowDensity > 0
+          ? (1 / postWashStitchDensity) / (1 / postWashRowDensity)
+          : 1;
+        
+        // Dimensional shrinkage/expansion (comparing swatch sizes, not stitch counts)
+        const widthShrinkage = swatchData.preWashWidth > 0
+          ? ((swatchData.preWashWidth - swatchData.postWashWidth) / swatchData.preWashWidth) * 100
+          : 0;
+        const heightShrinkage = swatchData.preWashHeight > 0
+          ? ((swatchData.preWashHeight - swatchData.postWashHeight) / swatchData.preWashHeight) * 100
+          : 0;
+        
+        // Compensation factors (how much to scale cast-on)
+        const widthFactor = swatchData.postWashWidth > 0 
+          ? swatchData.preWashWidth / swatchData.postWashWidth 
+          : 1;
+        const heightFactor = swatchData.postWashHeight > 0 
+          ? swatchData.preWashHeight / swatchData.postWashHeight 
+          : 1;
 
         set({
           gaugeData: {
-            stitchDensity,
-            rowDensity,
+            preWashStitchDensity,
+            preWashRowDensity,
+            postWashStitchDensity,
+            postWashRowDensity,
             gaugeRatio,
-            shrinkageStitches,
-            shrinkageRows,
+            widthShrinkage,
+            heightShrinkage,
+            widthFactor,
+            heightFactor,
           },
         });
         get().calculateProjectStitches();
@@ -220,8 +274,9 @@ export const useYarnCluesStore = create<YarnCluesStore>()(
 
       calculateProjectStitches: () => {
         const { gaugeData, projectPlan } = get();
-        const startingStitches = Math.round(projectPlan.targetWidth * gaugeData.stitchDensity);
-        const startingRows = Math.round(projectPlan.targetHeight * gaugeData.rowDensity);
+        // Use post-wash density for accurate final-size targeting
+        const startingStitches = Math.round(projectPlan.targetWidth * gaugeData.postWashStitchDensity);
+        const startingRows = Math.round(projectPlan.targetHeight * gaugeData.postWashRowDensity);
         set((state) => ({
           projectPlan: { ...state.projectPlan, startingStitches, startingRows },
         }));
