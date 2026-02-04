@@ -1,184 +1,159 @@
 
-# Swatch Lab Calculator Refactor Plan
 
-## Issues Identified
+# Swatch Lab + Pixel Generator Fix Plan
 
-### 1. Disconnected Save Systems
-The "Save to My Yarn" button in Basic Gauge saves to a **local Zustand store** (`yarnLibrary` array in `useYarnCluesStore`), while the Yarn Gauge Vault uses Supabase. These are completely separate - nothing you save via "Save to My Yarn" appears in your cloud vault.
+## Part 1: Smart Yarn Calculator Fix
 
-### 2. Missing Folder Selection
-When saving yarn, the `YarnLibrarySaveModal` only asks for a name. It doesn't offer folder selection or use the cloud database.
+### Issue
+The current multi-yarn calculation splits the target requirements evenly across all yarns (`reqGrams / yarnCount`). This is incorrect - when holding 2 yarns together, you need the **full target length/weight of EACH yarn**, not half of each.
 
-### 3. Overlapping Calculator Logic
-- Basic Gauge: Has shared "Swatch Dimensions" (width/height) with pre/post-wash stitch counts
-- Advanced Calculator: Assumes 10x10cm pre-wash, only lets you enter post-wash dimensions
-- User wants: Independent dimension fields under BOTH pre-wash AND post-wash sections
+**Example**: If project needs 500m total and you're using 2 yarns held together, you need 500m of Yarn A AND 500m of Yarn B (not 250m each).
 
-### 4. Project Planner Clarity
-The planner uses post-wash gauge density, but this isn't communicated clearly.
+### Solution
+Change the calculation logic so each yarn independently calculates based on the **full** target requirement:
 
-### 5. Smart Yarn Calculator Single-Yarn Limitation
-Currently supports one yarn only. User wants multiple yarn specs for held-together/doubled yarn scenarios.
+```
+Current (wrong): Yarn A = 500m / 2 = 250m, Yarn B = 250m
+Fixed (correct): Yarn A = 500m, Yarn B = 500m
+```
+
+### File Changed
+- `src/components/swatch/SmartYarnCalculator.tsx`: Remove the `/yarnCount` division in multi-yarn mode
 
 ---
 
-## Solution Architecture
+## Part 2: Pixel Generator Enhancements
 
-### Phase 1: Unify the Save System
+### 2.1 Image Cropping After Upload
 
-**Action**: Delete `YarnLibrarySaveModal` and replace the "Save to My Yarn" button with a dialog that:
-- Uses the Supabase `createEntry` mutation from `useYarnEntries`
-- Shows folder picker (dropdown of available folders)
-- Saves current gauge data to cloud
+**New Component**: `ImageCropDialog.tsx`
+- Uses `react-zoom-pan-pinch` (already installed) for pan/zoom
+- Manual crop selection via drag handles
+- Preset aspect ratio buttons: Free, 1:1, 4:3, 16:9, 3:4, Portrait, Landscape
+- Apply/Cancel buttons
 
-**Files Modified**:
-- `src/pages/SwatchLab.tsx`: Remove YarnLibrarySaveModal, replace with integrated cloud save
-- Delete `src/components/swatch/YarnLibrarySaveModal.tsx`
+**Flow Change**:
+1. User clicks "Upload image"
+2. After file selection, cropping dialog opens
+3. User adjusts crop area (drag/zoom/preset buttons)
+4. User clicks "Apply" - cropped image is passed to the existing `processImage` function
 
-### Phase 2: Refactor Calculator UI with Dual Dimension Inputs
+### 2.2 Custom Height Input
 
-**New Unified Calculator Structure**:
+**Current**: Only "Target Width" input, height auto-calculated from stitch ratio
+**New**: Add separate "Target Height" input option with a toggle
 
-```text
-+--------------------------------------------+
-|  PRE-WASH SWATCH                           |
-|  +---------------+  +---------------+      |
-|  | Width (cm)    |  | Height (cm)   |      |
-|  +---------------+  +---------------+      |
-|  +---------------+  +---------------+      |
-|  | Stitch Count  |  | Row Count     |      |
-|  +---------------+  +---------------+      |
-+--------------------------------------------+
-|  POST-WASH SWATCH                          |
-|  +---------------+  +---------------+      |
-|  | Width (cm)    |  | Height (cm)   |      |
-|  +---------------+  +---------------+      |
-|  +---------------+  +---------------+      |
-|  | Stitch Count  |  | Row Count     |      |
-|  +---------------+  +---------------+      |
-+--------------------------------------------+
-```
+- When "Lock Ratio" is ON (default): Height = Width / stitchRatio (current behavior)
+- When "Lock Ratio" is OFF: User can enter both width and height independently
 
-**Logic Changes**:
-- Pre-wash dimensions: Reference swatch size (any value, not limited to 10cm)
-- Post-wash dimensions: Same swatch after washing
-- Shrinkage factor = Post-wash dimension / Pre-wash dimension
-- No number restrictions on any input
+**UI Change**: Add a lock/unlock toggle next to dimensions
 
-**Files Modified**:
-- `src/store/useYarnCluesStore.ts`: Update `SwatchData` interface to include both pre and post dimensions
-- `src/pages/SwatchLab.tsx`: Consolidate into single calculator with clearer sections
+### 2.3 Preview Zoom Controls
 
-### Phase 3: Clarify Project Planner Results
+**Current**: Basic overflow-scroll preview
+**New**: Wrap preview in zoom/pan controls
 
-**Add explicit indicator**: Show whether results are for pre-wash or post-wash target.
+- Add zoom slider (10% - 400%)
+- Add "Fit to View" button
+- Pan on drag (already have InfiniteCanvas, but not used in main grid area)
 
-**Logic**:
-- Calculate both scenarios:
-  - "Without compensation" = based on pre-wash gauge
-  - "With shrinkage compensation" = adjusted for post-wash behavior
+### 2.4 Color Library for Empty Canvas Mode
 
-**Files Modified**:
-- `src/pages/SwatchLab.tsx`: Update Project Planner section with clear labels
+**Current**: When no image uploaded, shows "Upload an image or create an empty canvas" with only a create button
+**New**: Show a color palette picker
 
-### Phase 4: Multi-Yarn Support in Smart Yarn Calculator
+- Display a curated color library (common yarn colors)
+- Categories: Neutrals, Pastels, Brights, Earth Tones
+- Allow user to select a base fill color before creating empty canvas
+- Also show the Yarn Stash palette if colors are saved
 
-**New Feature**: Add yarn spec "slots" that can be combined.
+---
 
-```text
-+--------------------------------------------+
-| YARN A (Primary)                           |
-| +---------------+  +---------------+       |
-| | Grams/Ball    |  | Meters/Ball   |       |
-| +---------------+  +---------------+       |
-+--------------------------------------------+
-| [+ Add Another Yarn]                       |
-+--------------------------------------------+
-| YARN B (Secondary) - optional              |
-| +---------------+  +---------------+       |
-| | Grams/Ball    |  | Meters/Ball   |       |
-| +---------------+  +---------------+       |
-| [Remove]                                   |
-+--------------------------------------------+
-```
+## Files to Create/Modify
 
-**Calculation Logic**:
-- When multiple yarns: Average the specs OR let user define ratio
-- Total = sum of individual requirements
-
-**Files Modified**:
-- `src/components/swatch/SmartYarnCalculator.tsx`: Add multi-yarn support
+| File | Action |
+|------|--------|
+| `src/components/swatch/SmartYarnCalculator.tsx` | Fix multi-yarn calculation logic |
+| `src/components/pixel/ImageCropDialog.tsx` | NEW - Image cropping dialog component |
+| `src/components/pixel/ColorLibrary.tsx` | NEW - Default color palette component |
+| `src/pages/PixelGenerator.tsx` | Integrate cropping, add height input, add preview zoom, add color library |
 
 ---
 
 ## Technical Details
 
-### Updated SwatchData Interface
+### SmartYarnCalculator Fix
 
 ```typescript
-interface SwatchData {
-  // Pre-wash swatch (independent dimensions)
-  preWashWidth: number;      // cm
-  preWashHeight: number;     // cm  
-  stitchesPreWash: number;
-  rowsPreWash: number;
-  
-  // Post-wash swatch (same swatch after washing)
-  postWashWidth: number;     // cm
-  postWashHeight: number;    // cm
-  stitchesPostWash: number;
-  rowsPostWash: number;
+// BEFORE (line 145-157):
+const yarnGrams = (reqGrams / yarnCount) * bufferMultiplier;
+
+// AFTER:
+const yarnGrams = reqGrams * bufferMultiplier; // Full requirement per yarn
+```
+
+### ImageCropDialog Implementation
+
+```typescript
+interface ImageCropDialogProps {
+  imageUrl: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onCropComplete: (croppedImageUrl: string) => void;
 }
+
+// Preset ratios
+const ASPECT_PRESETS = [
+  { label: 'Free', value: null },
+  { label: '1:1', value: 1 },
+  { label: '4:3', value: 4/3 },
+  { label: '3:4', value: 3/4 },
+  { label: '16:9', value: 16/9 },
+];
 ```
 
-### Shrinkage Calculation
+### Color Library Structure
 
 ```typescript
-// Independent width and height ratios
-widthShrinkage = (preWashWidth - postWashWidth) / preWashWidth * 100;
-heightShrinkage = (preWashHeight - postWashHeight) / preWashHeight * 100;
+interface ColorCategory {
+  name: string;
+  colors: { hex: string; name: string }[];
+}
 
-// Compensation factors for cast-on
-widthFactor = preWashWidth / postWashWidth;
-heightFactor = preWashHeight / postWashHeight;
+const COLOR_LIBRARY: ColorCategory[] = [
+  {
+    name: 'Neutrals',
+    colors: [
+      { hex: '#FFFFFF', name: 'White' },
+      { hex: '#F5F5DC', name: 'Beige' },
+      { hex: '#D3D3D3', name: 'Light Grey' },
+      // ...
+    ]
+  },
+  // Pastels, Brights, Earth Tones...
+];
 ```
 
-### Cloud Save Integration
-
-Replace the current save flow:
+### PixelGenerator Dimension Changes
 
 ```typescript
-// Old: Saves to local Zustand
-saveToYarnLibrary(name);
+// New state
+const [lockAspectRatio, setLockAspectRatio] = useState(true);
+const [customHeight, setCustomHeight] = useState(customGridHeight);
 
-// New: Saves to Supabase with folder selection
-const { createEntry } = useYarnEntries(selectedFolderId);
-createEntry.mutate({
-  name: yarnName,
-  folder_id: selectedFolderId,
-  stitches_per_10cm: calculatedGauge,
-  // ...other fields
-});
+// Calculated height respects lock
+const targetHeight = lockAspectRatio 
+  ? Math.round(customGridWidth / combinedRatio)
+  : customHeight;
 ```
-
----
-
-## Files to Modify
-
-| File | Action |
-|------|--------|
-| `src/store/useYarnCluesStore.ts` | Update SwatchData interface, fix gauge calculation |
-| `src/pages/SwatchLab.tsx` | Consolidate calculators, integrate cloud save with folder picker |
-| `src/components/swatch/SmartYarnCalculator.tsx` | Add multi-yarn support |
-| `src/components/swatch/YarnLibrarySaveModal.tsx` | Delete (replaced by integrated dialog) |
-| `src/components/swatch/AdvancedGaugeCalculator.tsx` | Merge into main calculator or refactor |
 
 ---
 
 ## Expected Outcome
 
-1. **Single save path** - All saves go to cloud with folder selection
-2. **Clear dimension inputs** - Each swatch state (pre/post wash) has its own width/height fields
-3. **Explicit results** - Project Planner clearly shows whether results account for shrinkage
-4. **Multi-yarn support** - Calculate requirements when using 2+ yarns held together
-5. **No duplicate tabs** - Merge Basic and Advanced into one unified experience
+1. **Multi-yarn calculator**: Each yarn shows the full target requirement, total balls is the sum across all yarns
+2. **Image cropping**: Users can select a specific region of their image before conversion
+3. **Flexible dimensions**: Users can override the auto-calculated height when needed
+4. **Preview zoom**: Large patterns are easier to navigate
+5. **Color library**: Empty canvas creation is more intuitive with preset colors
+
