@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { CrochetStitch } from '@/store/useYarnCluesStore';
+import { CrochetStitchType, STITCH_DATABASE } from '@/lib/crochetStitchTypes';
 
 interface ParsedRow {
   row: number;
@@ -18,32 +19,83 @@ interface ParsedStitchOutput {
   type: CrochetStitch;
 }
 
-// Map AI output types to our stitch types
+// Map AI output types to our stitch types (comprehensive mapping)
 function mapToStitchType(type: string): CrochetStitch {
-  const mapping: Record<string, CrochetStitch> = {
+  const normalized = type.toLowerCase().trim();
+  
+  // Check if it's a valid stitch type in our database
+  if (normalized in STITCH_DATABASE) {
+    return normalized as CrochetStitchType;
+  }
+  
+  // Fallback mapping for common variations
+  const mapping: Record<string, CrochetStitchType> = {
     'sc': 'sc',
     'x': 'sc',
+    'single': 'sc',
     'inc': 'inc',
     'v': 'inc',
+    'increase': 'inc',
     'dec': 'dec',
     'a': 'dec',
+    'decrease': 'dec',
     'hdc': 'hdc',
     't': 'hdc',
+    'halfdouble': 'hdc',
     'dc': 'dc',
     'f': 'dc',
+    'double': 'dc',
     'tr': 'tr',
+    'treble': 'tr',
     'dtr': 'dtr',
+    'trtr': 'trtr',
     'chain': 'chain',
     'ch': 'chain',
     'slip': 'slip',
     'sl': 'slip',
+    'slst': 'slip',
     'blo': 'blo',
     'flo': 'flo',
     'popcorn': 'popcorn',
+    'pop': 'popcorn',
+    'pc': 'popcorn',
     'bobble': 'bobble',
+    'bob': 'bobble',
     'puff': 'puff',
+    'pf': 'puff',
+    'cluster': 'cluster',
+    'cl': 'cluster',
+    'shell': 'shell',
+    'sh': 'shell',
+    'picot': 'picot',
+    'pic': 'picot',
+    'spike': 'spike',
+    'sp': 'spike',
+    'magic': 'magic',
+    'mr': 'magic',
+    'ring': 'magic',
+    'fpdc': 'fpdc',
+    'bpdc': 'bpdc',
+    'fpsc': 'fpsc',
+    'bpsc': 'bpsc',
+    'fptr': 'fptr',
+    'bptr': 'bptr',
+    'inc3': 'inc3',
+    'w': 'inc3',
+    'dec3': 'dec3',
+    'm': 'dec3',
+    'sc2tog': 'sc2tog',
+    'dc2tog': 'dc2tog',
+    'dc3tog': 'dc3tog',
+    'dc4tog': 'dc4tog',
+    'dc5tog': 'dc5tog',
+    'vst': 'vst',
+    'vstitch': 'vst',
+    'granny': 'granny',
+    'gr': 'granny',
   };
-  return mapping[type.toLowerCase()] || 'sc';
+  
+  return mapping[normalized] || 'sc';
 }
 
 // Convert AI result to flat stitch array

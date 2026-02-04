@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { useYarnCluesStore, CrochetStitch } from '@/store/useYarnCluesStore';
-import { Eye, LayoutGrid, ZoomIn, Sparkles, AlertCircle, CheckCircle, Loader2, Brain, Split } from 'lucide-react';
+import { Eye, LayoutGrid, ZoomIn, Sparkles, AlertCircle, CheckCircle, Loader2, Brain, Split, Palette } from 'lucide-react';
 import { CrochetHookIcon } from '@/components/icons';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -10,11 +10,14 @@ import { useEffect, useMemo, Suspense, useState, useCallback } from 'react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment } from '@react-three/drei';
-import { parseCrochetPattern, toStoreFormat, ParseResult } from '@/lib/crochetParser';
+import { parseCrochetPattern, toStoreFormat, ParseResult, getUsedStitchTypes } from '@/lib/enhancedCrochetParser';
 import { CrochetYarnStitch } from '@/components/3d/YarnSimulation';
 import { StitchSymbol, getStitchDisplayName } from '@/components/crochet/CrochetSymbols';
+import { EnhancedCrochetSymbol, StitchCategoryTabs, SymbolLegend } from '@/components/crochet/EnhancedCrochetSymbol';
+import { CrochetStitchType, STITCH_DATABASE, getStitchesByCategory } from '@/lib/crochetStitchTypes';
 import { useAIPatternParser } from '@/hooks/useAIPatternParser';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -106,6 +109,8 @@ export default function CrochetEngine() {
 
   const [useAIParser, setUseAIParser] = useState(false);
   const [selectedStitchIndex, setSelectedStitchIndex] = useState<number | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>('basic');
+  const [showSymbolGuide, setShowSymbolGuide] = useState(false);
   const { parsePatternDebounced, isLoading: aiLoading, error: aiError } = useAIPatternParser();
 
   // Parse pattern with local recursive parser
@@ -285,37 +290,110 @@ export default function CrochetEngine() {
             </div>
           </div>
 
-          {/* Syntax Guide */}
+          {/* Syntax Guide with Categories */}
           <div className="frosted-panel space-y-3">
-            <h3 className="text-sm font-medium">JIS Syntax Guide</h3>
-            <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <StitchSymbol type="sc" size={16} />
-                <code className="bg-muted px-1 rounded">x</code> = SC
-              </div>
-              <div className="flex items-center gap-2">
-                <StitchSymbol type="inc" size={16} />
-                <code className="bg-muted px-1 rounded">v</code> = Inc
-              </div>
-              <div className="flex items-center gap-2">
-                <StitchSymbol type="dec" size={16} />
-                <code className="bg-muted px-1 rounded">a</code> = Dec
-              </div>
-              <div className="flex items-center gap-2">
-                <StitchSymbol type="hdc" size={16} />
-                <code className="bg-muted px-1 rounded">t</code> = HDC
-              </div>
-              <div className="flex items-center gap-2">
-                <StitchSymbol type="dc" size={16} />
-                <code className="bg-muted px-1 rounded">f</code> = DC
-              </div>
-              <div className="flex items-center gap-2">
-                <StitchSymbol type="blo" size={16} />
-                <code className="bg-muted px-1 rounded">blo</code> = Back Loop
-              </div>
-              <div><code className="bg-muted px-1 rounded">(2x, v)*6</code> = repeat</div>
-              <div><code className="bg-muted px-1 rounded">w</code> = 3-inc (fan)</div>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium">JIS Symbol Library</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowSymbolGuide(!showSymbolGuide)}
+                className="text-xs"
+              >
+                <Palette className="w-3 h-3 mr-1" />
+                {showSymbolGuide ? 'Hide' : 'Expand'}
+              </Button>
             </div>
+            
+            {showSymbolGuide ? (
+              <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="w-full">
+                <TabsList className="grid grid-cols-4 lg:grid-cols-7 h-auto gap-1 bg-transparent">
+                  <TabsTrigger value="basic" className="text-xs px-2 py-1">Basic</TabsTrigger>
+                  <TabsTrigger value="increase" className="text-xs px-2 py-1">Inc</TabsTrigger>
+                  <TabsTrigger value="decrease" className="text-xs px-2 py-1">Dec</TabsTrigger>
+                  <TabsTrigger value="loop" className="text-xs px-2 py-1">Loop</TabsTrigger>
+                  <TabsTrigger value="texture" className="text-xs px-2 py-1">Texture</TabsTrigger>
+                  <TabsTrigger value="special" className="text-xs px-2 py-1">Special</TabsTrigger>
+                  <TabsTrigger value="decorative" className="text-xs px-2 py-1">Deco</TabsTrigger>
+                </TabsList>
+                
+                {['basic', 'increase', 'decrease', 'loop', 'texture', 'special', 'decorative'].map(cat => (
+                  <TabsContent key={cat} value={cat} className="mt-3">
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                      {getStitchesByCategory(cat as any).map(stitch => (
+                        <div 
+                          key={stitch.id}
+                          className="flex items-center gap-1.5 p-1.5 rounded-lg bg-muted/30 hover:bg-muted/50 cursor-pointer transition-colors"
+                          title={`${stitch.name} (${stitch.nameJP})`}
+                        >
+                          <EnhancedCrochetSymbol type={stitch.id} size={18} />
+                          <div className="flex flex-col min-w-0">
+                            <code className="text-[10px] font-mono text-primary truncate">{stitch.abbreviation}</code>
+                            <span className="text-[9px] text-muted-foreground truncate">{stitch.name}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </TabsContent>
+                ))}
+              </Tabs>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <StitchSymbol type="sc" size={16} />
+                  <code className="bg-muted px-1 rounded">x</code> = SC
+                </div>
+                <div className="flex items-center gap-2">
+                  <StitchSymbol type="inc" size={16} />
+                  <code className="bg-muted px-1 rounded">v</code> = Inc
+                </div>
+                <div className="flex items-center gap-2">
+                  <StitchSymbol type="dec" size={16} />
+                  <code className="bg-muted px-1 rounded">a</code> = Dec
+                </div>
+                <div className="flex items-center gap-2">
+                  <StitchSymbol type="hdc" size={16} />
+                  <code className="bg-muted px-1 rounded">t</code> = HDC
+                </div>
+                <div className="flex items-center gap-2">
+                  <StitchSymbol type="dc" size={16} />
+                  <code className="bg-muted px-1 rounded">f</code> = DC
+                </div>
+                <div className="flex items-center gap-2">
+                  <StitchSymbol type="tr" size={16} />
+                  <code className="bg-muted px-1 rounded">e</code> = TR
+                </div>
+                <div className="flex items-center gap-2">
+                  <StitchSymbol type="blo" size={16} />
+                  <code className="bg-muted px-1 rounded">blo</code> = Back Loop
+                </div>
+                <div className="flex items-center gap-2">
+                  <StitchSymbol type="fpdc" size={16} />
+                  <code className="bg-muted px-1 rounded">fpdc</code> = Front Post
+                </div>
+                <div className="flex items-center gap-2">
+                  <StitchSymbol type="popcorn" size={16} />
+                  <code className="bg-muted px-1 rounded">pop</code> = Popcorn
+                </div>
+                <div className="flex items-center gap-2">
+                  <StitchSymbol type="bobble" size={16} />
+                  <code className="bg-muted px-1 rounded">bob</code> = Bobble
+                </div>
+                <div><code className="bg-muted px-1 rounded">(2x, v)*6</code> = repeat</div>
+                <div><code className="bg-muted px-1 rounded">w</code> = 3-inc (fan)</div>
+              </div>
+            )}
+            
+            {/* Pattern Legend - shows stitches used in current pattern */}
+            {parseResult.stitches.length > 0 && (
+              <div className="pt-2 border-t border-border/50">
+                <h4 className="text-xs font-medium mb-2 text-muted-foreground">Used in Pattern</h4>
+                <SymbolLegend 
+                  stitchTypes={getUsedStitchTypes(parseResult.stitches) as CrochetStitchType[]} 
+                  size={16} 
+                />
+              </div>
+            )}
           </div>
         </motion.div>
 
