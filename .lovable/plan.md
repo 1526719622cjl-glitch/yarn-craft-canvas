@@ -1,47 +1,109 @@
 
-# Pixel Generator 综合修复计划
+# 画布缩放修复 - 左上角起始 + 鼠标为中心缩放
 
-## ✅ 已完成实现
+## 问题分析
 
-### 问题 1: 导入图片尺寸不一致 ✅
-**修复方案**: 
-- 创建 `processImageWithDimensions` 函数，直接传入尺寸参数
-- `handleCanvasSizeConfirm` 现在直接调用此函数，绕过状态依赖问题
-- 不再依赖 useEffect 监听 uploadedImage 变化
+当前 `InfiniteCanvas` 组件的配置:
+- `centerOnInit={true}` - 画布初始化时居中显示，导致周围出现空白区域
+- 使用 `centerView(scale)` 进行 fitToView，会将内容居中
+- 缩放后自动调整位置，导致用户看到"不存在的像素点"
 
-### 问题 2: 鼠标滚轮缩放时画布漂移 ✅
-**修复方案**:
-- 使用 `InfiniteCanvas` 组件（内置 `react-zoom-pan-pinch` 的 TransformWrapper）
-- 支持鼠标位置为中心的缩放
-- 空格键拖拽平移
-- 自动 Fit-to-View 功能
+## 用户需求
 
-### 问题 3: 画布设置需要点击设置图标才能看到 ✅
-**修复方案**:
-- 删除 `showSettings` 状态和设置按钮
-- 画布尺寸输入框始终显示在左侧面板中
-- Stitch Type 选择器下方直接展示
+1. **画布从左上角开始** - 不显示空白区域，类似之前的版本
+2. **鼠标位置为缩放中心** - 缩放时以鼠标指向的位置为焦点
+3. **平滑拖拽** - 支持拖拽平移画布
 
-### 问题 4: 导入后需要"定比缩放"功能 ✅
-**修复方案**:
-- 新增 `canvasScale` 状态和 `scaleCanvas` 函数
-- 使用 nearest-neighbor 算法缩放现有的 `pixelGrid`
-- 保留已编辑的格子颜色
-- 添加滑块 UI 控件（50%-200%）
+## 修复方案
 
----
+### 文件: `src/components/pixel/InfiniteCanvas.tsx`
 
-## 修改的文件
+1. **取消初始居中**
+   - `centerOnInit={false}` - 画布从左上角开始
+   - 初始位置设为 (0, 0)
+   
+2. **鼠标位置缩放**
+   - `react-zoom-pan-pinch` 默认已支持鼠标位置缩放
+   - 确保不调用 `centerView()` 覆盖缩放行为
+
+3. **修改 fitToView 逻辑**
+   - 使用 `setTransform(x, y, scale)` 代替 `centerView()`
+   - 保持内容在左上角对齐
+
+4. **移除不必要的边距**
+   - 减少 `contentStyle` 中的额外 padding (48px → 0)
+   - 标尺直接贴边显示
+
+### 关键代码变更
+
+```typescript
+// TransformWrapper 配置
+<TransformWrapper
+  ref={transformRef}
+  initialScale={1}           // 初始 100% 缩放
+  initialPositionX={0}       // 从左上角开始
+  initialPositionY={0}
+  minScale={0.05}
+  maxScale={5}
+  centerOnInit={false}       // 不居中
+  limitToBounds={false}      // 允许拖拽超出边界
+  wheel={{ step: 0.05 }}     // 默认已是鼠标位置缩放
+  panning={{ disabled: false }}
+  onTransformed={handleTransform}
+  doubleClick={{ disabled: true }}
+>
+
+// fitToView 修改为左上角对齐
+const fitToView = useCallback(() => {
+  if (!containerRef.current || !transformRef.current) return;
+  
+  const container = containerRef.current;
+  const containerWidth = container.clientWidth;
+  const containerHeight = container.clientHeight;
+  
+  const scaleX = containerWidth / canvasWidth;
+  const scaleY = containerHeight / canvasHeight;
+  const scale = Math.min(scaleX, scaleY, 1);
+  
+  // 设置为左上角对齐，不居中
+  transformRef.current.setTransform(0, 0, scale);
+  setCurrentZoom(scale);
+}, [canvasWidth, canvasHeight]);
+
+// TransformComponent 移除额外边距
+<TransformComponent
+  wrapperStyle={{ width: '100%', height: '100%' }}
+  contentStyle={{ width: canvasWidth, height: canvasHeight }}
+>
+```
+
+### 布局调整
+
+```typescript
+// 主内容区域直接从 (0,0) 开始
+<div 
+  className="relative"
+  style={{ 
+    width: canvasWidth,
+    height: canvasHeight,
+  }}
+>
+  {/* Grid 内容 */}
+  {children}
+  
+  {/* 叠加标尺（固定在视口边缘，不随画布移动） */}
+</div>
+```
+
+## 修改文件
 
 | 文件 | 修改内容 |
 |------|---------|
-| `src/pages/PixelGenerator.tsx` | 1. 删除 showSettings/previewZoom 状态<br>2. 添加 canvasScale 状态<br>3. 创建 processImageWithDimensions 函数<br>4. 创建 scaleCanvas 函数<br>5. 移除 handleWheel 和 Ruler 组件<br>6. 使用 InfiniteCanvas 替代手动 CSS scale<br>7. 始终显示画布尺寸设置<br>8. 添加 Scale Canvas 滑块 UI |
+| `src/components/pixel/InfiniteCanvas.tsx` | 1. centerOnInit=false<br>2. initialPosition=(0,0)<br>3. fitToView 使用 setTransform<br>4. 移除内容区额外边距 |
 
----
+## 预期结果
 
-## 结果
-
-1. **导入尺寸一致**: CanvasSizeDialog 选择的尺寸准确应用到 Preview
-2. **专业缩放体验**: 鼠标滚轮缩放以鼠标位置为中心，画布不再漂移
-3. **直观的设置访问**: 画布宽高设置始终可见
-4. **定比缩放功能**: 导入后可按比例调整画布大小，保留编辑内容
+1. **左上角起始** - 画布内容从左上角开始显示，不再有空白区域
+2. **鼠标位置缩放** - 滚轮缩放时以鼠标所在位置为中心
+3. **平滑拖拽** - 按住鼠标可自由拖拽画布
+4. **无漂移** - 缩放后画布不会移出视野
