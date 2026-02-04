@@ -169,15 +169,17 @@ const tools: { type: ExtendedTool; icon: typeof Pencil; label: string }[] = [
   { type: 'replace', icon: Replace, label: 'Replace' },
 ];
 
-// Ruler component with numbers
+// Ruler component with numbers - fixed alignment (no gap offset)
 function Ruler({ 
   type, 
   size, 
-  cellSize, 
+  cellSize,
+  showGridLines = true, 
 }: { 
   type: 'horizontal' | 'vertical'; 
   size: number; 
-  cellSize: number; 
+  cellSize: number;
+  showGridLines?: boolean;
 }) {
   const rulerSize = 24;
   const markers = useMemo(() => {
@@ -190,6 +192,9 @@ function Ruler({
     return items;
   }, [size]);
 
+  // Cell size includes border when grid lines are shown
+  const effectiveCellSize = cellSize + (showGridLines ? 1 : 0);
+
   if (type === 'horizontal') {
     return (
       <div 
@@ -201,7 +206,7 @@ function Ruler({
             key={index}
             className="relative flex items-end justify-center border-r"
             style={{ 
-              width: cellSize + 1, 
+              width: effectiveCellSize, 
               borderColor: isMajor ? 'hsl(var(--primary) / 0.3)' : 'transparent'
             }}
           >
@@ -230,7 +235,7 @@ function Ruler({
           key={index}
           className="relative flex items-center justify-end border-b pr-1"
           style={{ 
-            height: cellSize + 1, 
+            height: effectiveCellSize, 
             borderColor: isMajor ? 'hsl(var(--primary) / 0.3)' : 'transparent'
           }}
         >
@@ -644,7 +649,7 @@ export default function PixelGenerator() {
     }
   };
 
-  // Render cell with grid line logic
+  // Render cell with grid line logic - use borders instead of gap
   const renderCell = (cell: PixelCell, index: number) => {
     const isMajorX = (cell.x + 1) % 10 === 0;
     const isMajorY = (cell.y + 1) % 10 === 0;
@@ -656,14 +661,15 @@ export default function PixelGenerator() {
       cell.y === Math.max(selection.startY, selection.endY)
     ) && inSelection;
 
+    // Use right/bottom borders to create grid lines (consistent 1px)
+    const borderStyle = showGridLines ? '1px solid rgba(0,0,0,0.1)' : 'none';
+    const majorBorderStyle = showGridLines ? '2px solid hsl(var(--primary) / 0.4)' : 'none';
+
     return (
       <div
         key={index}
         className={`
-          transition-transform cursor-crosshair
-          ${!showGridLines ? '' : isMajorX && isMajorY ? 'border-r-2 border-b-2 border-primary/40' : 
-            isMajorX ? 'border-r-2 border-primary/40' : 
-            isMajorY ? 'border-b-2 border-primary/40' : ''}
+          cursor-crosshair
           ${inSelection ? 'ring-1 ring-inset ring-primary/60' : ''}
           ${isSelectionBorder ? 'ring-2 ring-primary' : ''}
         `}
@@ -671,12 +677,22 @@ export default function PixelGenerator() {
           width: cellWidth, 
           height: cellHeight,
           backgroundColor: cell.color,
+          borderRight: isMajorX ? majorBorderStyle : borderStyle,
+          borderBottom: isMajorY ? majorBorderStyle : borderStyle,
+          boxSizing: 'content-box',
         }}
         onMouseDown={() => handleMouseDown(cell.x, cell.y)}
         onMouseEnter={() => handleMouseEnter(cell.x, cell.y)}
       />
     );
   };
+
+  // Mouse wheel zoom handler
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -10 : 10;
+    setPreviewZoom(prev => Math.max(25, Math.min(200, prev + delta)));
+  }, []);
 
   return (
     <motion.div
@@ -1059,33 +1075,39 @@ export default function PixelGenerator() {
 
               <div 
                 className="relative overflow-auto max-h-[600px] rounded-2xl bg-muted/20"
+                onWheel={handleWheel}
               >
-                {/* Trace image overlay */}
-                {uploadedImage && traceOpacity > 0 && (
-                  <div 
-                    className="absolute inset-0 pointer-events-none z-10"
-                    style={{ 
-                      backgroundImage: `url(${uploadedImage})`,
-                      backgroundSize: '100% 100%',
-                      opacity: traceOpacity / 100,
-                      mixBlendMode: 'multiply',
-                    }}
-                  />
-                )}
-                
                 <div 
-                  className="inline-flex origin-top-left"
+                  className="relative inline-flex origin-top-left"
                   style={{ transform: `scale(${previewZoom / 100})` }}
                 >
-                  <Ruler type="vertical" size={gridHeight} cellSize={cellHeight} />
+                  {/* Trace image overlay - positioned inside zoom container to match grid */}
+                  {uploadedImage && traceOpacity > 0 && (
+                    <div 
+                      className="absolute pointer-events-none z-10"
+                      style={{ 
+                        left: 24, // ruler width
+                        top: 24, // ruler height
+                        width: gridWidth * (cellWidth + (showGridLines ? 1 : 0)),
+                        height: gridHeight * (cellHeight + (showGridLines ? 1 : 0)),
+                        backgroundImage: `url(${uploadedImage})`,
+                        backgroundSize: '100% 100%',
+                        opacity: traceOpacity / 100,
+                        mixBlendMode: 'multiply',
+                      }}
+                    />
+                  )}
+                  
+                  <Ruler type="vertical" size={gridHeight} cellSize={cellHeight} showGridLines={showGridLines} />
                   
                   <div className="flex flex-col">
-                    <Ruler type="horizontal" size={gridWidth} cellSize={cellWidth} />
+                    <Ruler type="horizontal" size={gridWidth} cellSize={cellWidth} showGridLines={showGridLines} />
                     
+                    {/* Grid without gap - using cell borders instead */}
                     <div 
-                      className={`inline-grid ${showGridLines ? 'gap-[1px]' : 'gap-0'}`}
+                      className="inline-grid gap-0"
                       style={{ 
-                        gridTemplateColumns: `repeat(${gridWidth}, ${cellWidth}px)`,
+                        gridTemplateColumns: `repeat(${gridWidth}, ${cellWidth + (showGridLines ? 1 : 0)}px)`,
                       }}
                     >
                       {pixelGrid.map((cell, i) => renderCell(cell, i))}
