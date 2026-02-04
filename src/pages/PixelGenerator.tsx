@@ -703,7 +703,7 @@ export default function PixelGenerator() {
         </div>
       </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Upload & Settings */}
         <motion.div variants={itemVariants} className="glass-card p-6 space-y-5">
           <div className="flex items-center gap-2">
@@ -1049,91 +1049,96 @@ export default function PixelGenerator() {
 
         </motion.div>
 
-        {/* Main Grid Area */}
-        <motion.div variants={itemVariants} className="lg:col-span-2 glass-card p-6 min-h-[500px] flex flex-col">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-medium">Yarn Grid Preview</h2>
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-muted-foreground">
-                {gridWidth} × {gridHeight} stitches
-              </span>
+        {/* Main Area - Preview + Color Legend stacked */}
+        <motion.div variants={itemVariants} className="lg:col-span-2 space-y-6">
+          {/* Preview Card */}
+          <div className="glass-card p-6 min-h-[500px] flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-medium">Yarn Grid Preview</h2>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-muted-foreground">
+                  {gridWidth} × {gridHeight} stitches
+                </span>
+              </div>
             </div>
-          </div>
 
-          <canvas ref={canvasRef} className="hidden" />
+            <canvas ref={canvasRef} className="hidden" />
 
-          {pixelGrid.length > 0 ? (
-            <div className="flex-1">
-              <InfiniteCanvas
-                width={gridWidth}
-                height={gridHeight}
-                cellWidth={cellWidth}
-                cellHeight={cellHeight}
-                showGridLines={showGridLines}
-                onShowGridLinesChange={setShowGridLines}
-                uploadedImage={uploadedImage}
-                traceOpacity={traceOpacity}
-                autoFitOnMount={true}
-              >
-                {/* Grid without gap - using cell borders instead */}
-                <div 
-                  className="inline-grid gap-0"
-                  style={{ 
-                    gridTemplateColumns: `repeat(${gridWidth}, ${cellWidth + (showGridLines ? 1 : 0)}px)`,
-                  }}
+            {pixelGrid.length > 0 ? (
+              <div className="flex-1">
+                <InfiniteCanvas
+                  width={gridWidth}
+                  height={gridHeight}
+                  cellWidth={cellWidth}
+                  cellHeight={cellHeight}
+                  showGridLines={showGridLines}
+                  onShowGridLinesChange={setShowGridLines}
+                  uploadedImage={uploadedImage}
+                  traceOpacity={traceOpacity}
+                  autoFitOnMount={true}
                 >
-                  {pixelGrid.map((cell, i) => renderCell(cell, i))}
+                  {/* Grid without gap - using cell borders instead */}
+                  <div 
+                    className="inline-grid gap-0"
+                    style={{ 
+                      gridTemplateColumns: `repeat(${gridWidth}, ${cellWidth + (showGridLines ? 1 : 0)}px)`,
+                    }}
+                  >
+                    {pixelGrid.map((cell, i) => renderCell(cell, i))}
+                  </div>
+                </InfiniteCanvas>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="h-40 flex items-center justify-center rounded-2xl bg-muted/20 border-2 border-dashed border-border">
+                  <div className="text-center">
+                    <p className="text-muted-foreground mb-3">Upload an image or create an empty canvas</p>
+                    <Button variant="outline" onClick={() => createEmptyGrid()} className="rounded-xl">
+                      Create {customGridWidth}×{calculatedHeight} Canvas
+                    </Button>
+                  </div>
                 </div>
-              </InfiniteCanvas>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              <div className="h-40 flex items-center justify-center rounded-2xl bg-muted/20 border-2 border-dashed border-border">
-                <div className="text-center">
-                  <p className="text-muted-foreground mb-3">Upload an image or create an empty canvas</p>
-                  <Button variant="outline" onClick={() => createEmptyGrid()} className="rounded-xl">
-                    Create {customGridWidth}×{calculatedHeight} Canvas
+                
+                {/* Color Library for empty canvas */}
+                <ColorLibrary 
+                  onColorSelect={(color) => {
+                    setEmptyCanvasColor(color);
+                    setSelectedColor(color);
+                  }}
+                  selectedColor={emptyCanvasColor}
+                />
+                
+                <div className="flex items-center gap-3">
+                  <div 
+                    className="w-10 h-10 rounded-xl shadow-sm border border-border"
+                    style={{ backgroundColor: emptyCanvasColor }}
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Selected Fill Color</p>
+                    <p className="text-xs text-muted-foreground">{emptyCanvasColor}</p>
+                  </div>
+                  <Button 
+                    onClick={() => createEmptyGrid(emptyCanvasColor)} 
+                    className="rounded-xl"
+                  >
+                    Create Canvas
                   </Button>
                 </div>
               </div>
-              
-              {/* Color Library for empty canvas */}
-              <ColorLibrary 
-                onColorSelect={(color) => {
-                  setEmptyCanvasColor(color);
-                  setSelectedColor(color);
-                }}
-                selectedColor={emptyCanvasColor}
+            )}
+          </div>
+
+          {/* Color Legend - below Preview */}
+          {pixelGrid.length > 0 && (
+            <div className="glass-card p-6">
+              <ColorLegend 
+                pixelGrid={pixelGrid} 
+                ignoredColor={ignoredColor}
+                onColorClick={handlePaletteColorClick}
+                selectedColor={selectedColor}
               />
-              
-              <div className="flex items-center gap-3">
-                <div 
-                  className="w-10 h-10 rounded-xl shadow-sm border border-border"
-                  style={{ backgroundColor: emptyCanvasColor }}
-                />
-                <div className="flex-1">
-                  <p className="text-sm font-medium">Selected Fill Color</p>
-                  <p className="text-xs text-muted-foreground">{emptyCanvasColor}</p>
-                </div>
-                <Button 
-                  onClick={() => createEmptyGrid(emptyCanvasColor)} 
-                  className="rounded-xl"
-                >
-                  Create Canvas
-                </Button>
-              </div>
             </div>
           )}
-        </motion.div>
-
-        {/* Color Legend */}
-        <motion.div variants={itemVariants} className="glass-card p-6">
-          <ColorLegend 
-            pixelGrid={pixelGrid} 
-            ignoredColor={ignoredColor}
-            onColorClick={handlePaletteColorClick}
-            selectedColor={selectedColor}
-          />
         </motion.div>
       </div>
     </motion.div>
