@@ -520,7 +520,6 @@ export const useYarnCluesStore = create<YarnCluesStore>()(
         yarnLibrary: state.yarnLibrary,
         customGridWidth: state.customGridWidth,
         customGridHeight: state.customGridHeight,
-        pixelGrid: state.pixelGrid,
       }),
     }
   )

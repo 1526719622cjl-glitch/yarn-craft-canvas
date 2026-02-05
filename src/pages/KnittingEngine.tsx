@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { useEffect, useState, Suspense, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment } from '@react-three/drei';
-import { InstancedKnittingScene } from '@/components/3d/InstancedYarnSimulation';
+import { KnittingYarnStitch } from '@/components/3d/YarnSimulation';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -142,13 +142,19 @@ function Knitting3DScene({
   chart, 
   width,
   height,
+  hoveredCell,
   highFidelity 
 }: { 
   chart: { row: number; stitch: number; type: KnittingStitch }[];
   width: number;
   height: number;
+  hoveredCell: { row: number; stitch: number } | null;
   highFidelity: boolean;
 }) {
+  const spacing = 0.3;
+  const offsetX = (width * spacing) / 2;
+  const offsetY = (height * spacing) / 2;
+  
   return (
     <>
       <ambientLight intensity={0.4} />
@@ -157,7 +163,25 @@ function Knitting3DScene({
       
       {highFidelity && <Environment preset="apartment" />}
       
-      <InstancedKnittingScene chart={chart} width={width} height={height} highFidelity={highFidelity} />
+      {chart.map((cell) => {
+        // Physical stacking - alternate rows offset slightly for interlocking
+        const xOffset = cell.row % 2 === 0 ? 0 : spacing / 2;
+        const x = cell.stitch * spacing - offsetX + xOffset;
+        const y = cell.row * spacing * 0.7 - offsetY;
+        const z = cell.row * 0.015;
+        
+        const isHovered = hoveredCell?.row === cell.row && hoveredCell?.stitch === cell.stitch;
+        
+        return (
+          <KnittingYarnStitch
+            key={`${cell.row}-${cell.stitch}`}
+            position={[x, y, z]}
+            type={cell.type}
+            isHovered={isHovered}
+            highFidelity={highFidelity}
+          />
+        );
+      })}
       
       <OrbitControls 
         enablePan={true}
@@ -526,6 +550,7 @@ export default function KnittingEngine() {
                 chart={knittingChart}
                 width={knittingWidth}
                 height={knittingHeight}
+                hoveredCell={hoveredKnittingCell}
                 highFidelity={knittingHighFidelityMode}
               />
             </Canvas>

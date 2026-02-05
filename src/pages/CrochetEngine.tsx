@@ -11,7 +11,7 @@ import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment } from '@react-three/drei';
 import { parseCrochetPattern, toStoreFormat, ParseResult, getUsedStitchTypes } from '@/lib/enhancedCrochetParser';
-import { InstancedCrochetScene } from '@/components/3d/InstancedYarnSimulation';
+import { CrochetYarnStitch } from '@/components/3d/YarnSimulation';
 import { StitchSymbol, getStitchDisplayName } from '@/components/crochet/CrochetSymbols';
 import { EnhancedCrochetSymbol, StitchCategoryTabs, SymbolLegend } from '@/components/crochet/EnhancedCrochetSymbol';
 import { CrochetStitchType, STITCH_DATABASE, getStitchesByCategory } from '@/lib/crochetStitchTypes';
@@ -35,11 +35,19 @@ const itemVariants = {
 // 3D Preview Scene with TubeGeometry yarn
 function Crochet3DScene({ 
   chart, 
+  hoveredCell,
   highFidelity 
 }: { 
   chart: { row: number; stitch: number; type: CrochetStitch }[];
+  hoveredCell: { row: number; stitch: number } | null;
   highFidelity: boolean;
 }) {
+  const rowGroups = chart.reduce((acc, cell) => {
+    if (!acc[cell.row]) acc[cell.row] = [];
+    acc[cell.row].push(cell);
+    return acc;
+  }, {} as Record<number, typeof chart>);
+
   return (
     <>
       <ambientLight intensity={0.5} />
@@ -48,7 +56,32 @@ function Crochet3DScene({
       
       {highFidelity && <Environment preset="apartment" />}
       
-      <InstancedCrochetScene chart={chart} highFidelity={highFidelity} />
+      {Object.entries(rowGroups).map(([rowNum, cells]) => {
+        const row = parseInt(rowNum);
+        const radius = 0.3 + row * 0.35;
+        const angleStep = (2 * Math.PI) / cells.length;
+        const zOffset = row * 0.04;
+        
+        return cells.map((cell, i) => {
+          const angle = i * angleStep - Math.PI / 2;
+          const stitchOffset = row % 2 === 0 ? 0 : angleStep / 2;
+          const x = Math.cos(angle + stitchOffset) * radius;
+          const y = Math.sin(angle + stitchOffset) * radius;
+          
+          const isHovered = hoveredCell?.row === cell.row && hoveredCell?.stitch === cell.stitch;
+          
+          return (
+            <CrochetYarnStitch
+              key={`${row}-${i}`}
+              position={[x, y, zOffset]}
+              rotation={angle + stitchOffset + Math.PI / 2}
+              type={cell.type}
+              isHovered={isHovered}
+              highFidelity={highFidelity}
+            />
+          );
+        });
+      })}
       
       <OrbitControls 
         enablePan={true}
@@ -589,18 +622,19 @@ export default function CrochetEngine() {
         </div>
 
         <div className="h-[400px] rounded-2xl overflow-hidden bg-gradient-to-b from-muted/30 to-muted/10">
-                <Suspense fallback={
-                  <div className="w-full h-full flex items-center justify-center bg-muted/20">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                  </div>
-                }>
-                  <Canvas camera={{ position: [0, 0, 5], fov: 50 }} shadows>
-                    <Crochet3DScene 
-                      chart={crochetChart} 
-                      highFidelity={highFidelityMode} 
-                    />
-                  </Canvas>
-                </Suspense>
+          <Suspense fallback={
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="animate-pulse text-muted-foreground">Loading 3D Yarn Preview...</div>
+            </div>
+          }>
+            <Canvas camera={{ position: [0, 0, 4], fov: 50 }} shadows={highFidelityMode}>
+              <Crochet3DScene 
+                chart={crochetChart} 
+                hoveredCell={hoveredCrochetCell}
+                highFidelity={highFidelityMode}
+              />
+            </Canvas>
+          </Suspense>
         </div>
 
         <p className="text-xs text-muted-foreground mt-3 text-center">
