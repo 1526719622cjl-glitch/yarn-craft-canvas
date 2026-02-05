@@ -53,6 +53,19 @@ export function SwatchReportGenerator({
   const [yarnBrand, setYarnBrand] = useState(initialYarnBrand);
   const [notes, setNotes] = useState('');
 
+  // Prepare data structure for PDF export
+  const preparePDFData = useCallback(() => {
+    const reportData = {
+      yarn: { name: yarnName, brand: yarnBrand },
+      swatch: swatchData,
+      gauge: gaugeData,
+      notes: notes,
+      generatedAt: new Date().toISOString()
+    };
+    console.log('Prepared Swatch PDF Data:', reportData);
+    return reportData;
+  }, [yarnName, yarnBrand, swatchData, gaugeData, notes]);
+
   const handleDownload = async () => {
     if (!reportRef.current) return;
     

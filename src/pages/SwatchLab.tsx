@@ -125,12 +125,44 @@ export default function SwatchLab() {
     }
   }, [undoableSwatchData, setSwatchData]);
 
+  // Sync state to localStorage for persistence
+  useEffect(() => {
+    localStorage.setItem('swatch-lab-state', JSON.stringify({
+      swatchData: undoableSwatchData,
+      projectPlan: safeProjectPlan
+    }));
+  }, [undoableSwatchData, safeProjectPlan]);
+
+  // Load state from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('swatch-lab-state');
+    if (saved) {
+      try {
+        const { swatchData: savedSwatch, projectPlan: savedPlan } = JSON.parse(saved);
+        if (savedSwatch) setUndoableSwatch(savedSwatch);
+        if (savedPlan) setProjectPlan(savedPlan);
+      } catch (e) {
+        console.error('Failed to load swatch lab state', e);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     calculateGauge();
   }, [calculateGauge]);
 
   const handleSwatchChange = (updates: Partial<typeof safeSwatchData>) => {
-    setUndoableSwatch((prev) => ({ ...prev, ...updates }));
+    // Validate that numeric updates are not NaN and are positive
+    const validatedUpdates = { ...updates };
+    Object.keys(validatedUpdates).forEach((key) => {
+      const k = key as keyof typeof safeSwatchData;
+      if (typeof validatedUpdates[k] === 'number') {
+        if (isNaN(validatedUpdates[k] as number) || (validatedUpdates[k] as number) < 0) {
+          delete validatedUpdates[k];
+        }
+      }
+    });
+    setUndoableSwatch((prev) => ({ ...prev, ...validatedUpdates }));
   };
 
   // Tool size change handler
@@ -271,48 +303,64 @@ export default function SwatchLab() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="pre-width" className="text-sm text-muted-foreground">Width (cm)</Label>
-                <Input
-                  id="pre-width"
-                  type="number"
-                  step="0.1"
-                  value={safeSwatchData.preWashWidth}
-                  onChange={(e) => handleSwatchChange({ preWashWidth: Number(e.target.value) })}
-                  className="input-glass h-12 text-lg font-medium"
-                />
+                  <Input
+                    id="pre-width"
+                    type="number"
+                    step="0.1"
+                    min="0.1"
+                    value={safeSwatchData.preWashWidth || ''}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      handleSwatchChange({ preWashWidth: isNaN(val) ? 0 : val });
+                    }}
+                    className="input-glass h-12 text-lg font-medium"
+                  />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="pre-height" className="text-sm text-muted-foreground">Height (cm)</Label>
-                <Input
-                  id="pre-height"
-                  type="number"
-                  step="0.1"
-                  value={safeSwatchData.preWashHeight}
-                  onChange={(e) => handleSwatchChange({ preWashHeight: Number(e.target.value) })}
-                  className="input-glass h-12 text-lg font-medium"
-                />
+                  <Input
+                    id="pre-height"
+                    type="number"
+                    step="0.1"
+                    min="0.1"
+                    value={safeSwatchData.preWashHeight || ''}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      handleSwatchChange({ preWashHeight: isNaN(val) ? 0 : val });
+                    }}
+                    className="input-glass h-12 text-lg font-medium"
+                  />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="stitches-pre" className="text-sm text-muted-foreground">Stitch Count</Label>
-                <Input
-                  id="stitches-pre"
-                  type="number"
-                  value={safeSwatchData.stitchesPreWash}
-                  onChange={(e) => handleSwatchChange({ stitchesPreWash: Number(e.target.value) })}
-                  className="input-glass h-12 text-lg font-medium"
-                />
+                  <Input
+                    id="pre-sts"
+                    type="number"
+                    min="1"
+                    value={safeSwatchData.stitchesPreWash || ''}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      handleSwatchChange({ stitchesPreWash: isNaN(val) ? 0 : val });
+                    }}
+                    className="input-glass h-12 text-lg font-medium"
+                  />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="rows-pre" className="text-sm text-muted-foreground">Row Count</Label>
-                <Input
-                  id="rows-pre"
-                  type="number"
-                  value={safeSwatchData.rowsPreWash}
-                  onChange={(e) => handleSwatchChange({ rowsPreWash: Number(e.target.value) })}
-                  className="input-glass h-12 text-lg font-medium"
-                />
+                  <Input
+                    id="pre-rows"
+                    type="number"
+                    min="1"
+                    value={safeSwatchData.rowsPreWash || ''}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      handleSwatchChange({ rowsPreWash: isNaN(val) ? 0 : val });
+                    }}
+                    className="input-glass h-12 text-lg font-medium"
+                  />
               </div>
             </div>
 
@@ -349,8 +397,12 @@ export default function SwatchLab() {
                   id="post-width"
                   type="number"
                   step="0.1"
-                  value={safeSwatchData.postWashWidth}
-                  onChange={(e) => handleSwatchChange({ postWashWidth: Number(e.target.value) })}
+                  min="0.1"
+                  value={safeSwatchData.postWashWidth || ''}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value);
+                    handleSwatchChange({ postWashWidth: isNaN(val) ? 0 : val });
+                  }}
                   className="input-glass h-12 text-lg font-medium"
                 />
               </div>
@@ -360,8 +412,12 @@ export default function SwatchLab() {
                   id="post-height"
                   type="number"
                   step="0.1"
-                  value={safeSwatchData.postWashHeight}
-                  onChange={(e) => handleSwatchChange({ postWashHeight: Number(e.target.value) })}
+                  min="0.1"
+                  value={safeSwatchData.postWashHeight || ''}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value);
+                    handleSwatchChange({ postWashHeight: isNaN(val) ? 0 : val });
+                  }}
                   className="input-glass h-12 text-lg font-medium"
                 />
               </div>
@@ -373,8 +429,12 @@ export default function SwatchLab() {
                 <Input
                   id="stitches-post"
                   type="number"
-                  value={safeSwatchData.stitchesPostWash}
-                  onChange={(e) => handleSwatchChange({ stitchesPostWash: Number(e.target.value) })}
+                  min="1"
+                  value={safeSwatchData.stitchesPostWash || ''}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    handleSwatchChange({ stitchesPostWash: isNaN(val) ? 0 : val });
+                  }}
                   className="input-glass h-12 text-lg font-medium"
                 />
               </div>
@@ -383,8 +443,12 @@ export default function SwatchLab() {
                 <Input
                   id="rows-post"
                   type="number"
-                  value={safeSwatchData.rowsPostWash}
-                  onChange={(e) => handleSwatchChange({ rowsPostWash: Number(e.target.value) })}
+                  min="1"
+                  value={safeSwatchData.rowsPostWash || ''}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    handleSwatchChange({ rowsPostWash: isNaN(val) ? 0 : val });
+                  }}
                   className="input-glass h-12 text-lg font-medium"
                 />
               </div>
@@ -542,8 +606,12 @@ export default function SwatchLab() {
                   <Input
                     id="target-width"
                     type="number"
-                    value={safeProjectPlan.targetWidth}
-                    onChange={(e) => setProjectPlan({ targetWidth: Number(e.target.value) })}
+                    min="1"
+                    value={safeProjectPlan.targetWidth || ''}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      setProjectPlan({ targetWidth: isNaN(val) ? 0 : val });
+                    }}
                     className="input-glass h-12 text-lg font-medium"
                   />
                 </div>
@@ -552,8 +620,12 @@ export default function SwatchLab() {
                   <Input
                     id="target-height"
                     type="number"
-                    value={safeProjectPlan.targetHeight}
-                    onChange={(e) => setProjectPlan({ targetHeight: Number(e.target.value) })}
+                    min="1"
+                    value={safeProjectPlan.targetHeight || ''}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      setProjectPlan({ targetHeight: isNaN(val) ? 0 : val });
+                    }}
                     className="input-glass h-12 text-lg font-medium"
                   />
                 </div>
