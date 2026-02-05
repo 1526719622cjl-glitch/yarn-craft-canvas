@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { useYarnCluesStore } from '@/store/useYarnCluesStore';
-import { Ruler, Calculator, TrendingUp, TrendingDown, Target, Undo, Redo, Save, Droplets, Info, Loader2 } from 'lucide-react';
+import { Ruler, Calculator, TrendingUp, TrendingDown, Target, Undo, Redo, Save, Droplets, Info, Loader2, FileImage } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SwatchReportGenerator } from '@/components/swatch/SwatchReportGenerator';
+
+// Tool size presets
+const TOOL_SIZES = [2.0, 2.25, 2.5, 2.75, 3.0, 3.25, 3.5, 3.75, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 8.0, 9.0, 10.0];
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -60,6 +64,9 @@ export default function SwatchLab() {
   const [yarnName, setYarnName] = useState('');
   const [yarnBrand, setYarnBrand] = useState('');
   const [yarnWeight, setYarnWeight] = useState<YarnWeight | ''>('');
+  const [showReportGenerator, setShowReportGenerator] = useState(false);
+  const [customToolSize, setCustomToolSize] = useState('');
+  const [isCustomToolSize, setIsCustomToolSize] = useState(false);
 
   // Safe defaults + null/NaN normalization
   const num = (value: unknown, fallback: number) => {
@@ -94,6 +101,8 @@ export default function SwatchLab() {
     postWashHeight: num(swatchData?.postWashHeight, 10),
     stitchesPostWash: num(swatchData?.stitchesPostWash, 20),
     rowsPostWash: num(swatchData?.rowsPostWash, 28),
+    toolType: swatchData?.toolType ?? null,
+    toolSizeMm: swatchData?.toolSizeMm ?? null,
   };
 
   // Undo/Redo for swatch data
@@ -124,6 +133,24 @@ export default function SwatchLab() {
     setUndoableSwatch((prev) => ({ ...prev, ...updates }));
   };
 
+  // Tool size change handler
+  const handleToolSizeChange = (value: string) => {
+    if (value === 'custom') {
+      setIsCustomToolSize(true);
+    } else {
+      setIsCustomToolSize(false);
+      handleSwatchChange({ toolSizeMm: parseFloat(value) });
+    }
+  };
+
+  const handleCustomToolSizeChange = (value: string) => {
+    setCustomToolSize(value);
+    const parsed = parseFloat(value);
+    if (!isNaN(parsed) && parsed > 0) {
+      handleSwatchChange({ toolSizeMm: parsed });
+    }
+  };
+
   // Cloud save handler
   const handleSaveToCloud = () => {
     if (!yarnName.trim()) return;
@@ -140,6 +167,14 @@ export default function SwatchLab() {
       rows_per_10cm: safeGaugeData.postWashRowDensity * 10,
       post_wash_width_cm: safeSwatchData.postWashWidth,
       post_wash_height_cm: safeSwatchData.postWashHeight,
+      pre_wash_width_cm: safeSwatchData.preWashWidth,
+      pre_wash_height_cm: safeSwatchData.preWashHeight,
+      stitches_pre_wash: safeSwatchData.stitchesPreWash,
+      rows_pre_wash: safeSwatchData.rowsPreWash,
+      stitches_post_wash: safeSwatchData.stitchesPostWash,
+      rows_post_wash: safeSwatchData.rowsPostWash,
+      tool_type: safeSwatchData.toolType,
+      tool_size_mm: safeSwatchData.toolSizeMm,
       meters_per_ball: null,
       grams_per_ball: null,
       balls_in_stock: 0,
@@ -365,6 +400,87 @@ export default function SwatchLab() {
           </motion.div>
         </div>
 
+        {/* Tool Size Selector */}
+        <motion.div variants={itemVariants} className="glass-card p-6 space-y-4">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-xl bg-yarn-sage/30 flex items-center justify-center">
+              <span className="text-sm">🧶</span>
+            </div>
+            <h2 className="text-lg font-medium">Tool Size</h2>
+            <Tooltip>
+              <TooltipTrigger>
+                <Info className="w-4 h-4 text-muted-foreground" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                Record the hook or needle size used for this swatch
+              </TooltipContent>
+            </Tooltip>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Tool Type Selector */}
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">Tool Type</Label>
+              <Select 
+                value={safeSwatchData.toolType || ''} 
+                onValueChange={(v) => handleSwatchChange({ toolType: v as 'hook' | 'needle' })}
+              >
+                <SelectTrigger className="h-12 rounded-xl">
+                  <SelectValue placeholder="Select tool..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="hook">🪝 钩针 (Hook)</SelectItem>
+                  <SelectItem value="needle">🥢 棒针 (Needles)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Tool Size Selector */}
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">Size (mm)</Label>
+              <div className="flex gap-2">
+                <Select 
+                  value={isCustomToolSize ? 'custom' : (safeSwatchData.toolSizeMm?.toString() || '')} 
+                  onValueChange={handleToolSizeChange}
+                >
+                  <SelectTrigger className="h-12 rounded-xl flex-1">
+                    <SelectValue placeholder="Select size..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TOOL_SIZES.map(size => (
+                      <SelectItem key={size} value={size.toString()}>
+                        {size}mm
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="custom">✏️ Custom...</SelectItem>
+                  </SelectContent>
+                </Select>
+                {isCustomToolSize && (
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={customToolSize}
+                    onChange={(e) => handleCustomToolSizeChange(e.target.value)}
+                    placeholder="mm"
+                    className="w-24 h-12"
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Current tool display */}
+          {safeSwatchData.toolType && safeSwatchData.toolSizeMm && (
+            <div className="pt-3 border-t border-border/30">
+              <p className="text-sm text-muted-foreground">
+                Using: <span className="font-medium text-foreground">
+                  {safeSwatchData.toolType === 'hook' ? '🪝 钩针' : '🥢 棒针'} {safeSwatchData.toolSizeMm}mm
+                </span>
+              </p>
+            </div>
+          )}
+        </motion.div>
+
         {/* Shrinkage Analysis */}
         {hasShrinkage && (
           <motion.div variants={itemVariants} className="p-4 rounded-2xl bg-yarn-honey/20 border border-yarn-honey/30">
@@ -496,13 +612,23 @@ export default function SwatchLab() {
           {/* Save to Library Button */}
           <div className="flex justify-end mt-6 pt-4 border-t border-border/30">
             {user ? (
-              <Button 
-                onClick={() => setSaveModalOpen(true)}
-                className="rounded-xl soft-press"
-              >
-                <Save className="w-4 h-4 mr-2" />
-                Save to My Yarn Library
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline"
+                  onClick={() => setShowReportGenerator(true)}
+                  className="rounded-xl soft-press"
+                >
+                  <FileImage className="w-4 h-4 mr-2" />
+                  生成样片报告
+                </Button>
+                <Button 
+                  onClick={() => setSaveModalOpen(true)}
+                  className="rounded-xl soft-press"
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  Save to My Yarn Library
+                </Button>
+              </div>
             ) : (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -626,6 +752,16 @@ export default function SwatchLab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Swatch Report Generator */}
+      <SwatchReportGenerator
+        open={showReportGenerator}
+        onOpenChange={setShowReportGenerator}
+        swatchData={safeSwatchData}
+        gaugeData={safeGaugeData}
+        yarnName={yarnName}
+        yarnBrand={yarnBrand}
+      />
     </motion.div>
   );
 }

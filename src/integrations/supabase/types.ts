@@ -124,9 +124,17 @@ export type Database = {
           notes: string | null
           post_wash_height_cm: number | null
           post_wash_width_cm: number | null
+          pre_wash_height_cm: number | null
+          pre_wash_width_cm: number | null
           rows_per_10cm: number | null
+          rows_post_wash: number | null
+          rows_pre_wash: number | null
           status: Database["public"]["Enums"]["yarn_status"] | null
           stitches_per_10cm: number | null
+          stitches_post_wash: number | null
+          stitches_pre_wash: number | null
+          tool_size_mm: number | null
+          tool_type: string | null
           updated_at: string
           user_id: string
           weight: Database["public"]["Enums"]["yarn_weight"] | null
@@ -145,9 +153,17 @@ export type Database = {
           notes?: string | null
           post_wash_height_cm?: number | null
           post_wash_width_cm?: number | null
+          pre_wash_height_cm?: number | null
+          pre_wash_width_cm?: number | null
           rows_per_10cm?: number | null
+          rows_post_wash?: number | null
+          rows_pre_wash?: number | null
           status?: Database["public"]["Enums"]["yarn_status"] | null
           stitches_per_10cm?: number | null
+          stitches_post_wash?: number | null
+          stitches_pre_wash?: number | null
+          tool_size_mm?: number | null
+          tool_type?: string | null
           updated_at?: string
           user_id: string
           weight?: Database["public"]["Enums"]["yarn_weight"] | null
@@ -166,9 +182,17 @@ export type Database = {
           notes?: string | null
           post_wash_height_cm?: number | null
           post_wash_width_cm?: number | null
+          pre_wash_height_cm?: number | null
+          pre_wash_width_cm?: number | null
           rows_per_10cm?: number | null
+          rows_post_wash?: number | null
+          rows_pre_wash?: number | null
           status?: Database["public"]["Enums"]["yarn_status"] | null
           stitches_per_10cm?: number | null
+          stitches_post_wash?: number | null
+          stitches_pre_wash?: number | null
+          tool_size_mm?: number | null
+          tool_type?: string | null
           updated_at?: string
           user_id?: string
           weight?: Database["public"]["Enums"]["yarn_weight"] | null
