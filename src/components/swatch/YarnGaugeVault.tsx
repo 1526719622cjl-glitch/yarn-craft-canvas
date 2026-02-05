@@ -145,6 +145,14 @@ export function YarnGaugeVault({ onLoadYarn, compact = false }: YarnGaugeVaultPr
       rows_per_10cm: gaugeData.postWashRowDensity * 10,
       post_wash_width_cm: swatchData.postWashWidth,
       post_wash_height_cm: swatchData.postWashHeight,
+      pre_wash_width_cm: swatchData.preWashWidth,
+      pre_wash_height_cm: swatchData.preWashHeight,
+      stitches_pre_wash: swatchData.stitchesPreWash,
+      rows_pre_wash: swatchData.rowsPreWash,
+      stitches_post_wash: swatchData.stitchesPostWash,
+      rows_post_wash: swatchData.rowsPostWash,
+      tool_type: swatchData.toolType,
+      tool_size_mm: swatchData.toolSizeMm,
       meters_per_ball: null,
       grams_per_ball: null,
       balls_in_stock: 0,
@@ -163,22 +171,27 @@ export function YarnGaugeVault({ onLoadYarn, compact = false }: YarnGaugeVaultPr
   };
 
   const handleLoadYarn = (yarn: YarnEntry) => {
-    // Load yarn data into swatch calculator using the new dual-dimension system
-    const stitchDensity = yarn.stitches_per_10cm ? yarn.stitches_per_10cm / 10 : gaugeData.postWashStitchDensity;
-    const rowDensity = yarn.rows_per_10cm ? yarn.rows_per_10cm / 10 : gaugeData.postWashRowDensity;
-    const postWidth = yarn.post_wash_width_cm || 10;
-    const postHeight = yarn.post_wash_height_cm || 10;
+    // Load yarn data - fully restore all saved fields
+    const postWidth = yarn.post_wash_width_cm ?? 10;
+    const postHeight = yarn.post_wash_height_cm ?? 10;
+    const preWidth = yarn.pre_wash_width_cm ?? postWidth;
+    const preHeight = yarn.pre_wash_height_cm ?? postHeight;
+    
+    // Use stored stitch counts if available, otherwise calculate from density
+    const stitchDensity = yarn.stitches_per_10cm ? yarn.stitches_per_10cm / 10 : 2;
+    const rowDensity = yarn.rows_per_10cm ? yarn.rows_per_10cm / 10 : 2.8;
     
     setSwatchData({
-      // For loaded yarn, assume pre-wash = post-wash (no shrinkage data stored)
-      preWashWidth: postWidth,
-      preWashHeight: postHeight,
-      stitchesPreWash: Math.round(stitchDensity * postWidth),
-      rowsPreWash: Math.round(rowDensity * postHeight),
+      preWashWidth: preWidth,
+      preWashHeight: preHeight,
+      stitchesPreWash: yarn.stitches_pre_wash ?? Math.round(stitchDensity * preWidth),
+      rowsPreWash: yarn.rows_pre_wash ?? Math.round(rowDensity * preHeight),
       postWashWidth: postWidth,
       postWashHeight: postHeight,
-      stitchesPostWash: Math.round(stitchDensity * postWidth),
-      rowsPostWash: Math.round(rowDensity * postHeight),
+      stitchesPostWash: yarn.stitches_post_wash ?? Math.round(stitchDensity * postWidth),
+      rowsPostWash: yarn.rows_post_wash ?? Math.round(rowDensity * postHeight),
+      toolType: yarn.tool_type ?? null,
+      toolSizeMm: yarn.tool_size_mm ?? null,
     });
     
     onLoadYarn?.(yarn);

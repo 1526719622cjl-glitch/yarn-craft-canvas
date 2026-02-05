@@ -14,6 +14,10 @@ export interface SwatchData {
   postWashHeight: number;    // cm
   stitchesPostWash: number;
   rowsPostWash: number;
+
+  // Tool information
+  toolType: 'hook' | 'needle' | null;
+  toolSizeMm: number | null;
 }
 
 // Calculated gauge values
@@ -169,6 +173,8 @@ export const useYarnCluesStore = create<YarnCluesStore>()(
         postWashHeight: 10,
         stitchesPostWash: 20,
         rowsPostWash: 28,
+        toolType: null,
+        toolSizeMm: null,
       },
       gaugeData: {
         preWashStitchDensity: 2,

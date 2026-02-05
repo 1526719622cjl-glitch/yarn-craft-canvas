@@ -4,7 +4,7 @@ import { useYarnCluesStore, PixelTool, PixelCell } from '@/store/useYarnCluesSto
 import { 
   Grid3X3, Upload, Palette, Pencil, Eraser, PaintBucket, Pipette, 
   Square, RotateCw, Copy, Move, Grid, Eye, EyeOff, Layers, Replace,
-  FlipHorizontal, Sliders, Lock, Unlock, Plus
+  FlipHorizontal, Sliders, Lock, Unlock, Plus, Undo, Redo
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,6 +20,7 @@ import { StashColor } from '@/components/pixel/YarnStashPalette';
 import { ImageCropDialog } from '@/components/pixel/ImageCropDialog';
 import { CanvasSizeDialog } from '@/components/pixel/CanvasSizeDialog';
 import { ColorLibrary } from '@/components/pixel/ColorLibrary';
+import { useUndoRedo, useUndoRedoKeyboard } from '@/hooks/useUndoRedo';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -220,6 +221,27 @@ export default function PixelGenerator() {
   // Canvas scaling state
   const [canvasScale, setCanvasScale] = useState(100);
   
+  // Undo/Redo state for pixel grid
+  const {
+    state: undoablePixelGrid,
+    set: setUndoableGrid,
+    undo: undoGrid,
+    redo: redoGrid,
+    canUndo,
+    canRedo,
+    reset: resetUndoHistory,
+  } = useUndoRedo<PixelCell[]>(pixelGrid, 30);
+
+  // Keyboard shortcuts for undo/redo
+  useUndoRedoKeyboard(undoGrid, redoGrid, pixelGrid.length > 0);
+
+  // Sync undo state with store
+  useEffect(() => {
+    if (undoablePixelGrid && JSON.stringify(undoablePixelGrid) !== JSON.stringify(pixelGrid)) {
+      setPixelGrid(undoablePixelGrid);
+    }
+  }, [undoablePixelGrid]);
+  
   // Selection state
   const [selection, setSelection] = useState<SelectionState>({
     startX: 0,
@@ -342,6 +364,7 @@ export default function PixelGenerator() {
         }
       }
       setPixelGrid(newGrid);
+      resetUndoHistory(newGrid);
       
       // Auto-detect background
       const colorCounts: Record<string, number> = {};
@@ -420,9 +443,16 @@ export default function PixelGenerator() {
   // Paint with symmetry support
   const paintWithSymmetry = (x: number, y: number, color: string) => {
     const points = getSymmetricPoints(x, y, gridWidth, gridHeight, symmetryMode);
+    // Create new grid for batch update
+    let newGrid = [...pixelGrid];
     for (const point of points) {
-      paintPixel(point.x, point.y, color);
+      const idx = newGrid.findIndex(p => p.x === point.x && p.y === point.y);
+      if (idx >= 0) {
+        newGrid[idx] = { ...newGrid[idx], color };
+      }
     }
+    setPixelGrid(newGrid);
+    setUndoableGrid(newGrid);
   };
 
   // Replace all color
@@ -431,6 +461,7 @@ export default function PixelGenerator() {
       cell.color === oldColor ? { ...cell, color: newColor } : cell
     );
     setPixelGrid(newGrid);
+    setUndoableGrid(newGrid);
   };
 
   const handleCellClick = (x: number, y: number) => {
@@ -450,10 +481,42 @@ export default function PixelGenerator() {
         paintWithSymmetry(x, y, selectedColor);
         break;
       case 'eraser':
-        erasePixel(x, y);
+        const defaultColor = colorPalette[0] || '#FDFBF7';
+        const eraseGrid = [...pixelGrid];
+        const eraseIdx = eraseGrid.findIndex(p => p.x === x && p.y === y);
+        if (eraseIdx >= 0) {
+          eraseGrid[eraseIdx] = { ...eraseGrid[eraseIdx], color: defaultColor };
+          setPixelGrid(eraseGrid);
+          setUndoableGrid(eraseGrid);
+        }
         break;
       case 'bucket':
-        bucketFill(x, y, selectedColor);
+        // Custom bucket fill that tracks undo
+        const targetCell = pixelGrid.find(p => p.x === x && p.y === y);
+        if (!targetCell || targetCell.color === selectedColor) break;
+        
+        const targetColor = targetCell.color;
+        const bucketGrid = [...pixelGrid];
+        const visited = new Set<string>();
+        const stack: [number, number][] = [[x, y]];
+
+        while (stack.length > 0) {
+          const [cx, cy] = stack.pop()!;
+          const key = `${cx},${cy}`;
+          if (visited.has(key)) continue;
+          if (cx < 0 || cx >= gridWidth || cy < 0 || cy >= gridHeight) continue;
+          
+          const cellIdx = bucketGrid.findIndex(p => p.x === cx && p.y === cy);
+          if (cellIdx < 0 || bucketGrid[cellIdx].color !== targetColor) continue;
+
+          visited.add(key);
+          bucketGrid[cellIdx] = { ...bucketGrid[cellIdx], color: selectedColor };
+          
+          stack.push([cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]);
+        }
+
+        setPixelGrid(bucketGrid);
+        setUndoableGrid(bucketGrid);
         break;
       case 'eyedropper':
         const cell = pixelGrid.find(p => p.x === x && p.y === y);
@@ -582,6 +645,7 @@ export default function PixelGenerator() {
     }
     setGridDimensions(customGridWidth, calculatedHeight);
     setPixelGrid(newGrid);
+    resetUndoHistory(newGrid);
     setColorPalette([defaultColor]);
   };
 
@@ -1039,7 +1103,37 @@ export default function PixelGenerator() {
           <div className="glass-card p-6 min-h-[500px] flex flex-col">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-medium">Yarn Grid Preview</h2>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                {/* Undo/Redo Buttons */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={undoGrid}
+                      disabled={!canUndo}
+                      className="rounded-xl h-8 w-8"
+                    >
+                      <Undo className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>撤销 (Ctrl+Z)</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={redoGrid}
+                      disabled={!canRedo}
+                      className="rounded-xl h-8 w-8"
+                    >
+                      <Redo className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>重做 (Ctrl+Y)</TooltipContent>
+                </Tooltip>
+                <div className="w-px h-6 bg-border mx-1" />
                 <span className="text-sm text-muted-foreground">
                   {gridWidth} × {gridHeight} stitches
                 </span>

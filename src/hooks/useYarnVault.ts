@@ -30,6 +30,14 @@ export interface YarnEntry {
   rows_per_10cm: number | null;
   post_wash_width_cm: number | null;
   post_wash_height_cm: number | null;
+  pre_wash_width_cm: number | null;
+  pre_wash_height_cm: number | null;
+  stitches_pre_wash: number | null;
+  rows_pre_wash: number | null;
+  stitches_post_wash: number | null;
+  rows_post_wash: number | null;
+  tool_type: 'hook' | 'needle' | null;
+  tool_size_mm: number | null;
   meters_per_ball: number | null;
   grams_per_ball: number | null;
   balls_in_stock: number;
