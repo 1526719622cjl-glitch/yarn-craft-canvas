@@ -803,7 +803,12 @@ export default function PixelGenerator() {
           {/* Canvas Dimensions - Always visible */}
           <div className="space-y-3 border-t border-border/30 pt-4">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-medium">Canvas Dimensions (stitches)</Label>
+              <Label className="text-xs font-medium">
+                Canvas Dimensions (stitches)
+                {pixelGrid.length > 0 && (
+                  <span className="ml-2 text-[10px] text-primary">(Current)</span>
+                )}
+              </Label>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -830,8 +835,17 @@ export default function PixelGenerator() {
                 <Label className="text-[10px] text-muted-foreground">Width</Label>
                 <Input
                   type="number"
-                  value={customGridWidth}
-                  onChange={(e) => setCustomGridDimensions(Number(e.target.value), customGridHeight)}
+                  value={pixelGrid.length > 0 ? gridWidth : customGridWidth}
+                  onChange={(e) => {
+                    const newWidth = Number(e.target.value);
+                    if (pixelGrid.length > 0) {
+                      // Resize existing canvas
+                      const scaleFactor = newWidth / gridWidth;
+                      setCanvasScale(Math.round(scaleFactor * 100));
+                    } else {
+                      setCustomGridDimensions(newWidth, customGridHeight);
+                    }
+                  }}
                   className="h-9"
                 />
               </div>
@@ -839,23 +853,32 @@ export default function PixelGenerator() {
                 <Label className="text-[10px] text-muted-foreground">Height</Label>
                 <Input
                   type="number"
-                  value={lockAspectRatio ? calculatedHeight : manualHeight}
+                  value={pixelGrid.length > 0 ? gridHeight : (lockAspectRatio ? calculatedHeight : manualHeight)}
                   onChange={(e) => {
-                    if (!lockAspectRatio) {
+                    if (pixelGrid.length > 0) {
+                      // Resize existing canvas
+                      const newHeight = Number(e.target.value);
+                      const scaleFactor = newHeight / gridHeight;
+                      setCanvasScale(Math.round(scaleFactor * 100));
+                    } else if (!lockAspectRatio) {
                       setManualHeight(Number(e.target.value));
                     }
                   }}
-                  disabled={lockAspectRatio}
-                  className={`h-9 ${lockAspectRatio ? 'opacity-60' : ''}`}
+                  disabled={pixelGrid.length === 0 && lockAspectRatio}
+                  className={`h-9 ${pixelGrid.length === 0 && lockAspectRatio ? 'opacity-60' : ''}`}
                 />
               </div>
             </div>
             
-            {lockAspectRatio && (
+            {pixelGrid.length > 0 ? (
+              <p className="text-[10px] text-muted-foreground">
+                Editing dimensions will resize the canvas
+              </p>
+            ) : lockAspectRatio ? (
               <p className="text-[10px] text-muted-foreground">
                 Height auto-calculated from stitch ratio
               </p>
-            )}
+            ) : null}
           </div>
           
           {/* Scale Canvas (when grid exists) */}
