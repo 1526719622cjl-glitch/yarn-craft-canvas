@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { useYarnCluesStore, CrochetStitch } from '@/store/useYarnCluesStore';
-import { Eye, LayoutGrid, ZoomIn, Sparkles, AlertCircle, CheckCircle, Loader2, Brain, Split, Palette } from 'lucide-react';
+import { Eye, LayoutGrid, ZoomIn, Sparkles, AlertCircle, CheckCircle, Loader2, Brain, Split, Palette, Layers, Grid3X3 } from 'lucide-react';
 import { CrochetHookIcon } from '@/components/icons';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import { useEffect, useMemo, Suspense, useState, useCallback } from 'react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment } from '@react-three/drei';
-import { parseCrochetPattern, toStoreFormat, ParseResult, getUsedStitchTypes } from '@/lib/enhancedCrochetParser';
+import { parseCrochetPattern, toStoreFormat, ParseResult, getUsedStitchTypes, ParsedStitch } from '@/lib/enhancedCrochetParser';
 import { CrochetYarnStitch } from '@/components/3d/YarnSimulation';
 import { StitchSymbol, getStitchDisplayName } from '@/components/crochet/CrochetSymbols';
 import { EnhancedCrochetSymbol, StitchCategoryTabs, SymbolLegend } from '@/components/crochet/EnhancedCrochetSymbol';
@@ -18,6 +18,8 @@ import { CrochetStitchType, STITCH_DATABASE, getStitchesByCategory } from '@/lib
 import { useAIPatternParser } from '@/hooks/useAIPatternParser';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { CrochetWireframeScene } from '@/components/3d/CrochetWireframeScene';
+import { calculateAnchorIndices } from '@/lib/crochetPathGenerator';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -111,12 +113,19 @@ export default function CrochetEngine() {
   const [selectedStitchIndex, setSelectedStitchIndex] = useState<number | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('basic');
   const [showSymbolGuide, setShowSymbolGuide] = useState(false);
+  const [view3DMode, setView3DMode] = useState<'wireframe' | 'tubes'>('wireframe');
+  const [showAnchorLines, setShowAnchorLines] = useState(true);
   const { parsePatternDebounced, isLoading: aiLoading, error: aiError } = useAIPatternParser();
 
   // Parse pattern with local recursive parser
   const parseResult: ParseResult = useMemo(() => {
     return parseCrochetPattern(crochetInput);
   }, [crochetInput]);
+
+  // Calculate anchor indices for layer correspondence
+  const anchorIndices = useMemo(() => {
+    return calculateAnchorIndices(parseResult.stitches);
+  }, [parseResult.stitches]);
 
   // Update store when parse result changes (local parser)
   useEffect(() => {
@@ -448,9 +457,87 @@ export default function CrochetEngine() {
                 
                 <TransformComponent wrapperClass="!w-full" contentClass="!w-full">
                   {chartMode === 'circular' ? (
-                    <div className="flex items-center justify-center min-h-[350px] w-full">
-                      <div className="relative" style={{ width: 400, height: 400 }}>
-                        {/* Polar coordinate circular chart */}
+                    <div className="flex items-center justify-center min-h-[350px] w-full relative">
+                      <svg width="400" height="400" viewBox="0 0 400 400" className="overflow-visible absolute">
+                        {/* Anchor lines between layers */}
+                        {showAnchorLines && Object.entries(rowGroups).map(([rowNum, cells]) => {
+                          const row = parseInt(rowNum);
+                          if (row <= 1) return null;
+                          
+                          const prevRow = rowGroups[row - 1] || [];
+                          if (prevRow.length === 0) return null;
+                          
+                          const currentRadius = 30 + row * 40;
+                          const prevRadius = 30 + (row - 1) * 40;
+                          const currentAngleStep = (2 * Math.PI) / cells.length;
+                          const prevAngleStep = (2 * Math.PI) / prevRow.length;
+                          
+                          return cells.map((cell, i) => {
+                            const anchorKey = `${cell.row}-${cell.stitch}`;
+                            const parentIndices = anchorIndices.get(anchorKey) || [];
+                            
+                            const currentAngle = i * currentAngleStep - Math.PI / 2;
+                            const currentX = 200 + Math.cos(currentAngle) * currentRadius;
+                            const currentY = 200 + Math.sin(currentAngle) * currentRadius;
+                            
+                            return parentIndices.map((pIdx) => {
+                              if (pIdx >= prevRow.length) return null;
+                              const prevAngle = pIdx * prevAngleStep - Math.PI / 2;
+                              const prevX = 200 + Math.cos(prevAngle) * prevRadius;
+                              const prevY = 200 + Math.sin(prevAngle) * prevRadius;
+                              
+                              // Color by stitch type
+                              let strokeColor = 'hsl(var(--muted-foreground))';
+                              if (cell.type === 'inc' || cell.type === 'inc3') strokeColor = 'hsl(var(--primary) / 0.6)';
+                              if (cell.type === 'dec' || cell.type === 'sc2tog' || cell.type === 'dc2tog') strokeColor = 'hsl(330 70% 50% / 0.6)';
+                              
+                              // Use quadratic bezier for smooth curves
+                              const midRadius = (currentRadius + prevRadius) / 2;
+                              const midAngle = (currentAngle + prevAngle) / 2;
+                              const ctrlX = 200 + Math.cos(midAngle) * midRadius;
+                              const ctrlY = 200 + Math.sin(midAngle) * midRadius;
+                              
+                              return (
+                                <path
+                                  key={`anchor-${row}-${i}-${pIdx}`}
+                                  d={`M ${currentX} ${currentY} Q ${ctrlX} ${ctrlY} ${prevX} ${prevY}`}
+                                  stroke={strokeColor}
+                                  strokeWidth={0.8}
+                                  fill="none"
+                                  opacity={0.4}
+                                />
+                              );
+                            });
+                          });
+                        })}
+                        
+                        {/* Center magic ring */}
+                        <circle cx="200" cy="200" r="12" fill="none" stroke="hsl(var(--primary))" strokeWidth="2" />
+                        
+                        {/* Row labels */}
+                        {Object.keys(rowGroups).map((rowNum) => {
+                          const row = parseInt(rowNum);
+                          const radius = 30 + row * 40 + 20;
+                          const rowVal = rowValidations[row];
+                          const hasError = rowVal && !rowVal.isValid;
+                          
+                          return (
+                            <text
+                              key={`label-${row}`}
+                              x={200 + radius}
+                              y={200 + 4}
+                              fontSize="10"
+                              fill={hasError ? 'hsl(var(--destructive))' : 'hsl(var(--muted-foreground))'}
+                              className="font-medium"
+                            >
+                              R{row}{hasError ? '⚠' : ''}
+                            </text>
+                          );
+                        })}
+                      </svg>
+                      
+                      {/* Overlay stitch symbols */}
+                      <div className="absolute" style={{ width: 400, height: 400 }}>
                         {Object.entries(rowGroups).map(([rowNum, cells]) => {
                           const row = parseInt(rowNum);
                           const radius = 30 + row * 40;
@@ -495,43 +582,6 @@ export default function CrochetEngine() {
                               </motion.div>
                             );
                           });
-                        })}
-                        {/* Center magic ring */}
-                        <div 
-                          className="absolute w-8 h-8 -ml-4 -mt-4 flex items-center justify-center"
-                          style={{ left: 200, top: 200 }}
-                        >
-                          <StitchSymbol type="magic" size={28} />
-                        </div>
-                        {/* Row labels with error indication */}
-                        {Object.keys(rowGroups).map((rowNum) => {
-                          const row = parseInt(rowNum);
-                          const radius = 30 + row * 40 + 20;
-                          const rowVal = rowValidations[row];
-                          const hasError = rowVal && !rowVal.isValid;
-                          
-                          return (
-                            <Tooltip key={`label-${row}`}>
-                              <TooltipTrigger asChild>
-                                <div
-                                  className={`absolute text-xs font-medium cursor-help ${
-                                    hasError ? 'text-destructive' : 'text-muted-foreground'
-                                  }`}
-                                  style={{
-                                    left: 200 + radius,
-                                    top: 200 - 8,
-                                  }}
-                                >
-                                  R{row}
-                                  {hasError && <span className="ml-0.5">⚠</span>}
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {rowVal?.count} stitches
-                                {hasError && ` - ${rowVal?.message}`}
-                              </TooltipContent>
-                            </Tooltip>
-                          );
                         })}
                       </div>
                     </div>
@@ -607,38 +657,87 @@ export default function CrochetEngine() {
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-medium">3D Yarn Simulation</h2>
-            <span className="text-xs text-muted-foreground ml-2">(TubeGeometry + Fuzzy Shader)</span>
+            <span className="text-xs text-muted-foreground ml-2">
+              {view3DMode === 'wireframe' ? '(Wireframe - Spiral Topology)' : '(TubeGeometry + Fuzzy Shader)'}
+            </span>
           </div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Label htmlFor="hifi-toggle" className="text-sm">High Quality (AO)</Label>
-              <Switch
-                id="hifi-toggle"
-                checked={highFidelityMode}
-                onCheckedChange={setHighFidelityMode}
-              />
+            {/* Mode Toggle */}
+            <div className="flex gap-1 frosted-panel p-1">
+              <Button
+                variant={view3DMode === 'wireframe' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setView3DMode('wireframe')}
+                className="rounded-lg h-7 px-3"
+              >
+                <Grid3X3 className="w-3.5 h-3.5 mr-1" />
+                Wireframe
+              </Button>
+              <Button
+                variant={view3DMode === 'tubes' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setView3DMode('tubes')}
+                className="rounded-lg h-7 px-3"
+              >
+                <Layers className="w-3.5 h-3.5 mr-1" />
+                Yarn Tubes
+              </Button>
             </div>
+            
+            {view3DMode === 'tubes' && (
+              <div className="flex items-center gap-2">
+                <Label htmlFor="hifi-toggle" className="text-sm">High Quality</Label>
+                <Switch
+                  id="hifi-toggle"
+                  checked={highFidelityMode}
+                  onCheckedChange={setHighFidelityMode}
+                />
+              </div>
+            )}
           </div>
         </div>
 
         <div className="h-[400px] rounded-2xl overflow-hidden bg-gradient-to-b from-muted/30 to-muted/10">
-          <Suspense fallback={
-            <div className="w-full h-full flex items-center justify-center">
-              <div className="animate-pulse text-muted-foreground">Loading 3D Yarn Preview...</div>
-            </div>
-          }>
-            <Canvas camera={{ position: [0, 0, 4], fov: 50 }} shadows={highFidelityMode}>
-              <Crochet3DScene 
-                chart={crochetChart} 
+          {view3DMode === 'wireframe' ? (
+            <Suspense fallback={
+              <div className="w-full h-full flex items-center justify-center">
+                <div className="animate-pulse text-muted-foreground">Loading Wireframe Preview...</div>
+              </div>
+            }>
+              <CrochetWireframeScene
+                stitches={parseResult.stitches}
                 hoveredCell={hoveredCrochetCell}
-                highFidelity={highFidelityMode}
+                onStitchClick={handleStitchClick}
+                onStitchHover={(row, stitch) => setHoveredCrochetCell({ row, stitch })}
+                onStitchLeave={() => setHoveredCrochetCell(null)}
+                yarnColor="#444444"
+                backgroundColor="#f5f5f5"
+                showConnectors={true}
+                enableSpiral={true}
               />
-            </Canvas>
-          </Suspense>
+            </Suspense>
+          ) : (
+            <Suspense fallback={
+              <div className="w-full h-full flex items-center justify-center">
+                <div className="animate-pulse text-muted-foreground">Loading 3D Yarn Preview...</div>
+              </div>
+            }>
+              <Canvas camera={{ position: [0, 0, 4], fov: 50 }} shadows={highFidelityMode}>
+                <Crochet3DScene 
+                  chart={crochetChart} 
+                  hoveredCell={hoveredCrochetCell}
+                  highFidelity={highFidelityMode}
+                />
+              </Canvas>
+            </Suspense>
+          )}
         </div>
 
         <p className="text-xs text-muted-foreground mt-3 text-center">
-          Drag to rotate • Scroll to zoom • Hover on chart to highlight stitch with emissive glow
+          {view3DMode === 'wireframe' 
+            ? 'Spiral topology • Auto-rotation • Click stitches to highlight in chart'
+            : 'Drag to rotate • Scroll to zoom • Hover on chart to highlight stitch with emissive glow'
+          }
         </p>
       </motion.div>
     </motion.div>
