@@ -350,7 +350,7 @@ export default function KnittingEngine() {
               onClick={applyDimensions}
               className="w-full rounded-xl"
             >
-              Apply Dimensions
+              {t('knitting.applyDimensions')}
             </Button>
           </div>
 
