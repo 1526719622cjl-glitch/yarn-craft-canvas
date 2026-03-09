@@ -119,6 +119,7 @@ export function PatternLibrary({ category, icon }: PatternLibraryProps) {
         category={category}
         onCreate={createPattern}
         onUploadFile={uploadFile}
+        onNavigate={(id) => navigate(`/${category}/${id}`)}
       />
     </motion.div>
   );

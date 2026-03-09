@@ -33,9 +33,10 @@ interface Props {
     linkedYarnId?: string | null;
   }) => Promise<PatternEntry | null>;
   onUploadFile: (patternId: string, file: File) => Promise<string | null>;
+  onNavigate?: (patternId: string) => void;
 }
 
-export function PatternUploadDialog({ open, onOpenChange, category, onCreate, onUploadFile }: Props) {
+export function PatternUploadDialog({ open, onOpenChange, category, onCreate, onUploadFile, onNavigate }: Props) {
   const { t } = useI18n();
   const { user } = useAuth();
   const [title, setTitle] = useState('');
@@ -95,12 +96,20 @@ export function PatternUploadDialog({ open, onOpenChange, category, onCreate, on
     });
 
     if (pattern) {
-      for (const file of files) {
-        await onUploadFile(pattern.id, file);
-      }
-      toast({ title: t('pattern.created') });
+      // Close dialog immediately and navigate
       onOpenChange(false);
       resetForm();
+      toast({ title: t('pattern.created') });
+      
+      // Navigate to the new pattern
+      if (onNavigate) {
+        onNavigate(pattern.id);
+      }
+
+      // Upload files in background (async, don't wait)
+      if (files.length > 0) {
+        Promise.all(files.map(file => onUploadFile(pattern.id, file))).catch(console.error);
+      }
     }
 
     setUploading(false);
