@@ -322,7 +322,7 @@ export default function KnittingEngine() {
             <h3 className="text-sm font-medium">{t('knitting.chartDimensions')}</h3>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <Label className="text-xs">Width</Label>
+                <Label className="text-xs">{t('common.width')}</Label>
                 <Input
                   type="number"
                   value={tempWidth}
