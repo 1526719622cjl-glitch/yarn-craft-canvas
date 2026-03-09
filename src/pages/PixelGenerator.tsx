@@ -1111,7 +1111,7 @@ export default function PixelGenerator() {
                 </Tooltip>
               </div>
               <Button variant="ghost" size="sm" onClick={clearSelection} className="w-full rounded-xl text-muted-foreground">
-                Clear Selection
+                {t('pixel.clearSelection')}
               </Button>
             </motion.div>
           )}
