@@ -275,7 +275,7 @@ export function SmartYarnCalculator() {
                         )}
                       </span>
                     </div>
-                  )))}
+                  ))}
                 </div>
               )}
 
