@@ -221,7 +221,7 @@ export default function CrochetEngine() {
           {/* AI Toggle */}
           <div className="flex items-center gap-3 frosted-panel px-4 py-2">
             <Brain className="w-4 h-4 text-primary" />
-            <Label htmlFor="ai-toggle" className="text-sm font-medium">AI Parser</Label>
+            <Label htmlFor="ai-toggle" className="text-sm font-medium">{t('crochet.aiParser')}</Label>
             <Switch
               id="ai-toggle"
               checked={useAIParser}
