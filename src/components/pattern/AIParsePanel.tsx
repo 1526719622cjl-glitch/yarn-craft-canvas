@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Brain, Loader2, ChevronRight } from 'lucide-react';
+import { Brain, Loader2, ChevronRight, CheckCircle2, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useI18n } from '@/i18n/useI18n';
@@ -22,9 +22,10 @@ interface AIParsePanelProps {
   currentStep: number;
   onStepClick: (index: number) => void;
   canParse?: boolean;
+  onConfirmSteps?: () => void;
+  onStartCompanion?: () => void;
+  stepsConfirmed?: boolean;
 }
-
-const isSupportedImage = (url: string) => /\.(png|jpe?g|webp|gif)(\?.*)?$/i.test(url);
 
 export function AIParsePanel({
   imageUrl,
@@ -35,15 +36,15 @@ export function AIParsePanel({
   currentStep,
   onStepClick,
   canParse = true,
+  onConfirmSteps,
+  onStartCompanion,
+  stepsConfirmed = false,
 }: AIParsePanelProps) {
   const { t } = useI18n();
   const [parsing, setParsing] = useState(false);
 
   const handleParse = async () => {
-    if (!canParse || !isSupportedImage(imageUrl)) {
-      toast({ title: t('pattern.parseImageOnly'), variant: 'destructive' });
-      return;
-    }
+    if (!canParse) return;
 
     setParsing(true);
     try {
@@ -88,8 +89,6 @@ export function AIParsePanel({
         </Button>
       </div>
 
-      {!canParse && <p className="px-4 py-2 text-xs text-muted-foreground">{t('pattern.parseImageOnly')}</p>}
-
       <ScrollArea className="flex-1">
         {steps.length === 0 ? (
           <div className="p-6 text-center text-muted-foreground text-sm">
@@ -129,6 +128,29 @@ export function AIParsePanel({
           </div>
         )}
       </ScrollArea>
+
+      {/* Bottom: Confirm + Start Companion */}
+      {steps.length > 0 && (
+        <div className="p-4 border-t border-border/30 space-y-2">
+          {!stepsConfirmed ? (
+            <Button className="w-full rounded-xl" onClick={onConfirmSteps}>
+              <CheckCircle2 className="w-4 h-4 mr-2" />
+              {t('pattern.confirmSteps')}
+            </Button>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 text-xs text-primary">
+                <CheckCircle2 className="w-4 h-4" />
+                {t('pattern.stepsConfirmed')}
+              </div>
+              <Button className="w-full rounded-xl" onClick={onStartCompanion}>
+                <Play className="w-4 h-4 mr-2" />
+                {t('pattern.startCompanion')}
+              </Button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
