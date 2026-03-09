@@ -852,7 +852,7 @@ export default function PixelGenerator() {
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-[10px] text-muted-foreground">Height</Label>
+                <Label className="text-[10px] text-muted-foreground">{t('common.height')}</Label>
                 <Input
                   type="number"
                   value={pixelGrid.length > 0 ? gridHeight : (lockAspectRatio ? calculatedHeight : manualHeight)}
