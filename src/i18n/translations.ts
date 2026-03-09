@@ -276,8 +276,6 @@ const translations = {
   'pattern.counter': { zh: '计数', en: 'Count' },
 
   // Navigation updates
-  'nav.crochetEngine.desc': { zh: '图解库 & AI 解析', en: 'Pattern Library & AI Parse' },
-  'nav.knittingEngine.desc': { zh: '图解库 & 跟织助手', en: 'Pattern Library & Companion' },
   'nav.yarnVault': { zh: '线材库', en: 'Yarn Vault' },
   'nav.yarnVault.desc': { zh: '我的线材收藏', en: 'My Yarn Collection' },
 } as const;
