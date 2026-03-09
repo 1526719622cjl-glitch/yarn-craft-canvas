@@ -763,8 +763,8 @@ export default function PixelGenerator() {
             <Grid3X3 className="w-6 h-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-3xl font-display font-semibold text-foreground">Pixel Generator</h1>
-            <p className="text-muted-foreground">Gauge-aware conversion with K-Means quantization & symmetry tools</p>
+            <h1 className="text-3xl font-display font-semibold text-foreground">{t('pixel.title')}</h1>
+            <p className="text-muted-foreground">{t('pixel.subtitle')}</p>
           </div>
         </div>
       </motion.div>
