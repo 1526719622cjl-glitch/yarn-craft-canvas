@@ -827,7 +827,7 @@ export default function PixelGenerator() {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {lockAspectRatio ? 'Unlock aspect ratio' : 'Lock aspect ratio'}
+                  {lockAspectRatio ? t('pixel.unlockAspectRatio') : t('pixel.lockAspectRatio')}
                 </TooltipContent>
               </Tooltip>
             </div>
