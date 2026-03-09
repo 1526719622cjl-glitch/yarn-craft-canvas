@@ -26,9 +26,9 @@ const translations = {
   'nav.pixelGenerator': { zh: '像素生成器', en: 'Pixel Generator' },
   'nav.pixelGenerator.desc': { zh: '图转针格', en: 'Image to Grid' },
   'nav.crochetEngine': { zh: '钩针引擎', en: 'Crochet Engine' },
-  'nav.crochetEngine.desc': { zh: '图解解析器', en: 'Pattern Parser' },
+  'nav.crochetEngine.desc': { zh: '图解库 & AI 解析', en: 'Pattern Library & AI Parse' },
   'nav.knittingEngine': { zh: '棒针引擎', en: 'Knitting Engine' },
-  'nav.knittingEngine.desc': { zh: '编织图设计器', en: 'Chart Designer' },
+  'nav.knittingEngine.desc': { zh: '图解库 & 跟织助手', en: 'Pattern Library & Companion' },
 
   // Auth
   'auth.title': { zh: 'Yarn Clues', en: 'Yarn Clues' },
@@ -230,6 +230,54 @@ const translations = {
   'knitting.stitch.ssk': { zh: '左并针', en: 'SSK' },
   'knitting.stitch.cable4f': { zh: '前交叉', en: 'C4F' },
   'knitting.stitch.cable4b': { zh: '后交叉', en: 'C4B' },
+
+  // Pattern Library
+  'pattern.crochetLibrary': { zh: '钩针图解库', en: 'Crochet Pattern Library' },
+  'pattern.knittingLibrary': { zh: '棒针图解库', en: 'Knitting Pattern Library' },
+  'pattern.librarySubtitle': { zh: '管理你的图解、AI 解析、沉浸式跟织', en: 'Manage patterns, AI parsing & immersive companion' },
+  'pattern.addPattern': { zh: '添加图解', en: 'Add Pattern' },
+  'pattern.searchPlaceholder': { zh: '搜索标题或标签...', en: 'Search by title or tag...' },
+  'pattern.signInToView': { zh: '登录后查看你的图解库', en: 'Sign in to view your pattern library' },
+  'pattern.empty': { zh: '还没有图解，添加第一个吧！', en: 'No patterns yet. Add your first one!' },
+  'pattern.addFirst': { zh: '添加第一个图解', en: 'Add First Pattern' },
+  'pattern.titleLabel': { zh: '图解名称', en: 'Pattern Title' },
+  'pattern.titlePlaceholder': { zh: '输入图解名称...', en: 'Enter pattern title...' },
+  'pattern.titleRequired': { zh: '请输入图解名称', en: 'Pattern title is required' },
+  'pattern.descriptionLabel': { zh: '描述', en: 'Description' },
+  'pattern.descriptionPlaceholder': { zh: '添加描述（可选）...', en: 'Add description (optional)...' },
+  'pattern.tags': { zh: '标签', en: 'Tags' },
+  'pattern.tagPlaceholder': { zh: '输入标签后回车...', en: 'Type a tag and press Enter...' },
+  'pattern.uploadFiles': { zh: '上传图解文件', en: 'Upload Pattern Files' },
+  'pattern.dropFiles': { zh: '点击上传图片或 PDF 文件', en: 'Click to upload images or PDF files' },
+  'pattern.createAndUpload': { zh: '创建并上传', en: 'Create & Upload' },
+  'pattern.created': { zh: '图解已创建', en: 'Pattern created' },
+  'pattern.noFiles': { zh: '暂无文件，请上传图解图片', en: 'No files yet. Upload a pattern image.' },
+
+  // Pattern Status
+  'pattern.filter.all': { zh: '全部', en: 'All' },
+  'pattern.status.preparing': { zh: '准备中', en: 'Preparing' },
+  'pattern.status.inProgress': { zh: '进行中', en: 'In Progress' },
+  'pattern.status.completed': { zh: '已完成', en: 'Completed' },
+
+  // AI Parse
+  'pattern.aiParse': { zh: 'AI 解析', en: 'AI Parse' },
+  'pattern.startParse': { zh: '开始解析', en: 'Start Parse' },
+  'pattern.parseHint': { zh: '点击"开始解析"让 AI 识别图解中的步骤', en: 'Click "Start Parse" to let AI extract steps from the chart' },
+  'pattern.parseSuccess': { zh: 'AI 解析完成', en: 'AI parse complete' },
+  'pattern.parseError': { zh: 'AI 解析失败', en: 'AI parse failed' },
+
+  // Immersive Companion
+  'pattern.startCompanion': { zh: '开始跟织', en: 'Start Companion' },
+  'pattern.step': { zh: '步骤', en: 'Step' },
+  'pattern.estimatedTime': { zh: '预计剩余', en: 'Est. remaining' },
+  'pattern.nextStep': { zh: '下一步', en: 'Next' },
+  'pattern.finished': { zh: '完成！', en: 'Finished!' },
+  'pattern.correct': { zh: '修正', en: 'Correct' },
+  'pattern.counter': { zh: '计数', en: 'Count' },
+
+  // Navigation updates
+  'nav.yarnVault': { zh: '线材库', en: 'Yarn Vault' },
+  'nav.yarnVault.desc': { zh: '我的线材收藏', en: 'My Yarn Collection' },
 } as const;
 
 export type TranslationKey = keyof typeof translations;

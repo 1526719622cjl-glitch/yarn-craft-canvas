@@ -1,175 +1,375 @@
 
+# Pixel Generator & Crochet Engine 3D Enhancement Plan
 
-# 重建钩针引擎 & 棒针引擎 — 图解库 + AI 解析 + 跟织助手
+## Overview
 
-## 概述
-
-将现有的 Crochet Engine 和 Knitting Engine 重建为完整的**图解管理 + AI 解析 + 沉浸式跟织**系统，同时保留所有已有的针法知识库（49 种 JIS 符号、解析器、3D 组件等）。
-
----
-
-## 数据层
-
-### 新建数据库表
-
-**`pattern_library`** — 图解卡片主表
-```sql
-id, user_id, category ('crochet'|'knitting'), title, description,
-tags text[], status ('preparing'|'in_progress'|'completed'),
-cover_image_url text, created_at, updated_at
-```
-
-**`pattern_files`** — 图解附件（图片/PDF）
-```sql
-id, pattern_id (FK), user_id, file_url text, file_type text,
-sort_order int, created_at
-```
-
-**`pattern_annotations`** — 标注数据
-```sql
-id, pattern_file_id (FK), user_id, annotation_type ('pen'|'highlight'|'note'),
-data jsonb, created_at
-```
-
-**`pattern_ai_parses`** — AI 解析结果
-```sql
-id, pattern_id (FK), user_id, parsed_steps jsonb,
-anchor_regions jsonb, created_at
-```
-
-**`pattern_progress`** — 跟织进度
-```sql
-id, pattern_id (FK), user_id, current_step int, total_steps int,
-step_timestamps jsonb, corrections jsonb, created_at, updated_at
-```
-
-### 存储桶
-
-**`pattern-files`** — 存储图解图片和 PDF（public bucket + user RLS）
+This plan addresses three major enhancements:
+1. **Pixel Generator**: Canvas Dimensions display should reflect actual grid state
+2. **Crochet Engine 2D Chart**: Layer correspondence learning from JIS standards
+3. **Crochet Engine 3D Simulator**: High-performance wireframe rendering with spiral topology
 
 ---
 
-## 页面架构
+## Part 1: Pixel Generator - Canvas Dimensions Sync
 
-### 路由变更
+### Current Issue
+The "Canvas Dimensions (stitches)" inputs show `customGridWidth` and `customGridHeight` values, but after importing an image or creating a canvas, the actual grid dimensions (`gridWidth` × `gridHeight`) may differ from these custom settings.
+
+### Solution
+Synchronize the Canvas Dimensions display with the actual grid state:
+- When no grid exists: show editable custom dimensions for new canvas creation
+- When grid exists: display the actual `gridWidth` × `gridHeight` values
+- Allow editing to trigger a resize operation (using the existing scale logic)
+
+### Files to Modify
+- `src/pages/PixelGenerator.tsx`
+
+### Implementation Details
+```text
+Line ~830-860: Update the Canvas Dimensions section
+
+Current behavior:
+  - Always shows customGridWidth × customGridHeight
+  - Disconnected from actual pixelGrid state
+
+New behavior:
+  - Display actual gridWidth × gridHeight when pixelGrid.length > 0
+  - Show "(Current)" label to indicate active state
+  - Allow direct dimension input to trigger proportional resize
+```
+
+---
+
+## Part 2: Crochet Engine 2D Chart - Layer Correspondence
+
+### Learning from JIS Reference Book
+
+Based on the crochet technique encyclopedia, the key relationships for 2D chart layer correspondence are:
+
+**Stitch Anchor Points (上层与下层对应关系)**:
+1. **Circular Rounds**: Each stitch in row N hooks into the top loop of a stitch in row N-1
+2. **Increase (inc/V)**: Two stitches hook into the same anchor point
+3. **Decrease (dec/A)**: One stitch hooks through two anchor points
+4. **Stitch Offset (半针错位)**: Odd rows may offset by half a stitch width
+
+**Visual Representation in 2D Charts**:
+- Standard stitches: Centered above their anchor stitch
+- Increases: V-shaped symbol indicating branch from single anchor
+- Decreases: Inverted V showing convergence point
+- Post stitches (fpdc/bpdc): Arrows showing direction around post
+
+### Current Implementation Gap
+The current 2D chart renders stitches at uniform angular positions without considering:
+- Anchor point inheritance from previous row
+- Visual connection lines between rows
+- Increase/decrease topology visualization
+
+### Solution
+Add "anchor lines" connecting stitches to their parent stitch in the previous row, with special handling for increases (1→2) and decreases (2→1).
+
+### Files to Modify
+- `src/pages/CrochetEngine.tsx`
+- `src/lib/enhancedCrochetParser.ts` (add anchor mapping)
+
+### Implementation Details
+
+**1. Parser Enhancement** (`enhancedCrochetParser.ts`):
+```text
+Add to ParsedStitch interface:
+  - anchorIndex: number | number[]  // Parent stitch index(es) in previous row
+
+Algorithm:
+  - Track cumulative stitch count per row
+  - For regular stitches: anchorIndex = corresponding index
+  - For increase: anchorIndex = single parent, but outputs 2 children
+  - For decrease: anchorIndex = [idx1, idx2] two parents merged
+```
+
+**2. Chart Visualization** (`CrochetEngine.tsx`):
+```text
+Add SVG connection lines in circular chart:
+  - Draw thin curves from each stitch to its anchor(s)
+  - Color-code: normal=gray, increase=rose, decrease=sage
+  - Use quadratic bezier for smooth visual flow
+```
+
+---
+
+## Part 3: 3D Crochet Wireframe Simulator
+
+### Requirements Analysis
+
+Based on the user specification and weishougong.cn reference:
+
+**Rendering Approach**: Use `THREE.LineSegments` with `BufferGeometry`
+- Single geometry with dynamic `Float32Array` vertex buffer
+- No individual mesh objects per stitch
+- Light gray background, dark yarn wireframe
+
+**Stitch 3D Proportions** (from user specification):
+
+| Stitch | Height (Z) | Width (X/Y) |
+|--------|------------|-------------|
+| ch (chain) | 0.5 | 1.0 |
+| sc (single crochet) | 1.0 | 1.0 |
+| hdc (half double) | 2.0 | 1.0 |
+| dc (double crochet) | 3.0 | 1.0 |
+| inc (increase) | 1.0 | 2.0 (fork) |
+| dec (decrease) | 1.0 | 0.5 (merge) |
+
+**Topology Features**:
+1. **Spiral Ascent**: Z increases smoothly per stitch (not per round)
+2. **Yarn Tension Simulation**: Fork at inc, convergence at dec
+3. **Interactive Sync**: Click highlights corresponding text/2D chart
+
+### Architecture
 
 ```text
-/crochet → 钩针图解库（Library View）
-/crochet/:id → 图解详情（Viewer + Annotator + AI Parse + Companion）
-/knitting → 棒针图解库（Library View）  
-/knitting/:id → 图解详情
+New Component Structure:
+
+src/components/3d/
+├── CrochetWireframeScene.tsx    # Main R3F scene with LineSegments
+├── useWireframeGeometry.ts      # Hook to generate/update vertex buffer
+└── crochetPathGenerator.ts      # Convert pattern → 3D vertex array
+
+Integration:
+  - CrochetEngine.tsx imports CrochetWireframeScene
+  - Replace current TubeGeometry 3D preview with new wireframe mode
+  - Add toggle: "Yarn Tubes" vs "Wireframe" mode
 ```
 
-### 共享组件（钩针/棒针复用）
+### Vertex Generation Algorithm
 
-| 组件 | 功能 |
-|------|------|
-| `PatternLibrary` | 卡片网格 + 搜索/筛选/标签 + 状态筛选 |
-| `PatternCard` | 封面图 + 标题 + 标签 + 状态徽章 |
-| `PatternViewer` | 图片/PDF 查看器 + 缩放平移 + 标注工具层 |
-| `AnnotationToolbar` | 画笔、高亮、便签工具 |
-| `AIParsePanel` | 侧边栏：AI 结构化步骤 + 原图锚点对比 |
-| `ImmersiveCompanion` | 全屏跟织模式：单步导航 + 局部图 + 进度条 + 计时 |
-| `StepCounter` | 侧边计数器（加减数字） |
-| `PatternUploadDialog` | 上传图片/PDF + 元数据编辑 |
+```text
+Input: ParsedStitch[] from parser
+Output: Float32Array of line segment vertices
 
----
+For each stitch:
+  1. Calculate base position:
+     - Angle = (stitchIndex / totalInRow) * 2π
+     - Radius = baseRadius + (rowIndex * rowSpacing)
+     - Z = cumulativeStitchIndex * zIncrement (spiral)
 
-## 功能实现细节
+  2. Generate stitch geometry vertices:
+     - sc: vertical line + V head (6 vertices = 3 segments)
+     - dc: taller vertical + more wrap curves (12 vertices)
+     - inc: fork into 2 branches (8 vertices)
+     - dec: 2 inputs merging (8 vertices)
 
-### 1. 图解库 (Library)
+  3. Add inter-row connecting segments:
+     - Line from stitch top to next stitch base
+     - Creates continuous yarn path illusion
 
-- 顶部标签切换：全部 / 准备中 / 进行中 / 已完成
-- 搜索栏：按标题、标签模糊搜索
-- 卡片操作：点击进入详情，长按/右键编辑标签/状态
-- 右上角 "+" 按钮上传新图解
+Performance:
+  - Pre-allocate buffer for max 5000 stitches
+  - Use Float32Array.set() for batch updates
+  - geometry.attributes.position.needsUpdate = true in useFrame
+```
 
-### 2. 图解查看器 & 标注 (Viewer)
+### Files to Create/Modify
 
-- 使用 `react-zoom-pan-pinch` 实现图片缩放
-- 标注工具层：Canvas overlay 实现画笔/高亮
-- 便签：绝对定位的可拖拽便签组件
-- 标注数据存储为 JSON（笔画路径、位置、颜色）
+**New Files**:
+1. `src/components/3d/CrochetWireframeScene.tsx`
+2. `src/components/3d/useWireframeGeometry.ts`
+3. `src/lib/crochetPathGenerator.ts`
 
-### 3. AI 解析 (AI Parser)
-
-- 使用 Lovable AI（`google/gemini-2.5-pro`，支持图片输入）
-- Edge function `parse-chart-image`：接收图片 URL，返回结构化步骤
-- 每个步骤包含：行号、指令文本、原图对应区域坐标（anchor region）
-- 双视图：左侧原图（高亮当前区域），右侧 AI 解析步骤列表
-
-### 4. 沉浸式跟织助手 (Companion)
-
-- **单步模式**：一次显示一行指令 + 原图局部截图
-- **导航**：下一步/上一步按钮，键盘快捷键支持
-- **打卡音效**：使用 Web Audio API 播放短促完成音（可关闭）
-- **进度条**：`Progress` 组件显示百分比
-- **剩余时间**：基于每步平均耗时动态估算
-- **修正功能**：点击"修正"进入编辑模式，修改存入 corrections
-
-### 5. 辅助工具
-
-- **侧边计数器**：固定在右侧的浮动组件，+/- 按钮
-- **UI 风格**：保持现有米色/浅灰治愈系美学，圆角卡片
+**Modified Files**:
+1. `src/pages/CrochetEngine.tsx` - Add wireframe mode toggle
 
 ---
 
-## Edge Function
+## Detailed Implementation
 
-**`supabase/functions/parse-chart-image/index.ts`**
-- 接收 `{ imageUrl, category }` 
-- 调用 Lovable AI（gemini-2.5-pro）进行图像分析
-- 系统提示词包含钩针/棒针术语知识
-- 返回 `{ steps: [{ row, instruction, anchorRegion }] }`
+### File 1: `src/lib/crochetPathGenerator.ts`
+
+Purpose: Convert parsed crochet pattern to 3D wireframe vertices
+
+```text
+Constants:
+  STITCH_HEIGHTS = { ch: 0.5, sc: 1.0, hdc: 2.0, dc: 3.0, tr: 4.0, inc: 1.0, dec: 1.0 }
+  STITCH_WIDTHS = { default: 1.0, inc: 2.0, dec: 0.5 }
+  Z_INCREMENT = 0.02  // Per stitch spiral rise
+  BASE_RADIUS = 0.5
+  ROW_SPACING = 0.4
+
+Functions:
+  generateWireframeVertices(stitches: ParsedStitch[]): Float32Array
+    - Groups stitches by row
+    - Calculates 3D position for each stitch
+    - Generates line segment vertices for stitch shape
+    - Returns flat Float32Array [x1,y1,z1, x2,y2,z2, ...]
+
+  generateStitchSegments(type, position, scale): number[]
+    - Returns vertex pairs for each stitch type
+    - SC: simple V shape
+    - DC: taller with cross-overs
+    - INC: V fork with 2 branches
+    - DEC: inverted V convergence
+```
+
+### File 2: `src/components/3d/useWireframeGeometry.ts`
+
+Purpose: React hook managing BufferGeometry updates
+
+```text
+Hook: useWireframeGeometry(stitches: ParsedStitch[], options)
+
+State:
+  - geometryRef: THREE.BufferGeometry
+  - positionAttribute: THREE.BufferAttribute
+
+Logic:
+  - On stitches change: regenerate vertices
+  - Use useMemo for vertex generation
+  - Update buffer attribute on change
+  - Return { geometry, lineCount }
+
+Options:
+  - showConnectors: boolean (inter-stitch lines)
+  - colorByRow: boolean
+  - zSpiral: boolean (enable/disable spiral)
+```
+
+### File 3: `src/components/3d/CrochetWireframeScene.tsx`
+
+Purpose: R3F scene component with LineSegments rendering
+
+```text
+Component: CrochetWireframeScene
+
+Props:
+  - chart: CrochetCell[]
+  - hoveredCell: { row, stitch } | null
+  - onStitchClick: (row, stitch) => void
+
+Structure:
+  <Canvas>
+    <color attach="background" args={['#f0f0f0']} />  // Light gray
+    <OrbitControls />
+    
+    <lineSegments>
+      <bufferGeometry ref={geometryRef}>
+        <bufferAttribute
+          attach="attributes-position"
+          array={vertices}
+          count={vertexCount}
+          itemSize={3}
+        />
+      </bufferGeometry>
+      <lineBasicMaterial color="#333333" linewidth={1} />
+    </lineSegments>
+
+    {/* Hover highlight */}
+    {hoveredCell && <HighlightMesh position={getStitchPosition()} />}
+  </Canvas>
+
+Performance:
+  - useFrame for smooth animation (optional rotation)
+  - geometry.attributes.position.needsUpdate on pattern change
+  - instancedMesh for highlight points (optional)
+```
+
+### File 4: `src/pages/CrochetEngine.tsx` Updates
+
+```text
+Changes:
+
+1. Add state for 3D mode toggle:
+   const [view3DMode, setView3DMode] = useState<'wireframe' | 'tubes'>('wireframe');
+
+2. Add toggle buttons in 3D Preview header:
+   <Button onClick={() => setView3DMode('wireframe')}>Wireframe</Button>
+   <Button onClick={() => setView3DMode('tubes')}>Yarn Tubes</Button>
+
+3. Conditional rendering:
+   {view3DMode === 'wireframe' ? (
+     <CrochetWireframeScene chart={crochetChart} ... />
+   ) : (
+     <Canvas><Crochet3DScene ... /></Canvas>
+   )}
+
+4. Add bidirectional selection sync:
+   - Click on 3D stitch → highlight in 2D + scroll to text
+   - Click on 2D stitch → highlight in 3D
+   - Click on text token → highlight in both views
+```
+
+### File 5: 2D Chart Layer Connections (`CrochetEngine.tsx`)
+
+```text
+Add to circular chart rendering (lines 450-500):
+
+Before stitch symbols, render anchor lines:
+
+{Object.entries(rowGroups).map(([rowNum, cells]) => {
+  const row = parseInt(rowNum);
+  if (row <= 1) return null; // No connections from row 1
+  
+  const prevRow = rowGroups[row - 1] || [];
+  
+  return cells.map((cell, i) => {
+    const anchorIndices = getAnchorIndices(cell, prevRow);
+    // Draw SVG lines from cell position to anchor position(s)
+    return anchorIndices.map(anchorIdx => (
+      <line 
+        key={`anchor-${row}-${i}-${anchorIdx}`}
+        x1={cellX} y1={cellY}
+        x2={anchorX} y2={anchorY}
+        stroke={getAnchorColor(cell.type)}
+        strokeWidth={0.5}
+        opacity={0.4}
+      />
+    ));
+  });
+})}
+```
 
 ---
 
-## i18n
+## Technical Specifications
 
-在 `translations.ts` 添加所有新 UI 字符串的中英文翻译（约 60+ 新 key）。
+### Performance Targets
+- Support up to 1000+ stitches at 60fps
+- Geometry update < 16ms on pattern change
+- Memory: Single Float32Array, no object allocation per frame
 
----
+### Visual Style (matching weishougong.cn aesthetic)
+- Background: `#f0f0f0` (light gray)
+- Yarn lines: `#333333` (dark gray) or custom color
+- Hover highlight: `#8B5CF6` (primary purple glow)
+- Line width: 1-2px base, 3px on hover
 
-## 文件清单
+### API Interface for Pattern Input
+```typescript
+interface PatternInstruction {
+  command: string;      // e.g., "R1:6x" or "R2:(2x,v)*6"
+  parsedStitches: ParsedStitch[];
+  vertices: Float32Array;
+}
 
-| 文件 | 操作 |
-|------|------|
-| `supabase/migrations/xxx.sql` | 新建 5 张表 + storage bucket + RLS |
-| `supabase/functions/parse-chart-image/index.ts` | AI 图解解析 |
-| `src/pages/CrochetEngine.tsx` | 重写为图解库入口 |
-| `src/pages/KnittingEngine.tsx` | 重写为图解库入口 |
-| `src/pages/PatternDetail.tsx` | 新建：图解详情页（查看器+AI+跟织） |
-| `src/components/pattern/PatternLibrary.tsx` | 新建：卡片网格 |
-| `src/components/pattern/PatternCard.tsx` | 新建：图解卡片 |
-| `src/components/pattern/PatternViewer.tsx` | 新建：查看器+标注 |
-| `src/components/pattern/AnnotationToolbar.tsx` | 新建：标注工具 |
-| `src/components/pattern/AIParsePanel.tsx` | 新建：AI 解析侧栏 |
-| `src/components/pattern/ImmersiveCompanion.tsx` | 新建：跟织助手 |
-| `src/components/pattern/StepCounter.tsx` | 新建：侧边计数器 |
-| `src/components/pattern/PatternUploadDialog.tsx` | 新建：上传对话框 |
-| `src/hooks/usePatternLibrary.ts` | 新建：CRUD hook |
-| `src/hooks/usePatternProgress.ts` | 新建：进度追踪 hook |
-| `src/App.tsx` | 添加 `:id` 路由 |
-| `src/i18n/translations.ts` | 添加新翻译 key |
-| `src/components/layout/Sidebar.tsx` | 更新导航描述 |
-
-### 保留的现有文件（不删除）
-- `src/lib/crochetStitchTypes.ts` — 49 种 JIS 针法定义
-- `src/lib/enhancedCrochetParser.ts` — 文本解析器
-- `src/lib/crochetPathGenerator.ts` — 3D 顶点生成
-- `src/components/3d/*` — 3D 线框/管状组件
-- `src/components/crochet/*` — JIS 符号组件
-- `src/store/useYarnCluesStore.ts` — 保留 knitting/crochet store 数据
+function parsePatternToVertices(input: string): PatternInstruction[];
+```
 
 ---
 
-## 实现顺序
+## File Summary
 
-1. 数据库迁移（表 + 存储桶 + RLS）
-2. 共享组件：PatternCard, PatternLibrary, PatternUploadDialog
-3. 重写 CrochetEngine.tsx / KnittingEngine.tsx 为库页面
-4. PatternDetail 页面：查看器 + 标注
-5. AI 解析 Edge Function + AIParsePanel
-6. ImmersiveCompanion 跟织助手
-7. i18n 翻译补全
+| File | Action | Purpose |
+|------|--------|---------|
+| `src/pages/PixelGenerator.tsx` | Modify | Sync canvas dimensions display |
+| `src/pages/CrochetEngine.tsx` | Modify | Add layer lines, wireframe toggle, bidirectional sync |
+| `src/lib/enhancedCrochetParser.ts` | Modify | Add anchor index tracking |
+| `src/lib/crochetPathGenerator.ts` | Create | Pattern → 3D vertices conversion |
+| `src/components/3d/useWireframeGeometry.ts` | Create | BufferGeometry management hook |
+| `src/components/3d/CrochetWireframeScene.tsx` | Create | LineSegments R3F scene |
 
+---
+
+## Future Enhancement: Full Bidirectional Sync
+
+The plan includes foundation for click-to-highlight synchronization:
+- Text editor cursor position → 2D/3D highlight
+- 2D chart click → 3D highlight + text scroll
+- 3D wireframe click → 2D highlight + text scroll
+
+This creates a unified editing experience where all three views (Text, 2D Chart, 3D Model) stay synchronized.
