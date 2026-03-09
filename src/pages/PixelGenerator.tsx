@@ -1,5 +1,6 @@
 // PixelGenerator - Updated 2026-02-04
 import { motion } from 'framer-motion';
+import { useI18n } from '@/i18n/useI18n';
 import { useYarnCluesStore, PixelTool, PixelCell } from '@/store/useYarnCluesStore';
 import { 
   Grid3X3, Upload, Palette, Pencil, Eraser, PaintBucket, Pipette, 
