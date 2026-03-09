@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from '@/hooks/use-toast';
+import { generateImageThumbnail, isThumbableImage } from '@/lib/thumbnailGenerator';
 
 export interface PatternEntry {
   id: string;
@@ -141,27 +142,58 @@ export function usePatternLibrary(category: 'crochet' | 'knitting') {
     if (!user) return null;
 
     const ext = file.name.split('.').pop();
-    const path = `${user.id}/${patternId}/${Date.now()}.${ext}`;
+    const basePath = `${user.id}/${patternId}`;
+    const originalPath = `${basePath}/${Date.now()}.${ext}`;
 
-    const { error: uploadError } = await supabase.storage.from('pattern-files').upload(path, file);
+    // Upload original file
+    const { error: uploadError } = await supabase.storage.from('pattern-files').upload(originalPath, file);
     if (uploadError) {
       toast({ title: 'Upload error', description: uploadError.message, variant: 'destructive' });
       return null;
     }
 
-    const { data: urlData } = supabase.storage.from('pattern-files').getPublicUrl(path);
+    const { data: urlData } = supabase.storage.from('pattern-files').getPublicUrl(originalPath);
     const fileUrl = urlData.publicUrl;
+    const isImage = file.type.startsWith('image');
 
+    // Insert file record
     await supabase.from('pattern_files').insert({
       pattern_id: patternId,
       user_id: user.id,
       file_url: fileUrl,
-      file_type: file.type.startsWith('image') ? 'image' : 'pdf',
+      file_type: isImage ? 'image' : 'pdf',
     } as any);
 
+    // Check if we should set the cover image
     const { data: existingFiles } = await supabase.from('pattern_files').select('id').eq('pattern_id', patternId);
-    if ((existingFiles || []).length <= 1) {
-      await supabase.from('pattern_library').update({ cover_image_url: fileUrl } as any).eq('id', patternId);
+    const shouldSetCover = (existingFiles || []).length <= 1;
+
+    if (shouldSetCover) {
+      let coverUrl = fileUrl;
+
+      // Generate thumbnail for image files
+      if (isThumbableImage(file)) {
+        try {
+          const thumbBlob = await generateImageThumbnail(file, 400, 520);
+          if (thumbBlob) {
+            const thumbPath = `${basePath}/thumb_${Date.now()}.jpg`;
+            const { error: thumbErr } = await supabase.storage.from('pattern-files').upload(thumbPath, thumbBlob, {
+              contentType: 'image/jpeg',
+            });
+            if (!thumbErr) {
+              const { data: thumbUrl } = supabase.storage.from('pattern-files').getPublicUrl(thumbPath);
+              coverUrl = thumbUrl.publicUrl;
+            }
+          }
+        } catch (e) {
+          console.warn('Thumbnail generation failed, using original', e);
+        }
+      }
+
+      // Only update cover for images (not PDFs)
+      if (isImage) {
+        await supabase.from('pattern_library').update({ cover_image_url: coverUrl } as any).eq('id', patternId);
+      }
     }
 
     return fileUrl;

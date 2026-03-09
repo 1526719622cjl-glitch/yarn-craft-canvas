@@ -184,9 +184,9 @@ export default function PatternDetail() {
   if (!pattern) {
     return (
       <div className="max-w-6xl mx-auto p-8 text-center">
-        <p className="text-muted-foreground mb-4">Pattern not found</p>
+        <p className="text-muted-foreground mb-4">{t('pattern.notFound')}</p>
         <Button variant="outline" onClick={() => navigate(-1)}>
-          <ArrowLeft className="w-4 h-4 mr-2" />Back
+          <ArrowLeft className="w-4 h-4 mr-2" />{t('common.back')}
         </Button>
       </div>
     );

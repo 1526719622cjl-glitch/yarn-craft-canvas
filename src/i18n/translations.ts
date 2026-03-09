@@ -17,6 +17,16 @@ const translations = {
   'common.signIn': { zh: '登录', en: 'Sign In' },
   'common.signOut': { zh: '退出登录', en: 'Sign Out' },
   'common.signUp': { zh: '注册', en: 'Sign Up' },
+  'common.back': { zh: '返回', en: 'Back' },
+  'common.notFound': { zh: '未找到', en: 'Not Found' },
+  'common.search': { zh: '搜索', en: 'Search' },
+  'common.filter': { zh: '筛选', en: 'Filter' },
+  'common.create': { zh: '创建', en: 'Create' },
+  'common.edit': { zh: '编辑', en: 'Edit' },
+  'common.notes': { zh: '备注', en: 'Notes' },
+  'common.name': { zh: '名称', en: 'Name' },
+  'common.brand': { zh: '品牌', en: 'Brand' },
+  'common.updated': { zh: '更新于', en: 'Updated' },
 
   // Sidebar
   'sidebar.subtitle': { zh: '线·索 · All for Yarn', en: 'All for Yarn' },
@@ -29,6 +39,8 @@ const translations = {
   'nav.crochetEngine.desc': { zh: '图解库 & AI 解析', en: 'Pattern Library & AI Parse' },
   'nav.knittingEngine': { zh: '棒针图解库', en: 'Knitting Library' },
   'nav.knittingEngine.desc': { zh: '图解库 & 跟织助手', en: 'Pattern Library & Companion' },
+  'nav.yarnVault': { zh: '线材库', en: 'Yarn Vault' },
+  'nav.yarnVault.desc': { zh: '我的线材收藏', en: 'My Yarn Collection' },
 
   // Auth
   'auth.title': { zh: 'Yarn Clues', en: 'Yarn Clues' },
@@ -175,7 +187,7 @@ const translations = {
   'pixel.selectedFillColor': { zh: '选中填充色', en: 'Selected Fill Color' },
 
   // Crochet Engine
-  'crochet.title': { zh: '钩针引擎', en: 'Crochet Engine' },
+  'crochet.title': { zh: '钩针图解库', en: 'Crochet Pattern Library' },
   'crochet.subtitle': { zh: 'AI 驱动的自然语言解析器，JIS 图解 & 3D 线材模拟', en: 'AI-powered NLP parser with JIS charting & 3D yarn simulation' },
   'crochet.aiParser': { zh: 'AI 解析器', en: 'AI Parser' },
   'crochet.patternEditor': { zh: '图解编辑器', en: 'Pattern Editor' },
@@ -202,7 +214,7 @@ const translations = {
   'crochet.tubesTip': { zh: '拖拽旋转 • 滚轮缩放 • 悬停图解高亮针目', en: 'Drag to rotate • Scroll to zoom • Hover on chart to highlight stitch with emissive glow' },
 
   // Knitting Engine
-  'knitting.title': { zh: '棒针引擎', en: 'Knitting Engine' },
+  'knitting.title': { zh: '棒针图解库', en: 'Knitting Pattern Library' },
   'knitting.subtitle': { zh: '专业编织图设计器，自动反面说明 & 3D 线材模拟', en: 'Professional chart designer with auto WS instructions & 3D yarn simulation' },
   'knitting.stitchTools': { zh: '针法工具', en: 'Stitch Tools' },
   'knitting.chartDimensions': { zh: '图表尺寸', en: 'Chart Dimensions' },
@@ -252,6 +264,7 @@ const translations = {
   'pattern.createAndUpload': { zh: '创建并上传', en: 'Create & Upload' },
   'pattern.created': { zh: '图解已创建', en: 'Pattern created' },
   'pattern.noFiles': { zh: '暂无文件，请上传图解图片', en: 'No files yet. Upload a pattern image.' },
+  'pattern.notFound': { zh: '图解未找到', en: 'Pattern not found' },
 
   // Pattern Status
   'pattern.filter.all': { zh: '全部', en: 'All' },
@@ -300,10 +313,6 @@ const translations = {
   'yarn.stitchesPer10cm': { zh: '针 / 10cm', en: 'Stitches / 10cm' },
   'yarn.rowsPer10cm': { zh: '行 / 10cm', en: 'Rows / 10cm' },
 
-  // Navigation updates
-  'nav.yarnVault': { zh: '线材库', en: 'Yarn Vault' },
-  'nav.yarnVault.desc': { zh: '我的线材收藏', en: 'My Yarn Collection' },
-
   // Additional Pattern UI
   'pattern.initialStatus': { zh: '初始状态', en: 'Initial Status' },
   'pattern.linkYarnOptional': { zh: '关联线材（可选）', en: 'Link Yarn (Optional)' },
@@ -316,6 +325,64 @@ const translations = {
   'pattern.parseFirst': { zh: '请先 AI 解析图解', en: 'Please parse the pattern first' },
   'pattern.pdfPreview': { zh: 'PDF 预览', en: 'PDF Preview' },
   'pattern.anchorCompare': { zh: '原图局部对比', en: 'Anchor Compare' },
+
+  // Yarn Vault
+  'yarn.vault.title': { zh: '线材库', en: 'Yarn Vault' },
+  'yarn.vault.subtitle': { zh: '我的私人线材仓库', en: 'Your personal yarn library' },
+  'yarn.vault.newFolder': { zh: '新建文件夹', en: 'New Folder' },
+  'yarn.vault.addYarn': { zh: '添加线材', en: 'Add Yarn' },
+  'yarn.vault.createFolder': { zh: '创建文件夹', en: 'Create Folder' },
+  'yarn.vault.folderName': { zh: '文件夹名称', en: 'Folder Name' },
+  'yarn.vault.folderPlaceholder': { zh: '例如：在用、愿望单...', en: 'e.g., In Stock, Wishlist' },
+  'yarn.vault.addNewYarn': { zh: '添加新线材', en: 'Add New Yarn' },
+  'yarn.vault.basicInfo': { zh: '基本信息', en: 'Basic Info' },
+  'yarn.vault.gaugeData': { zh: '密度数据', en: 'Gauge Data' },
+  'yarn.vault.yarnSpecs': { zh: '线材规格', en: 'Yarn Specs' },
+  'yarn.vault.yarnName': { zh: '线材名称 *', en: 'Yarn Name *' },
+  'yarn.vault.colorCode': { zh: '色号', en: 'Color Code' },
+  'yarn.vault.fiberContent': { zh: '纤维成分', en: 'Fiber Content' },
+  'yarn.vault.weight': { zh: '粗细', en: 'Weight' },
+  'yarn.vault.selectWeight': { zh: '选择粗细...', en: 'Select weight' },
+  'yarn.vault.status': { zh: '状态', en: 'Status' },
+  'yarn.vault.selectStatus': { zh: '选择状态...', en: 'Select status' },
+  'yarn.vault.ballsInStock': { zh: '库存数量', en: 'Balls in Stock' },
+  'yarn.vault.gaugeHint': { zh: '在 10cm x 10cm 样片中测量密度数据', en: 'Enter gauge data from your swatch (in 10cm x 10cm)' },
+  'yarn.vault.stitchesPer10cm': { zh: '10cm 内针数', en: 'Stitches per 10cm' },
+  'yarn.vault.rowsPer10cm': { zh: '10cm 内行数', en: 'Rows per 10cm' },
+  'yarn.vault.postWashDim': { zh: '洗后尺寸', en: 'Post-Wash Dimensions' },
+  'yarn.vault.postWashHint': { zh: '洗涤后测量 10x10cm 样片的实际尺寸', en: 'Measure your 10x10cm swatch after washing' },
+  'yarn.vault.metersPerBall': { zh: '每团长度 (米)', en: 'Meters per Ball' },
+  'yarn.vault.gramsPerBall': { zh: '每团克重', en: 'Grams per Ball' },
+  'yarn.vault.addToLibrary': { zh: '添加到线材库', en: 'Add to Library' },
+  'yarn.vault.allYarns': { zh: '全部线材', en: 'All Yarns' },
+  'yarn.vault.folders': { zh: '文件夹', en: 'Folders' },
+  'yarn.vault.searchPlaceholder': { zh: '按名称、品牌、色号、成分搜索...', en: 'Search by name, brand, color, fiber...' },
+  'yarn.vault.allWeights': { zh: '全部粗细', en: 'All Weights' },
+  'yarn.vault.empty': { zh: '还没有线材', en: 'No yarns yet' },
+  'yarn.vault.emptyDesc': { zh: '添加第一款线材，开始建立你的线材库', en: 'Add your first yarn to start building your library' },
+  'yarn.vault.balls': { zh: '团', en: 'balls' },
+  'yarn.vault.ballsInStockLabel': { zh: '团在库', en: 'balls in stock' },
+  'yarn.vault.color': { zh: '色号：', en: 'Color:' },
+  'yarn.vault.weightLabel': { zh: '粗细：', en: 'Weight:' },
+  'yarn.vault.fiber': { zh: '成分：', en: 'Fiber:' },
+  'yarn.vault.updatedAt': { zh: '更新于', en: 'Updated' },
+
+  // Yarn weights (keep English labels as they are internationally recognized)
+  'yarn.weight.lace': { zh: 'Lace（蕾丝）', en: 'Lace' },
+  'yarn.weight.fingering': { zh: 'Fingering（细线）', en: 'Fingering' },
+  'yarn.weight.sport': { zh: 'Sport（运动）', en: 'Sport' },
+  'yarn.weight.dk': { zh: 'DK（双编）', en: 'DK' },
+  'yarn.weight.worsted': { zh: 'Worsted（粗纺）', en: 'Worsted' },
+  'yarn.weight.aran': { zh: 'Aran（阿伦）', en: 'Aran' },
+  'yarn.weight.bulky': { zh: 'Bulky（粗线）', en: 'Bulky' },
+  'yarn.weight.superBulky': { zh: 'Super Bulky（超粗线）', en: 'Super Bulky' },
+
+  // Yarn statuses
+  'yarn.status.new': { zh: '全新', en: 'New' },
+  'yarn.status.inUse': { zh: '使用中', en: 'In Use' },
+  'yarn.status.scraps': { zh: '剩余零线', en: 'Scraps' },
+  'yarn.status.finished': { zh: '已用完', en: 'Finished' },
+  'yarn.status.wishlist': { zh: '愿望单', en: 'Wishlist' },
 } as const;
 
 export type TranslationKey = keyof typeof translations;
