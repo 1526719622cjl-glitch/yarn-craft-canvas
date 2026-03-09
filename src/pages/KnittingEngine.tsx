@@ -390,7 +390,7 @@ export default function KnittingEngine() {
           </Button>
 
           <div className="frosted-panel">
-            <p className="text-xs text-muted-foreground mb-2">Grid Size</p>
+            <p className="text-xs text-muted-foreground mb-2">{t('knitting.gridSize')}</p>
             <p className="text-lg font-medium">
               {knittingWidth} × {knittingHeight}
             </p>
