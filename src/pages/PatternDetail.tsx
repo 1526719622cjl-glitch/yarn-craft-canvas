@@ -60,6 +60,16 @@ export default function PatternDetail() {
   const handleStepsLoaded = (newSteps: ParsedStep[]) => {
     setSteps(newSteps);
     initProgress(newSteps.length);
+    
+    // Extract pixel data from colorwork steps
+    const colorRows: RowPixelData[] = newSteps
+      .filter(s => s.colors && s.colors.length > 0)
+      .map(s => ({
+        row: s.row,
+        pixels: s.colors!.map(c => ({ color: c.color, count: c.count })),
+        totalStitches: s.colors!.reduce((sum, c) => sum + c.count, 0),
+      }));
+    setPixelRows(colorRows);
   };
 
   const handleStartCompanion = () => {
