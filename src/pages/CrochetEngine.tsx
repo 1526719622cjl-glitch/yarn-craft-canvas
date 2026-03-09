@@ -673,7 +673,7 @@ export default function CrochetEngine() {
                 className="rounded-lg h-7 px-3"
               >
                 <Grid3X3 className="w-3.5 h-3.5 mr-1" />
-                Wireframe
+                {t('crochet.wireframe')}
               </Button>
               <Button
                 variant={view3DMode === 'tubes' ? 'default' : 'ghost'}
