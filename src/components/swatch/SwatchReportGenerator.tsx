@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { toPng } from 'html-to-image';
-import { Download, X } from 'lucide-react';
+import { Download, X, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -37,6 +37,8 @@ interface SwatchReportGeneratorProps {
   };
   yarnName?: string;
   yarnBrand?: string;
+  preWashImage?: string | null;
+  postWashImage?: string | null;
 }
 
 export function SwatchReportGenerator({
@@ -46,6 +48,8 @@ export function SwatchReportGenerator({
   gaugeData,
   yarnName: initialYarnName = '',
   yarnBrand: initialYarnBrand = '',
+  preWashImage,
+  postWashImage,
 }: SwatchReportGeneratorProps) {
   const reportRef = useRef<HTMLDivElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -74,7 +78,54 @@ export function SwatchReportGenerator({
     }
   };
 
+  const handlePrint = () => {
+    if (!reportRef.current) return;
+    const printContent = reportRef.current.innerHTML;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>样片报告 - ${yarnName || 'Swatch Report'}</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: 'Space Grotesk', system-ui, sans-serif; padding: 20px; background: #FDFBF7; }
+          h2, h3 { margin-bottom: 8px; }
+          table { width: 100%; border-collapse: collapse; }
+          th, td { padding: 8px; text-align: center; border-bottom: 1px solid #E8D5C4; }
+          th { text-align: left; }
+          td:first-child { text-align: left; }
+          img { max-width: 100%; height: auto; border-radius: 8px; }
+          .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+          .section { background: rgba(255,255,255,0.6); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+          .shrinkage { background: linear-gradient(to right, rgba(232,213,196,0.4), rgba(201,160,142,0.3)); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+          .text-center { text-align: center; }
+          .text-sm { font-size: 0.875rem; }
+          .text-xs { font-size: 0.75rem; }
+          .text-2xl { font-size: 1.5rem; }
+          .font-medium { font-weight: 500; }
+          .font-semibold { font-weight: 600; }
+          .mb-2 { margin-bottom: 8px; }
+          .mb-3 { margin-bottom: 12px; }
+          .mb-4 { margin-bottom: 16px; }
+          .mb-6 { margin-bottom: 24px; }
+          .mt-6 { margin-top: 24px; }
+          .color-title { color: #5D4E37; }
+          .color-sub { color: #8B7355; }
+          @media print { body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
+        </style>
+      </head>
+      <body>${printContent}</body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); printWindow.close(); }, 300);
+  };
+
   const toolLabel = swatchData.toolType === 'hook' ? '🪝 钩针' : swatchData.toolType === 'needle' ? '🥢 棒针' : '';
+  const hasImages = preWashImage || postWashImage;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -147,6 +198,31 @@ export function SwatchReportGenerator({
                   </div>
                 </div>
               </div>
+
+              {/* Swatch Photos */}
+              {hasImages && (
+                <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 mb-4 shadow-sm">
+                  <h3 className="font-medium text-[#5D4E37] mb-3">📷 织片照片</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="text-center">
+                      <p className="text-xs text-[#8B7355] mb-1">洗前 Pre-wash</p>
+                      {preWashImage ? (
+                        <img src={preWashImage} alt="Pre-wash swatch" className="w-full h-32 object-cover rounded-lg" />
+                      ) : (
+                        <div className="w-full h-32 rounded-lg bg-[#F5F0E8] flex items-center justify-center text-xs text-[#8B7355]">未上传</div>
+                      )}
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs text-[#8B7355] mb-1">洗后 Post-wash</p>
+                      {postWashImage ? (
+                        <img src={postWashImage} alt="Post-wash swatch" className="w-full h-32 object-cover rounded-lg" />
+                      ) : (
+                        <div className="w-full h-32 rounded-lg bg-[#F5F0E8] flex items-center justify-center text-xs text-[#8B7355]">未上传</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Tool Info */}
               {(swatchData.toolType || swatchData.toolSizeMm) && (
@@ -225,15 +301,25 @@ export function SwatchReportGenerator({
             </div>
           </div>
 
-          {/* Download Button */}
-          <Button 
-            onClick={handleDownload} 
-            disabled={isGenerating}
-            className="w-full rounded-xl"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            {isGenerating ? '生成中...' : '下载报告图片'}
-          </Button>
+          {/* Action Buttons */}
+          <div className="grid grid-cols-2 gap-3">
+            <Button 
+              onClick={handleDownload} 
+              disabled={isGenerating}
+              className="w-full rounded-xl"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              {isGenerating ? '生成中...' : '下载报告图片'}
+            </Button>
+            <Button 
+              onClick={handlePrint}
+              variant="outline"
+              className="w-full rounded-xl"
+            >
+              <Printer className="w-4 h-4 mr-2" />
+              打印报告
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

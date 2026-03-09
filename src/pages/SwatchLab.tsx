@@ -843,6 +843,8 @@ export default function SwatchLab() {
         gaugeData={safeGaugeData}
         yarnName={yarnName}
         yarnBrand={yarnBrand}
+        preWashImage={preWashImage}
+        postWashImage={postWashImage}
       />
     </motion.div>
   );
