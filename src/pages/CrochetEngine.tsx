@@ -275,7 +275,7 @@ export default function CrochetEngine() {
                     }`}
                   >
                     <span className={`font-medium ${hasError ? 'text-destructive' : ''}`}>
-                      Row {v.row}
+                      {t('crochet.row')} {v.row}
                     </span>
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">{v.stitchCount} sts</span>
