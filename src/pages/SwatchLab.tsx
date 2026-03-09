@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SwatchReportGenerator } from '@/components/swatch/SwatchReportGenerator';
+import { useI18n } from '@/i18n/useI18n';
 
 // Tool size presets
 const TOOL_SIZES = [2.0, 2.25, 2.5, 2.75, 3.0, 3.25, 3.5, 3.75, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 8.0, 9.0, 10.0];
@@ -57,6 +58,7 @@ export default function SwatchLab() {
   const { user } = useAuth();
   const { folders } = useYarnFolders();
   const { createEntry } = useYarnEntries();
+  const { t } = useI18n();
   
   // Cloud save modal state
   const [saveModalOpen, setSaveModalOpen] = useState(false);
@@ -219,8 +221,8 @@ export default function SwatchLab() {
               <Ruler className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <h1 className="text-3xl font-display font-semibold text-foreground">The Swatch Lab</h1>
-              <p className="text-muted-foreground">Calculate your gauge and plan your project</p>
+              <h1 className="text-3xl font-display font-semibold text-foreground">{t('swatch.title')}</h1>
+              <p className="text-muted-foreground">{t('swatch.subtitle')}</p>
             </div>
           </div>
 
@@ -228,31 +230,19 @@ export default function SwatchLab() {
           <div className="flex gap-2">
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={undo}
-                  disabled={!canUndo}
-                  className="rounded-xl soft-press"
-                >
+                <Button variant="outline" size="icon" onClick={undo} disabled={!canUndo} className="rounded-xl soft-press">
                   <Undo className="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Undo (Ctrl+Z)</TooltipContent>
+              <TooltipContent>{t('common.undo')} (Ctrl+Z)</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={redo}
-                  disabled={!canRedo}
-                  className="rounded-xl soft-press"
-                >
+                <Button variant="outline" size="icon" onClick={redo} disabled={!canRedo} className="rounded-xl soft-press">
                   <Redo className="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Redo (Ctrl+Y)</TooltipContent>
+              <TooltipContent>{t('common.redo')} (Ctrl+Y)</TooltipContent>
             </Tooltip>
           </div>
         </div>
@@ -261,220 +251,124 @@ export default function SwatchLab() {
       {/* Unified Gauge Calculator */}
       <motion.div variants={itemVariants} className="space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Pre-Wash Swatch - Independent dimensions */}
+          {/* Pre-Wash Swatch */}
           <motion.div variants={itemVariants} className="glass-card p-6 space-y-4">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 rounded-xl bg-yarn-honey/30 flex items-center justify-center">
                 <span className="text-sm">🧶</span>
               </div>
-              <h2 className="text-lg font-medium">Pre-Wash Swatch</h2>
+              <h2 className="text-lg font-medium">{t('swatch.preWash')}</h2>
               <Tooltip>
-                <TooltipTrigger>
-                  <Info className="w-4 h-4 text-muted-foreground" />
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
-                  Measure your swatch before washing/blocking. Any size works!
-                </TooltipContent>
+                <TooltipTrigger><Info className="w-4 h-4 text-muted-foreground" /></TooltipTrigger>
+                <TooltipContent className="max-w-xs">{t('swatch.preWash.tip')}</TooltipContent>
               </Tooltip>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="pre-width" className="text-sm text-muted-foreground">Width (cm)</Label>
-                <Input
-                  id="pre-width"
-                  type="number"
-                  step="0.1"
-                  value={safeSwatchData.preWashWidth}
-                  onChange={(e) => handleSwatchChange({ preWashWidth: Number(e.target.value) })}
-                  className="input-glass h-12 text-lg font-medium"
-                />
+                <Label htmlFor="pre-width" className="text-sm text-muted-foreground">{t('swatch.widthCm')}</Label>
+                <Input id="pre-width" type="number" step="0.1" value={safeSwatchData.preWashWidth} onChange={(e) => handleSwatchChange({ preWashWidth: Number(e.target.value) })} className="input-glass h-12 text-lg font-medium" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="pre-height" className="text-sm text-muted-foreground">Height (cm)</Label>
-                <Input
-                  id="pre-height"
-                  type="number"
-                  step="0.1"
-                  value={safeSwatchData.preWashHeight}
-                  onChange={(e) => handleSwatchChange({ preWashHeight: Number(e.target.value) })}
-                  className="input-glass h-12 text-lg font-medium"
-                />
+                <Label htmlFor="pre-height" className="text-sm text-muted-foreground">{t('swatch.heightCm')}</Label>
+                <Input id="pre-height" type="number" step="0.1" value={safeSwatchData.preWashHeight} onChange={(e) => handleSwatchChange({ preWashHeight: Number(e.target.value) })} className="input-glass h-12 text-lg font-medium" />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="stitches-pre" className="text-sm text-muted-foreground">Stitch Count</Label>
-                <Input
-                  id="stitches-pre"
-                  type="number"
-                  value={safeSwatchData.stitchesPreWash}
-                  onChange={(e) => handleSwatchChange({ stitchesPreWash: Number(e.target.value) })}
-                  className="input-glass h-12 text-lg font-medium"
-                />
+                <Label htmlFor="stitches-pre" className="text-sm text-muted-foreground">{t('swatch.stitchCount')}</Label>
+                <Input id="stitches-pre" type="number" value={safeSwatchData.stitchesPreWash} onChange={(e) => handleSwatchChange({ stitchesPreWash: Number(e.target.value) })} className="input-glass h-12 text-lg font-medium" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="rows-pre" className="text-sm text-muted-foreground">Row Count</Label>
-                <Input
-                  id="rows-pre"
-                  type="number"
-                  value={safeSwatchData.rowsPreWash}
-                  onChange={(e) => handleSwatchChange({ rowsPreWash: Number(e.target.value) })}
-                  className="input-glass h-12 text-lg font-medium"
-                />
+                <Label htmlFor="rows-pre" className="text-sm text-muted-foreground">{t('swatch.rowCount')}</Label>
+                <Input id="rows-pre" type="number" value={safeSwatchData.rowsPreWash} onChange={(e) => handleSwatchChange({ rowsPreWash: Number(e.target.value) })} className="input-glass h-12 text-lg font-medium" />
               </div>
             </div>
 
             {/* Pre-wash image upload */}
             <div className="space-y-2">
-              <Label className="text-sm text-muted-foreground">📷 织片照片（可选）</Label>
-              <input
-                ref={preWashFileRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleImageUpload(file, setPreWashImage);
-                }}
-              />
+              <Label className="text-sm text-muted-foreground">{t('swatch.photo')}</Label>
+              <input ref={preWashFileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImageUpload(file, setPreWashImage); }} />
               {preWashImage ? (
                 <div className="relative group">
                   <img src={preWashImage} alt="Pre-wash swatch" className="w-full h-32 object-cover rounded-xl border border-border/30" />
-                  <Button
-                    variant="destructive"
-                    size="icon"
-                    className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => { setPreWashImage(null); if (preWashFileRef.current) preWashFileRef.current.value = ''; }}
-                  >
+                  <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => { setPreWashImage(null); if (preWashFileRef.current) preWashFileRef.current.value = ''; }}>
                     <X className="w-3 h-3" />
                   </Button>
                 </div>
               ) : (
-                <button
-                  onClick={() => preWashFileRef.current?.click()}
-                  className="w-full h-24 border-2 border-dashed border-border/40 rounded-xl flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors"
-                >
+                <button onClick={() => preWashFileRef.current?.click()} className="w-full h-24 border-2 border-dashed border-border/40 rounded-xl flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors">
                   <Camera className="w-5 h-5" />
-                  <span className="text-xs">上传织片照片</span>
+                  <span className="text-xs">{t('swatch.uploadPhoto')}</span>
                 </button>
               )}
             </div>
 
-            {/* Pre-wash gauge result */}
             <div className="pt-3 border-t border-border/30">
-              <p className="text-xs text-muted-foreground">Pre-wash gauge:</p>
+              <p className="text-xs text-muted-foreground">{t('swatch.preWashGauge')}</p>
               <p className="text-sm font-medium">
                 {safeGaugeData.preWashStitchDensity.toFixed(2)} st/cm × {safeGaugeData.preWashRowDensity.toFixed(2)} rows/cm
               </p>
             </div>
           </motion.div>
 
-          {/* Post-Wash Swatch - Independent dimensions */}
+          {/* Post-Wash Swatch */}
           <motion.div variants={itemVariants} className="glass-card p-6 space-y-4">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 rounded-xl bg-yarn-sky/30 flex items-center justify-center">
                 <Droplets className="w-4 h-4 text-primary" />
               </div>
-              <h2 className="text-lg font-medium">Post-Wash Swatch</h2>
+              <h2 className="text-lg font-medium">{t('swatch.postWash')}</h2>
               <Tooltip>
-                <TooltipTrigger>
-                  <Info className="w-4 h-4 text-muted-foreground" />
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
-                  Same swatch after washing/blocking. Used for final size calculations.
-                </TooltipContent>
+                <TooltipTrigger><Info className="w-4 h-4 text-muted-foreground" /></TooltipTrigger>
+                <TooltipContent className="max-w-xs">{t('swatch.postWash.tip')}</TooltipContent>
               </Tooltip>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="post-width" className="text-sm text-muted-foreground">Width (cm)</Label>
-                <Input
-                  id="post-width"
-                  type="number"
-                  step="0.1"
-                  value={safeSwatchData.postWashWidth}
-                  onChange={(e) => handleSwatchChange({ postWashWidth: Number(e.target.value) })}
-                  className="input-glass h-12 text-lg font-medium"
-                />
+                <Label htmlFor="post-width" className="text-sm text-muted-foreground">{t('swatch.widthCm')}</Label>
+                <Input id="post-width" type="number" step="0.1" value={safeSwatchData.postWashWidth} onChange={(e) => handleSwatchChange({ postWashWidth: Number(e.target.value) })} className="input-glass h-12 text-lg font-medium" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="post-height" className="text-sm text-muted-foreground">Height (cm)</Label>
-                <Input
-                  id="post-height"
-                  type="number"
-                  step="0.1"
-                  value={safeSwatchData.postWashHeight}
-                  onChange={(e) => handleSwatchChange({ postWashHeight: Number(e.target.value) })}
-                  className="input-glass h-12 text-lg font-medium"
-                />
+                <Label htmlFor="post-height" className="text-sm text-muted-foreground">{t('swatch.heightCm')}</Label>
+                <Input id="post-height" type="number" step="0.1" value={safeSwatchData.postWashHeight} onChange={(e) => handleSwatchChange({ postWashHeight: Number(e.target.value) })} className="input-glass h-12 text-lg font-medium" />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="stitches-post" className="text-sm text-muted-foreground">Stitch Count</Label>
-                <Input
-                  id="stitches-post"
-                  type="number"
-                  value={safeSwatchData.stitchesPostWash}
-                  onChange={(e) => handleSwatchChange({ stitchesPostWash: Number(e.target.value) })}
-                  className="input-glass h-12 text-lg font-medium"
-                />
+                <Label htmlFor="stitches-post" className="text-sm text-muted-foreground">{t('swatch.stitchCount')}</Label>
+                <Input id="stitches-post" type="number" value={safeSwatchData.stitchesPostWash} onChange={(e) => handleSwatchChange({ stitchesPostWash: Number(e.target.value) })} className="input-glass h-12 text-lg font-medium" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="rows-post" className="text-sm text-muted-foreground">Row Count</Label>
-                <Input
-                  id="rows-post"
-                  type="number"
-                  value={safeSwatchData.rowsPostWash}
-                  onChange={(e) => handleSwatchChange({ rowsPostWash: Number(e.target.value) })}
-                  className="input-glass h-12 text-lg font-medium"
-                />
+                <Label htmlFor="rows-post" className="text-sm text-muted-foreground">{t('swatch.rowCount')}</Label>
+                <Input id="rows-post" type="number" value={safeSwatchData.rowsPostWash} onChange={(e) => handleSwatchChange({ rowsPostWash: Number(e.target.value) })} className="input-glass h-12 text-lg font-medium" />
               </div>
             </div>
 
             {/* Post-wash image upload */}
             <div className="space-y-2">
-              <Label className="text-sm text-muted-foreground">📷 织片照片（可选）</Label>
-              <input
-                ref={postWashFileRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleImageUpload(file, setPostWashImage);
-                }}
-              />
+              <Label className="text-sm text-muted-foreground">{t('swatch.photo')}</Label>
+              <input ref={postWashFileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImageUpload(file, setPostWashImage); }} />
               {postWashImage ? (
                 <div className="relative group">
                   <img src={postWashImage} alt="Post-wash swatch" className="w-full h-32 object-cover rounded-xl border border-border/30" />
-                  <Button
-                    variant="destructive"
-                    size="icon"
-                    className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => { setPostWashImage(null); if (postWashFileRef.current) postWashFileRef.current.value = ''; }}
-                  >
+                  <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => { setPostWashImage(null); if (postWashFileRef.current) postWashFileRef.current.value = ''; }}>
                     <X className="w-3 h-3" />
                   </Button>
                 </div>
               ) : (
-                <button
-                  onClick={() => postWashFileRef.current?.click()}
-                  className="w-full h-24 border-2 border-dashed border-border/40 rounded-xl flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors"
-                >
+                <button onClick={() => postWashFileRef.current?.click()} className="w-full h-24 border-2 border-dashed border-border/40 rounded-xl flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors">
                   <Camera className="w-5 h-5" />
-                  <span className="text-xs">上传织片照片</span>
+                  <span className="text-xs">{t('swatch.uploadPhoto')}</span>
                 </button>
               )}
             </div>
 
-            {/* Post-wash gauge result */}
             <div className="pt-3 border-t border-border/30">
-              <p className="text-xs text-muted-foreground">Post-wash gauge (for targeting):</p>
+              <p className="text-xs text-muted-foreground">{t('swatch.postWashGauge')}</p>
               <p className="text-sm font-medium">
                 {safeGaugeData.postWashStitchDensity.toFixed(2)} st/cm × {safeGaugeData.postWashRowDensity.toFixed(2)} rows/cm
               </p>
@@ -488,75 +382,53 @@ export default function SwatchLab() {
             <div className="w-8 h-8 rounded-xl bg-yarn-sage/30 flex items-center justify-center">
               <span className="text-sm">🧶</span>
             </div>
-            <h2 className="text-lg font-medium">Tool Size</h2>
+            <h2 className="text-lg font-medium">{t('swatch.toolSize')}</h2>
             <Tooltip>
-              <TooltipTrigger>
-                <Info className="w-4 h-4 text-muted-foreground" />
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                Record the hook or needle size used for this swatch
-              </TooltipContent>
+              <TooltipTrigger><Info className="w-4 h-4 text-muted-foreground" /></TooltipTrigger>
+              <TooltipContent className="max-w-xs">{t('swatch.toolSize.tip')}</TooltipContent>
             </Tooltip>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Tool Type Selector */}
             <div className="space-y-2">
-              <Label className="text-sm text-muted-foreground">Tool Type</Label>
-              <Select 
-                value={safeSwatchData.toolType || ''} 
-                onValueChange={(v) => handleSwatchChange({ toolType: v as 'hook' | 'needle' })}
-              >
+              <Label className="text-sm text-muted-foreground">{t('swatch.toolType')}</Label>
+              <Select value={safeSwatchData.toolType || ''} onValueChange={(v) => handleSwatchChange({ toolType: v as 'hook' | 'needle' })}>
                 <SelectTrigger className="h-12 rounded-xl">
-                  <SelectValue placeholder="Select tool..." />
+                  <SelectValue placeholder={t('swatch.toolType.select')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="hook">🪝 钩针 (Hook)</SelectItem>
-                  <SelectItem value="needle">🥢 棒针 (Needles)</SelectItem>
+                  <SelectItem value="hook">{t('swatch.toolType.hook')}</SelectItem>
+                  <SelectItem value="needle">{t('swatch.toolType.needle')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Tool Size Selector */}
             <div className="space-y-2">
-              <Label className="text-sm text-muted-foreground">Size (mm)</Label>
+              <Label className="text-sm text-muted-foreground">{t('swatch.sizeMm')}</Label>
               <div className="flex gap-2">
-                <Select 
-                  value={isCustomToolSize ? 'custom' : (safeSwatchData.toolSizeMm?.toString() || '')} 
-                  onValueChange={handleToolSizeChange}
-                >
+                <Select value={isCustomToolSize ? 'custom' : (safeSwatchData.toolSizeMm?.toString() || '')} onValueChange={handleToolSizeChange}>
                   <SelectTrigger className="h-12 rounded-xl flex-1">
-                    <SelectValue placeholder="Select size..." />
+                    <SelectValue placeholder={t('swatch.sizeSelect')} />
                   </SelectTrigger>
                   <SelectContent>
                     {TOOL_SIZES.map(size => (
-                      <SelectItem key={size} value={size.toString()}>
-                        {size}mm
-                      </SelectItem>
+                      <SelectItem key={size} value={size.toString()}>{size}mm</SelectItem>
                     ))}
-                    <SelectItem value="custom">✏️ Custom...</SelectItem>
+                    <SelectItem value="custom">{t('swatch.customSize')}</SelectItem>
                   </SelectContent>
                 </Select>
                 {isCustomToolSize && (
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={customToolSize}
-                    onChange={(e) => handleCustomToolSizeChange(e.target.value)}
-                    placeholder="mm"
-                    className="w-24 h-12"
-                  />
+                  <Input type="number" step="0.01" value={customToolSize} onChange={(e) => handleCustomToolSizeChange(e.target.value)} placeholder="mm" className="w-24 h-12" />
                 )}
               </div>
             </div>
           </div>
 
-          {/* Current tool display */}
           {safeSwatchData.toolType && safeSwatchData.toolSizeMm && (
             <div className="pt-3 border-t border-border/30">
               <p className="text-sm text-muted-foreground">
-                Using: <span className="font-medium text-foreground">
-                  {safeSwatchData.toolType === 'hook' ? '🪝 钩针' : '🥢 棒针'} {safeSwatchData.toolSizeMm}mm
+                {t('swatch.using')} <span className="font-medium text-foreground">
+                  {safeSwatchData.toolType === 'hook' ? t('swatch.toolType.hook') : t('swatch.toolType.needle')} {safeSwatchData.toolSizeMm}mm
                 </span>
               </p>
             </div>
@@ -566,31 +438,27 @@ export default function SwatchLab() {
         {/* Shrinkage Analysis */}
         {hasShrinkage && (
           <motion.div variants={itemVariants} className="p-4 rounded-2xl bg-yarn-honey/20 border border-yarn-honey/30">
-            <h3 className="text-sm font-medium mb-3">Shrinkage Analysis</h3>
+            <h3 className="text-sm font-medium mb-3">{t('swatch.shrinkageAnalysis')}</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
               <div>
                 <p className="text-2xl font-display font-semibold text-primary">
                   {safeGaugeData.widthShrinkage > 0 ? '-' : '+'}{Math.abs(safeGaugeData.widthShrinkage).toFixed(1)}%
                 </p>
-                <p className="text-xs text-muted-foreground">Width {safeGaugeData.widthShrinkage > 0 ? 'shrinkage' : 'stretch'}</p>
+                <p className="text-xs text-muted-foreground">{safeGaugeData.widthShrinkage > 0 ? t('swatch.widthShrinkage') : t('swatch.widthStretch')}</p>
               </div>
               <div>
                 <p className="text-2xl font-display font-semibold text-primary">
                   {safeGaugeData.heightShrinkage > 0 ? '-' : '+'}{Math.abs(safeGaugeData.heightShrinkage).toFixed(1)}%
                 </p>
-                <p className="text-xs text-muted-foreground">Height {safeGaugeData.heightShrinkage > 0 ? 'shrinkage' : 'stretch'}</p>
+                <p className="text-xs text-muted-foreground">{safeGaugeData.heightShrinkage > 0 ? t('swatch.heightShrinkage') : t('swatch.heightStretch')}</p>
               </div>
               <div>
-                <p className="text-2xl font-display font-semibold text-secondary-foreground">
-                  ×{safeGaugeData.widthFactor.toFixed(2)}
-                </p>
-                <p className="text-xs text-muted-foreground">Width factor</p>
+                <p className="text-2xl font-display font-semibold text-secondary-foreground">×{safeGaugeData.widthFactor.toFixed(2)}</p>
+                <p className="text-xs text-muted-foreground">{t('swatch.widthFactor')}</p>
               </div>
               <div>
-                <p className="text-2xl font-display font-semibold text-secondary-foreground">
-                  ×{safeGaugeData.heightFactor.toFixed(2)}
-                </p>
-                <p className="text-xs text-muted-foreground">Height factor</p>
+                <p className="text-2xl font-display font-semibold text-secondary-foreground">×{safeGaugeData.heightFactor.toFixed(2)}</p>
+                <p className="text-xs text-muted-foreground">{t('swatch.heightFactor')}</p>
               </div>
             </div>
           </motion.div>
@@ -603,112 +471,77 @@ export default function SwatchLab() {
               <div className="w-8 h-8 rounded-xl bg-yarn-lavender/30 flex items-center justify-center">
                 <Target className="w-4 h-4 text-primary" />
               </div>
-              <h2 className="text-lg font-medium">Project Planner</h2>
+              <h2 className="text-lg font-medium">{t('swatch.projectPlanner')}</h2>
               <Tooltip>
-                <TooltipTrigger>
-                  <Info className="w-4 h-4 text-muted-foreground" />
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
-                  Enter your desired finished size. Results use post-wash gauge for accurate targeting.
-                </TooltipContent>
+                <TooltipTrigger><Info className="w-4 h-4 text-muted-foreground" /></TooltipTrigger>
+                <TooltipContent className="max-w-xs">{t('swatch.projectPlanner.tip')}</TooltipContent>
               </Tooltip>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-muted-foreground">Target Dimensions (finished size)</h3>
+              <h3 className="text-sm font-medium text-muted-foreground">{t('swatch.targetDimensions')}</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="target-width" className="text-sm text-muted-foreground">Width (cm)</Label>
-                  <Input
-                    id="target-width"
-                    type="number"
-                    value={safeProjectPlan.targetWidth}
-                    onChange={(e) => setProjectPlan({ targetWidth: Number(e.target.value) })}
-                    className="input-glass h-12 text-lg font-medium"
-                  />
+                  <Label htmlFor="target-width" className="text-sm text-muted-foreground">{t('swatch.widthCm')}</Label>
+                  <Input id="target-width" type="number" value={safeProjectPlan.targetWidth} onChange={(e) => setProjectPlan({ targetWidth: Number(e.target.value) })} className="input-glass h-12 text-lg font-medium" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="target-height" className="text-sm text-muted-foreground">Height (cm)</Label>
-                  <Input
-                    id="target-height"
-                    type="number"
-                    value={safeProjectPlan.targetHeight}
-                    onChange={(e) => setProjectPlan({ targetHeight: Number(e.target.value) })}
-                    className="input-glass h-12 text-lg font-medium"
-                  />
+                  <Label htmlFor="target-height" className="text-sm text-muted-foreground">{t('swatch.heightCm')}</Label>
+                  <Input id="target-height" type="number" value={safeProjectPlan.targetHeight} onChange={(e) => setProjectPlan({ targetHeight: Number(e.target.value) })} className="input-glass h-12 text-lg font-medium" />
                 </div>
               </div>
             </div>
 
             <div className="space-y-4">
               <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                Cast-on Count
-                <span className="text-xs text-primary">(using post-wash gauge)</span>
+                {t('swatch.castOnCount')}
+                <span className="text-xs text-primary">{t('swatch.usingPostWash')}</span>
               </h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="frosted-panel text-center">
-                  <p className="text-3xl font-display font-semibold text-primary">
-                    {safeProjectPlan.startingStitches}
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-1">stitches</p>
+                  <p className="text-3xl font-display font-semibold text-primary">{safeProjectPlan.startingStitches}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{t('swatch.stitches')}</p>
                 </div>
                 <div className="frosted-panel text-center">
-                  <p className="text-3xl font-display font-semibold text-primary">
-                    {safeProjectPlan.startingRows}
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-1">rows</p>
+                  <p className="text-3xl font-display font-semibold text-primary">{safeProjectPlan.startingRows}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{t('swatch.rows')}</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* With shrinkage compensation */}
           {hasShrinkage && (
             <div className="mt-6 p-4 rounded-2xl bg-gradient-to-br from-primary/5 to-primary/10">
               <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-primary" />
-                With Shrinkage Compensation
+                {t('swatch.withCompensation')}
               </h3>
-              <p className="text-xs text-muted-foreground mb-3">
-                If your yarn shrinks, cast on more to hit your target after washing:
-              </p>
+              <p className="text-xs text-muted-foreground mb-3">{t('swatch.compensationDesc')}</p>
               <div className="grid grid-cols-2 gap-4 text-center">
                 <div className="frosted-panel">
-                  <p className="text-3xl font-display font-semibold text-primary">
-                    {compensatedStitches}
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-1">adjusted stitches</p>
+                  <p className="text-3xl font-display font-semibold text-primary">{compensatedStitches}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{t('swatch.adjustedStitches')}</p>
                 </div>
                 <div className="frosted-panel">
-                  <p className="text-3xl font-display font-semibold text-primary">
-                    {compensatedRows}
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-1">adjusted rows</p>
+                  <p className="text-3xl font-display font-semibold text-primary">{compensatedRows}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{t('swatch.adjustedRows')}</p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Save to Library Button */}
           <div className="flex justify-end mt-6 pt-4 border-t border-border/30">
             {user ? (
               <div className="flex gap-2">
-                <Button 
-                  variant="outline"
-                  onClick={() => setShowReportGenerator(true)}
-                  className="rounded-xl soft-press"
-                >
+                <Button variant="outline" onClick={() => setShowReportGenerator(true)} className="rounded-xl soft-press">
                   <FileImage className="w-4 h-4 mr-2" />
-                  生成样片报告
+                  {t('swatch.generateReport')}
                 </Button>
-                <Button 
-                  onClick={() => setSaveModalOpen(true)}
-                  className="rounded-xl soft-press"
-                >
+                <Button onClick={() => setSaveModalOpen(true)} className="rounded-xl soft-press">
                   <Save className="w-4 h-4 mr-2" />
-                  Save to My Yarn Library
+                  {t('swatch.saveToLibrary')}
                 </Button>
               </div>
             ) : (
@@ -716,10 +549,10 @@ export default function SwatchLab() {
                 <TooltipTrigger asChild>
                   <Button disabled className="rounded-xl">
                     <Save className="w-4 h-4 mr-2" />
-                    Save to My Yarn Library
+                    {t('swatch.saveToLibrary')}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Sign in to save yarns</TooltipContent>
+                <TooltipContent>{t('swatch.signInToSave')}</TooltipContent>
               </Tooltip>
             )}
           </div>
@@ -732,46 +565,33 @@ export default function SwatchLab() {
         <SmartYarnCalculator />
       </motion.div>
 
-      {/* Cloud Save Modal with Folder Selection */}
+      {/* Cloud Save Modal */}
       <Dialog open={saveModalOpen} onOpenChange={setSaveModalOpen}>
         <DialogContent className="rounded-3xl max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Save className="w-5 h-5 text-primary" />
-              Save to My Yarn Library
+              {t('save.title')}
             </DialogTitle>
-            <DialogDescription>
-              Save your current gauge data to the cloud.
-            </DialogDescription>
+            <DialogDescription>{t('save.desc')}</DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="yarn-name">Yarn Name *</Label>
-              <Input
-                id="yarn-name"
-                value={yarnName}
-                onChange={(e) => setYarnName(e.target.value)}
-                placeholder="e.g., Malabrigo Rios - Azul Profundo"
-                autoFocus
-              />
+              <Label htmlFor="yarn-name">{t('save.yarnName')}</Label>
+              <Input id="yarn-name" value={yarnName} onChange={(e) => setYarnName(e.target.value)} placeholder="e.g., Malabrigo Rios - Azul Profundo" autoFocus />
             </div>
             
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="yarn-brand">Brand</Label>
-                <Input
-                  id="yarn-brand"
-                  value={yarnBrand}
-                  onChange={(e) => setYarnBrand(e.target.value)}
-                  placeholder="Malabrigo"
-                />
+                <Label htmlFor="yarn-brand">{t('save.brand')}</Label>
+                <Input id="yarn-brand" value={yarnBrand} onChange={(e) => setYarnBrand(e.target.value)} placeholder="Malabrigo" />
               </div>
               <div className="space-y-2">
-                <Label>Weight</Label>
+                <Label>{t('save.weight')}</Label>
                 <Select value={yarnWeight} onValueChange={(v) => setYarnWeight(v as YarnWeight)}>
                   <SelectTrigger className="rounded-xl">
-                    <SelectValue placeholder="Select..." />
+                    <SelectValue placeholder={t('save.selectWeight')} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="lace">Lace</SelectItem>
@@ -788,48 +608,36 @@ export default function SwatchLab() {
             </div>
 
             <div className="space-y-2">
-              <Label>Save to Folder</Label>
-              <Select 
-                value={selectedFolderId || 'root'} 
-                onValueChange={(v) => setSelectedFolderId(v === 'root' ? null : v)}
-              >
+              <Label>{t('save.folder')}</Label>
+              <Select value={selectedFolderId || 'root'} onValueChange={(v) => setSelectedFolderId(v === 'root' ? null : v)}>
                 <SelectTrigger className="rounded-xl">
-                  <SelectValue placeholder="Select folder..." />
+                  <SelectValue placeholder={t('save.folder')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="root">📁 Root (no folder)</SelectItem>
+                  <SelectItem value="root">{t('save.root')}</SelectItem>
                   {folders.map((folder) => (
-                    <SelectItem key={folder.id} value={folder.id}>
-                      📂 {folder.name}
-                    </SelectItem>
+                    <SelectItem key={folder.id} value={folder.id}>📂 {folder.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Gauge preview */}
             <div className="frosted-panel">
-              <p className="text-xs text-muted-foreground mb-2">Current Gauge (will be saved):</p>
+              <p className="text-xs text-muted-foreground mb-2">{t('save.currentGauge')}</p>
               <p className="text-sm font-medium">
                 {safeGaugeData.postWashStitchDensity.toFixed(1)} st/cm × {safeGaugeData.postWashRowDensity.toFixed(1)} rows/cm
               </p>
               <p className="text-xs text-muted-foreground">
-                Swatch: {safeSwatchData.postWashWidth} × {safeSwatchData.postWashHeight} cm
+                {t('save.swatch')} {safeSwatchData.postWashWidth} × {safeSwatchData.postWashHeight} cm
               </p>
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSaveModalOpen(false)} className="rounded-2xl">
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleSaveToCloud}
-              disabled={!yarnName.trim() || createEntry.isPending}
-              className="rounded-2xl"
-            >
+            <Button variant="outline" onClick={() => setSaveModalOpen(false)} className="rounded-2xl">{t('common.cancel')}</Button>
+            <Button onClick={handleSaveToCloud} disabled={!yarnName.trim() || createEntry.isPending} className="rounded-2xl">
               {createEntry.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Save Yarn
+              {t('save.saveYarn')}
             </Button>
           </DialogFooter>
         </DialogContent>
