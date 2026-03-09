@@ -721,7 +721,7 @@ export default function CrochetEngine() {
           ) : (
             <Suspense fallback={
               <div className="w-full h-full flex items-center justify-center">
-                <div className="animate-pulse text-muted-foreground">Loading 3D Yarn Preview...</div>
+                <div className="animate-pulse text-muted-foreground">{t('crochet.loading3d')}</div>
               </div>
             }>
               <Canvas camera={{ position: [0, 0, 4], fov: 50 }} shadows={highFidelityMode}>
