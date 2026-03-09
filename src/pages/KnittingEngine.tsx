@@ -333,7 +333,7 @@ export default function KnittingEngine() {
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Height</Label>
+                <Label className="text-xs">{t('common.height')}</Label>
                 <Input
                   type="number"
                   value={tempHeight}
