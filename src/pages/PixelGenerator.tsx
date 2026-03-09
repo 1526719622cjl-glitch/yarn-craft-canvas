@@ -1152,7 +1152,7 @@ export default function PixelGenerator() {
                       <Redo className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>重做 (Ctrl+Y)</TooltipContent>
+                  <TooltipContent>{t('common.redo')} (Ctrl+Y)</TooltipContent>
                 </Tooltip>
                 <div className="w-px h-6 bg-border mx-1" />
                 <span className="text-sm text-muted-foreground">
