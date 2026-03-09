@@ -312,7 +312,7 @@ export default function CrochetEngine() {
                 className="text-xs"
               >
                 <Palette className="w-3 h-3 mr-1" />
-                {showSymbolGuide ? 'Hide' : 'Expand'}
+                {showSymbolGuide ? t('crochet.hide') : t('crochet.expand')}
               </Button>
             </div>
             
