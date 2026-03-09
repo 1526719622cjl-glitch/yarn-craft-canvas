@@ -401,7 +401,7 @@ export default function KnittingEngine() {
         <motion.div variants={itemVariants} className="xl:col-span-2 glass-card p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-medium">
-              {showWrongSide ? 'Wrong Side View' : 'Right Side View'}
+              {showWrongSide ? t('knitting.wrongSideView') : t('knitting.rightSideView')}
             </h2>
             <span className="text-sm text-muted-foreground">
               Click and drag to paint
