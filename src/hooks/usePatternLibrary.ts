@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from '@/hooks/use-toast';
-import { generateImageThumbnail, isThumbableImage } from '@/lib/thumbnailGenerator';
+import { generateThumbnail, isThumbableImage, isPdfFile } from '@/lib/thumbnailGenerator';
 
 export interface PatternEntry {
   id: string;
@@ -108,7 +108,8 @@ export function usePatternLibrary(category: 'crochet' | 'knitting') {
       return null;
     }
 
-    await fetchPatterns();
+    // Don't refetch immediately - let background uploads complete
+    // The pattern will appear on next visit or manual refresh
     return data as unknown as PatternEntry;
   };
 
@@ -155,6 +156,7 @@ export function usePatternLibrary(category: 'crochet' | 'knitting') {
     const { data: urlData } = supabase.storage.from('pattern-files').getPublicUrl(originalPath);
     const fileUrl = urlData.publicUrl;
     const isImage = file.type.startsWith('image');
+    const isPdf = isPdfFile(file);
 
     // Insert file record
     await supabase.from('pattern_files').insert({
@@ -169,12 +171,12 @@ export function usePatternLibrary(category: 'crochet' | 'knitting') {
     const shouldSetCover = (existingFiles || []).length <= 1;
 
     if (shouldSetCover) {
-      let coverUrl = fileUrl;
+      let coverUrl: string | null = null;
 
-      // Generate thumbnail for image files
-      if (isThumbableImage(file)) {
+      // Generate thumbnail for image or PDF files
+      if (isThumbableImage(file) || isPdf) {
         try {
-          const thumbBlob = await generateImageThumbnail(file, 400, 520);
+          const thumbBlob = await generateThumbnail(file, 400, 520);
           if (thumbBlob) {
             const thumbPath = `${basePath}/thumb_${Date.now()}.jpg`;
             const { error: thumbErr } = await supabase.storage.from('pattern-files').upload(thumbPath, thumbBlob, {
@@ -186,12 +188,16 @@ export function usePatternLibrary(category: 'crochet' | 'knitting') {
             }
           }
         } catch (e) {
-          console.warn('Thumbnail generation failed, using original', e);
+          console.warn('Thumbnail generation failed, using original for images', e);
+          // For images, fall back to original; for PDFs, leave cover null
+          if (isImage) coverUrl = fileUrl;
         }
+      } else if (isImage) {
+        coverUrl = fileUrl;
       }
 
-      // Only update cover for images (not PDFs)
-      if (isImage) {
+      // Update cover if we have one
+      if (coverUrl) {
         await supabase.from('pattern_library').update({ cover_image_url: coverUrl } as any).eq('id', patternId);
       }
     }
