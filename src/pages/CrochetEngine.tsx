@@ -737,8 +737,8 @@ export default function CrochetEngine() {
 
         <p className="text-xs text-muted-foreground mt-3 text-center">
           {view3DMode === 'wireframe' 
-            ? 'Spiral topology • Auto-rotation • Click stitches to highlight in chart'
-            : 'Drag to rotate • Scroll to zoom • Hover on chart to highlight stitch with emissive glow'
+            ? t('crochet.wireframeTip')
+            : t('crochet.tubesTip')
           }
         </p>
       </motion.div>
