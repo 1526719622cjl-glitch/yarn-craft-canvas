@@ -531,7 +531,7 @@ export default function KnittingEngine() {
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <Label htmlFor="knit-hifi-toggle" className="text-sm">High Quality (AO)</Label>
+              <Label htmlFor="knit-hifi-toggle" className="text-sm">{t('knitting.highQualityAO')}</Label>
               <Switch
                 id="knit-hifi-toggle"
                 checked={knittingHighFidelityMode}
