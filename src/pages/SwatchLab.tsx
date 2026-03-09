@@ -436,6 +436,42 @@ export default function SwatchLab() {
               </div>
             </div>
 
+            {/* Post-wash image upload */}
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">📷 织片照片（可选）</Label>
+              <input
+                ref={postWashFileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleImageUpload(file, setPostWashImage);
+                }}
+              />
+              {postWashImage ? (
+                <div className="relative group">
+                  <img src={postWashImage} alt="Post-wash swatch" className="w-full h-32 object-cover rounded-xl border border-border/30" />
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => { setPostWashImage(null); if (postWashFileRef.current) postWashFileRef.current.value = ''; }}
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => postWashFileRef.current?.click()}
+                  className="w-full h-24 border-2 border-dashed border-border/40 rounded-xl flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors"
+                >
+                  <Camera className="w-5 h-5" />
+                  <span className="text-xs">上传织片照片</span>
+                </button>
+              )}
+            </div>
+
             {/* Post-wash gauge result */}
             <div className="pt-3 border-t border-border/30">
               <p className="text-xs text-muted-foreground">Post-wash gauge (for targeting):</p>
