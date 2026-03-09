@@ -703,7 +703,7 @@ export default function CrochetEngine() {
           {view3DMode === 'wireframe' ? (
             <Suspense fallback={
               <div className="w-full h-full flex items-center justify-center">
-                <div className="animate-pulse text-muted-foreground">Loading Wireframe Preview...</div>
+                <div className="animate-pulse text-muted-foreground">{t('crochet.loadingWireframe')}</div>
               </div>
             }>
               <CrochetWireframeScene
