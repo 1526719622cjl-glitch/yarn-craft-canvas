@@ -1057,7 +1057,7 @@ export default function PixelGenerator() {
             <div className="space-y-2 border-t border-border/30 pt-4">
               <div className="flex items-center gap-2">
                 <Layers className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm font-medium text-muted-foreground">Trace Opacity</span>
+                <span className="text-sm font-medium text-muted-foreground">{t('pixel.traceOpacity')}</span>
               </div>
               <Slider
                 value={[traceOpacity]}
