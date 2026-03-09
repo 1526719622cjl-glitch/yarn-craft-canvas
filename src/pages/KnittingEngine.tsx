@@ -386,7 +386,7 @@ export default function KnittingEngine() {
             className="w-full rounded-2xl soft-press"
           >
             <RotateCcw className="w-4 h-4 mr-2" />
-            Reset Grid
+            {t('knitting.resetGrid')}
           </Button>
 
           <div className="frosted-panel">
