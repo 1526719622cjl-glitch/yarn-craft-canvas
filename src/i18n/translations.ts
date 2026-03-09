@@ -255,7 +255,7 @@ const translations = {
 
   // Pattern Status
   'pattern.filter.all': { zh: '全部', en: 'All' },
-  'pattern.status.preparing': { zh: '准备中', en: 'Preparing' },
+  'pattern.status.preparing': { zh: '未织', en: 'Not Started' },
   'pattern.status.inProgress': { zh: '进行中', en: 'In Progress' },
   'pattern.status.completed': { zh: '已完成', en: 'Completed' },
 
