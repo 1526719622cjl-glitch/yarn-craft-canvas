@@ -477,7 +477,7 @@ export default function KnittingEngine() {
         <motion.div variants={itemVariants} className="glass-card p-6 space-y-6">
           <div className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-medium">Written Instructions</h2>
+            <h2 className="text-lg font-medium">{t('knitting.writtenInstructions')}</h2>
           </div>
 
           <div className="space-y-2 max-h-[300px] overflow-auto">
