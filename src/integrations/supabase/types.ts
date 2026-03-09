@@ -14,6 +14,197 @@ export type Database = {
   }
   public: {
     Tables: {
+      pattern_ai_parses: {
+        Row: {
+          anchor_regions: Json | null
+          created_at: string
+          id: string
+          parsed_steps: Json
+          pattern_id: string
+          user_id: string
+        }
+        Insert: {
+          anchor_regions?: Json | null
+          created_at?: string
+          id?: string
+          parsed_steps?: Json
+          pattern_id: string
+          user_id: string
+        }
+        Update: {
+          anchor_regions?: Json | null
+          created_at?: string
+          id?: string
+          parsed_steps?: Json
+          pattern_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pattern_ai_parses_pattern_id_fkey"
+            columns: ["pattern_id"]
+            isOneToOne: false
+            referencedRelation: "pattern_library"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pattern_annotations: {
+        Row: {
+          annotation_type: string
+          created_at: string
+          data: Json
+          id: string
+          pattern_file_id: string
+          user_id: string
+        }
+        Insert: {
+          annotation_type: string
+          created_at?: string
+          data?: Json
+          id?: string
+          pattern_file_id: string
+          user_id: string
+        }
+        Update: {
+          annotation_type?: string
+          created_at?: string
+          data?: Json
+          id?: string
+          pattern_file_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pattern_annotations_pattern_file_id_fkey"
+            columns: ["pattern_file_id"]
+            isOneToOne: false
+            referencedRelation: "pattern_files"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pattern_files: {
+        Row: {
+          created_at: string
+          file_type: string
+          file_url: string
+          id: string
+          pattern_id: string
+          sort_order: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_type?: string
+          file_url: string
+          id?: string
+          pattern_id: string
+          sort_order?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          file_type?: string
+          file_url?: string
+          id?: string
+          pattern_id?: string
+          sort_order?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pattern_files_pattern_id_fkey"
+            columns: ["pattern_id"]
+            isOneToOne: false
+            referencedRelation: "pattern_library"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pattern_library: {
+        Row: {
+          category: string
+          cover_image_url: string | null
+          created_at: string
+          description: string | null
+          id: string
+          status: string
+          tags: string[] | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          cover_image_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          status?: string
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          cover_image_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          status?: string
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      pattern_progress: {
+        Row: {
+          corrections: Json | null
+          created_at: string
+          current_step: number
+          id: string
+          pattern_id: string
+          step_timestamps: Json | null
+          total_steps: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          corrections?: Json | null
+          created_at?: string
+          current_step?: number
+          id?: string
+          pattern_id: string
+          step_timestamps?: Json | null
+          total_steps?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          corrections?: Json | null
+          created_at?: string
+          current_step?: number
+          id?: string
+          pattern_id?: string
+          step_timestamps?: Json | null
+          total_steps?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pattern_progress_pattern_id_fkey"
+            columns: ["pattern_id"]
+            isOneToOne: false
+            referencedRelation: "pattern_library"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
