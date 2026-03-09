@@ -1014,7 +1014,7 @@ export default function PixelGenerator() {
                       <Plus className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Add to palette</TooltipContent>
+                  <TooltipContent>{t('pixel.addToPalette')}</TooltipContent>
                 </Tooltip>
               </div>
             </div>
