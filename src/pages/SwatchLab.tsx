@@ -67,6 +67,16 @@ export default function SwatchLab() {
   const [showReportGenerator, setShowReportGenerator] = useState(false);
   const [customToolSize, setCustomToolSize] = useState('');
   const [isCustomToolSize, setIsCustomToolSize] = useState(false);
+  const [preWashImage, setPreWashImage] = useState<string | null>(null);
+  const [postWashImage, setPostWashImage] = useState<string | null>(null);
+  const preWashFileRef = useRef<HTMLInputElement>(null);
+  const postWashFileRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = (file: File, setter: (url: string | null) => void) => {
+    const reader = new FileReader();
+    reader.onload = (e) => setter(e.target?.result as string);
+    reader.readAsDataURL(file);
+  };
 
   // Safe defaults + null/NaN normalization
   const num = (value: unknown, fallback: number) => {
