@@ -239,7 +239,7 @@ export default function CrochetEngine() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Split className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-medium">Pattern Editor</h2>
+              <h2 className="text-lg font-medium">{t('crochet.patternEditor')}</h2>
             </div>
             {aiError && (
               <span className="text-xs text-destructive flex items-center gap-1">
