@@ -453,7 +453,7 @@ export default function CrochetEngine() {
                     <ZoomIn className="w-4 h-4 rotate-180" />
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => resetTransform()} className="rounded-xl">
-                    Reset
+                    {t('common.reset')}
                   </Button>
                 </div>
                 
