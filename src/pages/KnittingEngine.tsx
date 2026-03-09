@@ -560,7 +560,7 @@ export default function KnittingEngine() {
         </div>
 
         <p className="text-xs text-muted-foreground mt-3 text-center">
-          Drag to rotate • Scroll to zoom • Hover on chart to highlight stitch with emissive glow
+          {t('knitting.3dTip')}
         </p>
       </motion.div>
     </motion.div>
