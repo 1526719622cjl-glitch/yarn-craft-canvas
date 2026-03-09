@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { useI18n } from '@/i18n/useI18n';
 import { useYarnCluesStore, CrochetStitch } from '@/store/useYarnCluesStore';
 import { Eye, LayoutGrid, ZoomIn, Sparkles, AlertCircle, CheckCircle, Loader2, Brain, Split, Palette, Layers, Grid3X3 } from 'lucide-react';
 import { CrochetHookIcon } from '@/components/icons';
