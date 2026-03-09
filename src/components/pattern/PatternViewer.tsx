@@ -1,35 +1,224 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState } from 'react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { ZoomIn, ZoomOut, Maximize } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/i18n/useI18n';
+import { AnnotationToolbar, type AnnotationTool } from './AnnotationToolbar';
+
+export interface AnnotationPoint {
+  x: number;
+  y: number;
+}
+
+export interface AnnotationStroke {
+  points: AnnotationPoint[];
+}
+
+export interface AnnotationHighlight {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface AnnotationNote {
+  id: string;
+  x: number;
+  y: number;
+  text: string;
+}
+
+export interface PatternAnnotationData {
+  strokes: AnnotationStroke[];
+  highlights: AnnotationHighlight[];
+  notes: AnnotationNote[];
+}
 
 interface PatternViewerProps {
   imageUrl: string;
   highlightRegion?: { x: number; y: number; width: number; height: number } | null;
+  annotations?: PatternAnnotationData | null;
+  onAnnotationChange?: (data: PatternAnnotationData) => void;
+  onSaveAnnotation?: () => void;
+  savingAnnotation?: boolean;
 }
 
-export function PatternViewer({ imageUrl, highlightRegion }: PatternViewerProps) {
+const EMPTY_ANNOTATION: PatternAnnotationData = {
+  strokes: [],
+  highlights: [],
+  notes: [],
+};
+
+export function PatternViewer({
+  imageUrl,
+  highlightRegion,
+  annotations = EMPTY_ANNOTATION,
+  onAnnotationChange,
+  onSaveAnnotation,
+  savingAnnotation,
+}: PatternViewerProps) {
   const { t } = useI18n();
+  const [tool, setTool] = useState<AnnotationTool>('none');
+  const [drawingStroke, setDrawingStroke] = useState<AnnotationPoint[] | null>(null);
+  const [drawingHighlight, setDrawingHighlight] = useState<AnnotationHighlight | null>(null);
+  const [highlightStart, setHighlightStart] = useState<AnnotationPoint | null>(null);
+
+  const getRelativePoint = (e: React.PointerEvent<HTMLDivElement>): AnnotationPoint => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    return {
+      x: ((e.clientX - rect.left) / rect.width) * 100,
+      y: ((e.clientY - rect.top) / rect.height) * 100,
+    };
+  };
+
+  const updateAnnotations = (updater: (prev: PatternAnnotationData) => PatternAnnotationData) => {
+    if (!onAnnotationChange) return;
+    onAnnotationChange(updater(annotations));
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (tool === 'none') return;
+    const point = getRelativePoint(e);
+
+    if (tool === 'pen') {
+      setDrawingStroke([point]);
+    }
+
+    if (tool === 'highlight') {
+      setHighlightStart(point);
+      setDrawingHighlight({ x: point.x, y: point.y, width: 0, height: 0 });
+    }
+
+    if (tool === 'note') {
+      updateAnnotations((prev) => ({
+        ...prev,
+        notes: [
+          ...prev.notes,
+          {
+            id: crypto.randomUUID(),
+            x: point.x,
+            y: point.y,
+            text: t('pattern.newNote'),
+          },
+        ],
+      }));
+    }
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const point = getRelativePoint(e);
+
+    if (tool === 'pen' && drawingStroke) {
+      setDrawingStroke([...drawingStroke, point]);
+    }
+
+    if (tool === 'highlight' && highlightStart) {
+      const x = Math.min(highlightStart.x, point.x);
+      const y = Math.min(highlightStart.y, point.y);
+      const width = Math.abs(point.x - highlightStart.x);
+      const height = Math.abs(point.y - highlightStart.y);
+      setDrawingHighlight({ x, y, width, height });
+    }
+  };
+
+  const handlePointerUp = () => {
+    if (tool === 'pen' && drawingStroke && drawingStroke.length > 1) {
+      updateAnnotations((prev) => ({ ...prev, strokes: [...prev.strokes, { points: drawingStroke }] }));
+    }
+    if (tool === 'highlight' && drawingHighlight && drawingHighlight.width > 0.2 && drawingHighlight.height > 0.2) {
+      updateAnnotations((prev) => ({ ...prev, highlights: [...prev.highlights, drawingHighlight] }));
+    }
+
+    setDrawingStroke(null);
+    setDrawingHighlight(null);
+    setHighlightStart(null);
+  };
+
+  const clearAnnotations = () => {
+    onAnnotationChange?.(EMPTY_ANNOTATION);
+  };
+
+  const allStrokes = drawingStroke ? [...annotations.strokes, { points: drawingStroke }] : annotations.strokes;
+  const allHighlights = drawingHighlight ? [...annotations.highlights, drawingHighlight] : annotations.highlights;
 
   return (
     <div className="relative w-full h-full min-h-[400px] bg-muted/20 rounded-2xl overflow-hidden">
-      <TransformWrapper
-        initialScale={1}
-        minScale={0.5}
-        maxScale={5}
-        centerOnInit
-      >
+      <TransformWrapper initialScale={1} minScale={0.5} maxScale={5} centerOnInit>
         {({ zoomIn, zoomOut, resetTransform }) => (
           <>
-            <div className="absolute top-3 right-3 z-10 flex gap-1">
-              <Button variant="glass" size="icon" onClick={() => zoomIn()}><ZoomIn className="w-4 h-4" /></Button>
-              <Button variant="glass" size="icon" onClick={() => zoomOut()}><ZoomOut className="w-4 h-4" /></Button>
-              <Button variant="glass" size="icon" onClick={() => resetTransform()}><Maximize className="w-4 h-4" /></Button>
+            <AnnotationToolbar
+              activeTool={tool}
+              onToolChange={setTool}
+              onClear={clearAnnotations}
+              onSave={() => onSaveAnnotation?.()}
+              saving={savingAnnotation}
+            />
+            <div className="absolute top-3 right-3 z-20 flex gap-1">
+              <Button variant="glass" size="icon" onClick={() => zoomIn()}>
+                <ZoomIn className="w-4 h-4" />
+              </Button>
+              <Button variant="glass" size="icon" onClick={() => zoomOut()}>
+                <ZoomOut className="w-4 h-4" />
+              </Button>
+              <Button variant="glass" size="icon" onClick={() => resetTransform()}>
+                <Maximize className="w-4 h-4" />
+              </Button>
             </div>
+
             <TransformComponent wrapperClass="!w-full !h-full" contentClass="!w-full !h-full flex items-center justify-center">
-              <div className="relative">
-                <img src={imageUrl} alt="Pattern" className="max-w-full max-h-[70vh] object-contain" />
+              <div className="relative select-none">
+                <img src={imageUrl} alt="Pattern" className="max-w-full max-h-[70vh] object-contain block" draggable={false} />
+
+                <div
+                  className="absolute inset-0"
+                  onPointerDown={handlePointerDown}
+                  onPointerMove={handlePointerMove}
+                  onPointerUp={handlePointerUp}
+                  onPointerLeave={handlePointerUp}
+                >
+                  <svg className="w-full h-full">
+                    {allHighlights.map((h, idx) => (
+                      <rect
+                        key={`h-${idx}`}
+                        x={`${h.x}%`}
+                        y={`${h.y}%`}
+                        width={`${h.width}%`}
+                        height={`${h.height}%`}
+                        className="fill-primary/20 stroke-primary/60"
+                      />
+                    ))}
+
+                    {allStrokes.map((stroke, idx) => (
+                      <polyline
+                        key={`s-${idx}`}
+                        points={stroke.points.map((p) => `${p.x},${p.y}`).join(' ')}
+                        fill="none"
+                        stroke="hsl(var(--primary))"
+                        strokeWidth="0.35"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    ))}
+                  </svg>
+
+                  {annotations.notes.map((note) => (
+                    <textarea
+                      key={note.id}
+                      value={note.text}
+                      onChange={(e) => {
+                        const text = e.target.value;
+                        updateAnnotations((prev) => ({
+                          ...prev,
+                          notes: prev.notes.map((n) => (n.id === note.id ? { ...n, text } : n)),
+                        }));
+                      }}
+                      className="absolute text-xs bg-background/90 border border-border/60 rounded p-1.5 w-28 min-h-14 resize-none"
+                      style={{ left: `${note.x}%`, top: `${note.y}%`, transform: 'translate(-50%, -50%)' }}
+                    />
+                  ))}
+                </div>
+
                 {highlightRegion && (
                   <div
                     className="absolute border-2 border-primary/60 bg-primary/10 rounded-lg pointer-events-none animate-pulse"
