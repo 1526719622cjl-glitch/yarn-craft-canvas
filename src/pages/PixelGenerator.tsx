@@ -1123,7 +1123,7 @@ export default function PixelGenerator() {
           {/* Preview Card */}
           <div className="glass-card p-6 min-h-[500px] flex flex-col">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-medium">Yarn Grid Preview</h2>
+              <h2 className="text-lg font-medium">{t('pixel.yarnGridPreview')}</h2>
               <div className="flex items-center gap-2">
                 {/* Undo/Redo Buttons */}
                 <Tooltip>
