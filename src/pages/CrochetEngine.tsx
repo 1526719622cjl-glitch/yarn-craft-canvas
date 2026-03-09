@@ -97,6 +97,7 @@ function Crochet3DScene({
 }
 
 export default function CrochetEngine() {
+  const { t } = useI18n();
   const { 
     crochetInput, 
     setCrochetInput, 
