@@ -1047,7 +1047,7 @@ export default function PixelGenerator() {
           <div className="space-y-2 border-t border-border/30 pt-4">
             <div className="flex items-center gap-2">
               <FlipHorizontal className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium text-muted-foreground">Symmetry</span>
+              <span className="text-sm font-medium text-muted-foreground">{t('pixel.symmetry')}</span>
             </div>
             <SymmetryTools mode={symmetryMode} onChange={setSymmetryMode} />
           </div>
