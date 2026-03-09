@@ -1,12 +1,15 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Edit3, Check, Volume2, VolumeX, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Edit3, Check, Volume2, VolumeX, X, Ruler } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { useI18n } from '@/i18n/useI18n';
 import type { ParsedStep } from './AIParsePanel';
 import type { PatternProgress } from '@/hooks/usePatternProgress';
+import type { GaugeData } from './GaugeInputDialog';
+import { PixelRowPreview } from './PixelRowPreview';
+import type { RowPixelData } from './PixelRowPreview';
 
 interface ImmersiveCompanionProps {
   steps: ParsedStep[];
@@ -18,6 +21,8 @@ interface ImmersiveCompanionProps {
   onGoBack: () => void;
   onCorrection: (step: number, text: string) => void;
   onClose: () => void;
+  gauge?: GaugeData | null;
+  pixelRows?: RowPixelData[];
 }
 
 // Simple completion sound using Web Audio API
@@ -39,15 +44,19 @@ function playCompletionSound() {
 
 export function ImmersiveCompanion({
   steps, imageUrl, progress, percentage, estimatedTimeLeft,
-  onAdvance, onGoBack, onCorrection, onClose,
+  onAdvance, onGoBack, onCorrection, onClose, gauge, pixelRows = [],
 }: ImmersiveCompanionProps) {
   const { t } = useI18n();
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState('');
+  const [showGauge, setShowGauge] = useState(false);
   const currentStep = progress?.current_step || 0;
   const step = steps[currentStep];
   const corrections = progress?.corrections || {};
+
+  // Find pixel data for current step's row
+  const currentPixelRow = pixelRows.find(r => r.row === step?.row) || null;
 
   const handleNext = () => {
     if (soundEnabled) playCompletionSound();
@@ -87,6 +96,16 @@ export function ImmersiveCompanion({
     return `${m}m ${s}s`;
   };
 
+  // Gauge-based dimension hints
+  const gaugeHint = gauge && step ? (() => {
+    // Try to extract stitch count from instruction via regex
+    const stitchMatch = displayInstruction.match(/\b(\d+)\s*(st|sc|dc|hdc|tr|针)/i);
+    if (!stitchMatch) return null;
+    const stitches = parseInt(stitchMatch[1]);
+    const widthCm = (stitches / gauge.stitchesPer10cm * 10).toFixed(1);
+    return { stitches, widthCm };
+  })() : null;
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -110,12 +129,53 @@ export function ImmersiveCompanion({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {gauge && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-xs"
+              onClick={() => setShowGauge(!showGauge)}
+            >
+              <Ruler className="w-3.5 h-3.5" />
+              {gauge.stitchesPer10cm}针/{gauge.rowsPer10cm}行
+            </Button>
+          )}
           <Button variant="ghost" size="icon" onClick={() => setSoundEnabled(!soundEnabled)}>
             {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
           </Button>
           <span className="text-sm font-mono">{percentage}%</span>
         </div>
       </div>
+
+      {/* Gauge info bar */}
+      <AnimatePresence>
+        {showGauge && gauge && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden bg-primary/5 border-b border-primary/20"
+          >
+            <div className="flex items-center gap-6 px-6 py-2 text-sm">
+              <div className="flex items-center gap-2">
+                <Ruler className="w-4 h-4 text-primary" />
+                <span className="text-muted-foreground">{t('pattern.dimensionCalc')}</span>
+              </div>
+              {gauge.yarnName && (
+                <span className="text-primary font-medium">{gauge.yarnName}</span>
+              )}
+              <span className="font-mono">
+                {gauge.stitchesPer10cm} {t('yarn.stitchesPer10cm')} · {gauge.rowsPer10cm} {t('yarn.rowsPer10cm')}
+              </span>
+              {gaugeHint && (
+                <span className="ml-auto text-muted-foreground">
+                  ≈ {gaugeHint.widthCm} cm
+                </span>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Progress */}
       <Progress value={percentage} className="h-1 rounded-none" />
@@ -140,15 +200,15 @@ export function ImmersiveCompanion({
           </div>
         )}
 
-        {/* Instruction */}
-        <div className="flex-1 flex flex-col items-center justify-center p-8">
+        {/* Instruction + Pixel Preview */}
+        <div className="flex-1 flex flex-col items-center justify-center p-8 gap-6 overflow-y-auto">
           <AnimatePresence mode="wait">
             <motion.div
               key={currentStep}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="text-center max-w-lg space-y-6"
+              className="text-center max-w-lg space-y-6 w-full"
             >
               <p className="text-xs text-muted-foreground font-mono">R{step.row}</p>
               {editing ? (
@@ -159,6 +219,18 @@ export function ImmersiveCompanion({
               ) : (
                 <>
                   <p className="text-2xl lg:text-3xl font-medium leading-relaxed">{displayInstruction}</p>
+
+                  {/* Gauge dimension hint */}
+                  {gaugeHint && gauge && (
+                    <motion.p
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="text-sm text-primary/70 font-mono"
+                    >
+                      ≈ {gaugeHint.widthCm} cm
+                    </motion.p>
+                  )}
+
                   <Button variant="ghost" size="sm" onClick={handleStartEdit}>
                     <Edit3 className="w-3 h-3 mr-1" />{t('pattern.correct')}
                   </Button>
@@ -167,8 +239,15 @@ export function ImmersiveCompanion({
             </motion.div>
           </AnimatePresence>
 
+          {/* Pixel Row Preview for colorwork */}
+          {currentPixelRow && (
+            <div className="w-full max-w-lg">
+              <PixelRowPreview rowData={currentPixelRow} />
+            </div>
+          )}
+
           {/* Navigation */}
-          <div className="flex items-center gap-6 mt-12">
+          <div className="flex items-center gap-6 mt-4">
             <Button variant="outline" size="lg" onClick={onGoBack} disabled={currentStep <= 0}>
               <ChevronLeft className="w-5 h-5" />
             </Button>

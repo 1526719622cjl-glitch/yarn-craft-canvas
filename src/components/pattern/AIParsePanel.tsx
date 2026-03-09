@@ -10,6 +10,7 @@ export interface ParsedStep {
   row: number;
   instruction: string;
   anchorRegion?: { x: number; y: number; width: number; height: number };
+  colors?: { color: string; count: number }[];
 }
 
 interface AIParsePanelProps {

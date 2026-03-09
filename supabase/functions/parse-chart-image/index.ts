@@ -19,6 +19,7 @@ Extract each row/round as a structured step. For each step, identify:
 - row: the row or round number
 - instruction: the written instruction using standard abbreviations (ch, sc, dc, hdc, tr, inc, dec, sl st, etc.)
 - anchorRegion: approximate percentage coordinates {x, y, width, height} of where this row appears in the image
+- colors: if this is a colorwork/Fair Isle pattern, extract color information as an array of {color: string, count: number} for each color segment in the row. Use hex colors if visible, or descriptive names like "MC" (main color), "CC1", "CC2", etc.
 
 Use standard crochet terminology. If you see JIS symbols, translate them to English abbreviations.
 Return ONLY a JSON object with a "steps" array. No markdown, no explanation.`
@@ -27,6 +28,7 @@ Extract each row as a structured step. For each step, identify:
 - row: the row number
 - instruction: the written instruction using standard abbreviations (K, P, YO, K2tog, SSK, C4F, C4B, etc.)
 - anchorRegion: approximate percentage coordinates {x, y, width, height} of where this row appears in the image
+- colors: if this is a colorwork/Fair Isle pattern, extract color information as an array of {color: string, count: number} for each color segment in the row. Use hex colors if visible, or descriptive names like "MC" (main color), "CC1", "CC2", etc.
 
 Use standard knitting terminology.
 Return ONLY a JSON object with a "steps" array. No markdown, no explanation.`;
@@ -44,7 +46,7 @@ Return ONLY a JSON object with a "steps" array. No markdown, no explanation.`;
           {
             role: "user",
             content: [
-              { type: "text", text: "Analyze this pattern chart image and extract structured steps." },
+              { type: "text", text: "Analyze this pattern chart image and extract structured steps. If it's a colorwork pattern with multiple colors, also extract the color sequence for each row." },
               { type: "image_url", image_url: { url: imageUrl } },
             ],
           },
@@ -54,7 +56,7 @@ Return ONLY a JSON object with a "steps" array. No markdown, no explanation.`;
             type: "function",
             function: {
               name: "extract_pattern_steps",
-              description: "Extract structured pattern steps from a chart image",
+              description: "Extract structured pattern steps from a chart image, including colorwork information if present",
               parameters: {
                 type: "object",
                 properties: {
@@ -74,6 +76,18 @@ Return ONLY a JSON object with a "steps" array. No markdown, no explanation.`;
                             height: { type: "number" },
                           },
                           required: ["x", "y", "width", "height"],
+                        },
+                        colors: {
+                          type: "array",
+                          description: "Color segments for colorwork patterns. Each segment has a color (hex or name) and count of stitches.",
+                          items: {
+                            type: "object",
+                            properties: {
+                              color: { type: "string", description: "Hex color code like #FF5733 or color name like MC, CC1" },
+                              count: { type: "number", description: "Number of stitches in this color" },
+                            },
+                            required: ["color", "count"],
+                          },
                         },
                       },
                       required: ["row", "instruction"],

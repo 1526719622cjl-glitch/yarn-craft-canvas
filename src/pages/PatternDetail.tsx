@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Play, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useI18n } from '@/i18n/useI18n';
 import { useAuth } from '@/hooks/useAuth';
 import { usePatternProgress } from '@/hooks/usePatternProgress';
@@ -12,6 +11,8 @@ import { PatternViewer } from '@/components/pattern/PatternViewer';
 import { AIParsePanel, type ParsedStep } from '@/components/pattern/AIParsePanel';
 import { ImmersiveCompanion } from '@/components/pattern/ImmersiveCompanion';
 import { StepCounter } from '@/components/pattern/StepCounter';
+import { GaugeInputDialog, type GaugeData } from '@/components/pattern/GaugeInputDialog';
+import type { RowPixelData } from '@/components/pattern/PixelRowPreview';
 import type { PatternEntry, PatternFile } from '@/hooks/usePatternLibrary';
 
 export default function PatternDetail() {
@@ -27,6 +28,9 @@ export default function PatternDetail() {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [immersiveMode, setImmersiveMode] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showGaugeDialog, setShowGaugeDialog] = useState(false);
+  const [gauge, setGauge] = useState<GaugeData | null>(null);
+  const [pixelRows, setPixelRows] = useState<RowPixelData[]>([]);
 
   const { progress, percentage, estimatedTimeLeft, initProgress, advanceStep, goBack, addCorrection } = usePatternProgress(id || null);
 
@@ -56,10 +60,32 @@ export default function PatternDetail() {
   const handleStepsLoaded = (newSteps: ParsedStep[]) => {
     setSteps(newSteps);
     initProgress(newSteps.length);
+    
+    // Extract pixel data from colorwork steps
+    const colorRows: RowPixelData[] = newSteps
+      .filter(s => s.colors && s.colors.length > 0)
+      .map(s => ({
+        row: s.row,
+        pixels: s.colors!.map(c => ({ color: c.color, count: c.count })),
+        totalStitches: s.colors!.reduce((sum, c) => sum + c.count, 0),
+      }));
+    setPixelRows(colorRows);
   };
 
-  const startImmersive = () => {
+  const handleStartCompanion = () => {
     if (steps.length === 0) return;
+    setShowGaugeDialog(true);
+  };
+
+  const handleGaugeConfirm = (gaugeData: GaugeData) => {
+    setGauge(gaugeData);
+    setShowGaugeDialog(false);
+    if (!progress) initProgress(steps.length);
+    setImmersiveMode(true);
+  };
+
+  const handleSkipGauge = () => {
+    setShowGaugeDialog(false);
     if (!progress) initProgress(steps.length);
     setImmersiveMode(true);
   };
@@ -94,7 +120,7 @@ export default function PatternDetail() {
             </div>
           </div>
           {steps.length > 0 && (
-            <Button onClick={startImmersive} className="rounded-2xl">
+            <Button onClick={handleStartCompanion} className="rounded-2xl">
               <Play className="w-4 h-4 mr-2" />{t('pattern.startCompanion')}
             </Button>
           )}
@@ -149,6 +175,16 @@ export default function PatternDetail() {
       {/* Side counter */}
       <StepCounter />
 
+      {/* Gauge Input Dialog */}
+      <GaugeInputDialog
+        open={showGaugeDialog}
+        onOpenChange={(open) => {
+          if (!open) handleSkipGauge();
+        }}
+        onConfirm={handleGaugeConfirm}
+        initialGauge={gauge}
+      />
+
       {/* Immersive mode */}
       {immersiveMode && currentImageUrl && (
         <ImmersiveCompanion
@@ -161,6 +197,8 @@ export default function PatternDetail() {
           onGoBack={goBack}
           onCorrection={addCorrection}
           onClose={() => setImmersiveMode(false)}
+          gauge={gauge}
+          pixelRows={pixelRows}
         />
       )}
     </>
