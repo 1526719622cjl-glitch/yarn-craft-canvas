@@ -1107,7 +1107,7 @@ export default function PixelGenerator() {
                       <RotateCw className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Rotate 90°</TooltipContent>
+                  <TooltipContent>{t('pixel.rotate90')}</TooltipContent>
                 </Tooltip>
               </div>
               <Button variant="ghost" size="sm" onClick={clearSelection} className="w-full rounded-xl text-muted-foreground">
