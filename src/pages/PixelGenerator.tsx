@@ -174,6 +174,7 @@ const tools: { type: ExtendedTool; icon: typeof Pencil; label: string }[] = [
 // Ruler component moved to InfiniteCanvas component
 
 export default function PixelGenerator() {
+  const { t } = useI18n();
   const { 
     gaugeData, 
     pixelGrid, 
