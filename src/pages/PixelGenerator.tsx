@@ -1099,7 +1099,7 @@ export default function PixelGenerator() {
                       <Move className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Paste</TooltipContent>
+                  <TooltipContent>{t('common.paste')}</TooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
