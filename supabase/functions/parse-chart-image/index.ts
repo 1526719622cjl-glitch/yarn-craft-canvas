@@ -5,15 +5,17 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const isSupportedImageUrl = (url: string) => /\.(png|jpe?g|webp|gif)(\?.*)?$/i.test(url);
+function isPdfUrl(url: string): boolean {
+  return /\.pdf(\?.*)?$/i.test(url);
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const { imageUrl, category } = await req.json();
-    if (!imageUrl || !isSupportedImageUrl(imageUrl)) {
-      return new Response(JSON.stringify({ error: "Only PNG/JPEG/WebP/GIF images can be parsed." }), {
+    if (!imageUrl) {
+      return new Response(JSON.stringify({ error: "No file URL provided." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -50,6 +52,41 @@ Rules:
 - Do not invent rows. Return only visible or inferable rows.
 Return ONLY tool output JSON.`;
 
+    // Build user content based on file type
+    const isPdf = isPdfUrl(imageUrl);
+    let userContent: any[];
+
+    if (isPdf) {
+      // Download PDF and convert to base64 for Gemini inline_data
+      console.log("Downloading PDF for inline processing...");
+      const pdfResp = await fetch(imageUrl);
+      if (!pdfResp.ok) throw new Error(`Failed to download PDF: ${pdfResp.status}`);
+      const pdfBuffer = await pdfResp.arrayBuffer();
+      const pdfBytes = new Uint8Array(pdfBuffer);
+
+      // Convert to base64
+      let binary = '';
+      for (let i = 0; i < pdfBytes.length; i++) {
+        binary += String.fromCharCode(pdfBytes[i]);
+      }
+      const base64 = btoa(binary);
+
+      userContent = [
+        { type: "text", text: "Extract rows/rounds and stitch terms with accurate anchor regions from this pattern document." },
+        {
+          type: "image_url",
+          image_url: {
+            url: `data:application/pdf;base64,${base64}`,
+          },
+        },
+      ];
+    } else {
+      userContent = [
+        { type: "text", text: "Extract rows/rounds and stitch terms with accurate anchor regions." },
+        { type: "image_url", image_url: { url: imageUrl } },
+      ];
+    }
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -60,13 +97,7 @@ Return ONLY tool output JSON.`;
         model: "google/gemini-2.5-pro",
         messages: [
           { role: "system", content: systemPrompt },
-          {
-            role: "user",
-            content: [
-              { type: "text", text: "Extract rows/rounds and stitch terms with accurate anchor regions." },
-              { type: "image_url", image_url: { url: imageUrl } },
-            ],
-          },
+          { role: "user", content: userContent },
         ],
         tools: [
           {
@@ -127,6 +158,12 @@ Return ONLY tool output JSON.`;
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      if (response.status === 402) {
+        return new Response(JSON.stringify({ error: "Payment required, please add credits" }), {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       console.error("AI gateway error:", response.status, body);
       throw new Error("AI gateway error");
     }
@@ -135,7 +172,7 @@ Return ONLY tool output JSON.`;
     const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
     const content = result.choices?.[0]?.message?.content;
 
-    let steps = [];
+    let steps: any[] = [];
     if (toolCall?.function?.arguments) {
       const parsed = JSON.parse(toolCall.function.arguments);
       steps = parsed.steps || [];
