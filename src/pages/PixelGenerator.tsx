@@ -939,7 +939,7 @@ export default function PixelGenerator() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Sliders className="w-4 h-4 text-primary" />
-                <h3 className="font-medium text-sm">Max Colors</h3>
+                <h3 className="font-medium text-sm">{t('pixel.maxColors')}</h3>
               </div>
               <span className="text-sm font-semibold text-primary">{colorCount}</span>
             </div>
