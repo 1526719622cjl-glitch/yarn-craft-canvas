@@ -957,7 +957,7 @@ export default function PixelGenerator() {
           {colorPalette.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-muted-foreground">Project Palette</h3>
+                <h3 className="text-sm font-medium text-muted-foreground">{t('pixel.projectPalette')}</h3>
                 <Button
                   variant="ghost"
                   size="sm"
