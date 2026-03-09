@@ -1220,7 +1220,7 @@ export default function PixelGenerator() {
                     onClick={() => createEmptyGrid(emptyCanvasColor)} 
                     className="rounded-xl"
                   >
-                    Create Canvas
+                    {t('pixel.createCanvas')}
                   </Button>
                 </div>
               </div>
