@@ -195,9 +195,8 @@ export function GaugeInputDialog({ open, onOpenChange, onConfirm, initialGauge }
         </Tabs>
 
         <div className="flex gap-2 mt-6">
-          <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
-            <X className="w-4 h-4 mr-1" />
-            {t('common.cancel')}
+          <Button variant="ghost" className="flex-shrink-0" onClick={() => onOpenChange(false)}>
+            {t('pattern.skipGauge')}
           </Button>
           <Button className="flex-1" onClick={handleConfirm} disabled={!canConfirm}>
             <Check className="w-4 h-4 mr-1" />
