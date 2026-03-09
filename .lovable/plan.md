@@ -1,375 +1,89 @@
 
-# Pixel Generator & Crochet Engine 3D Enhancement Plan
 
-## Overview
+# 综合修复计划：保存跳转 + PDF预览增强 + AI解析PDF + 翻译统一 + 缩略图
 
-This plan addresses three major enhancements:
-1. **Pixel Generator**: Canvas Dimensions display should reflect actual grid state
-2. **Crochet Engine 2D Chart**: Layer correspondence learning from JIS standards
-3. **Crochet Engine 3D Simulator**: High-performance wireframe rendering with spiral topology
+## 6个核心问题
 
----
-
-## Part 1: Pixel Generator - Canvas Dimensions Sync
-
-### Current Issue
-The "Canvas Dimensions (stitches)" inputs show `customGridWidth` and `customGridHeight` values, but after importing an image or creating a canvas, the actual grid dimensions (`gridWidth` × `gridHeight`) may differ from these custom settings.
-
-### Solution
-Synchronize the Canvas Dimensions display with the actual grid state:
-- When no grid exists: show editable custom dimensions for new canvas creation
-- When grid exists: display the actual `gridWidth` × `gridHeight` values
-- Allow editing to trigger a resize operation (using the existing scale logic)
-
-### Files to Modify
-- `src/pages/PixelGenerator.tsx`
-
-### Implementation Details
-```text
-Line ~830-860: Update the Canvas Dimensions section
-
-Current behavior:
-  - Always shows customGridWidth × customGridHeight
-  - Disconnected from actual pixelGrid state
-
-New behavior:
-  - Display actual gridWidth × gridHeight when pixelGrid.length > 0
-  - Show "(Current)" label to indicate active state
-  - Allow direct dimension input to trigger proportional resize
-```
+1. **保存后不跳转** — `PatternUploadDialog` 等文件上传完毕才关闭弹窗，体验慢
+2. **PDF预览不可缩放/全屏** — 固定高度 iframe，无法调节
+3. **AI解析不支持PDF** — Edge Function `isSupportedImageUrl` 阻止PDF，客户端 `canParse` 也限制
+4. **AI面板缺少确认+跟织入口** — 解析后无确认步骤，跟织按钮在顶部而非面板内
+5. **翻译混合** — `SmartYarnCalculator`(~30处)、`YarnGaugeVault`(~25处) 全是硬编码英文
+6. **PDF缩略图** — 上传PDF时未生成封面缩略图
 
 ---
 
-## Part 2: Crochet Engine 2D Chart - Layer Correspondence
+## 修改方案
 
-### Learning from JIS Reference Book
+### 1. PatternUploadDialog — 保存后立即关闭并跳转
 
-Based on the crochet technique encyclopedia, the key relationships for 2D chart layer correspondence are:
+- 添加 `onNavigate?: (patternId: string) => void` prop
+- `handleSubmit`: 创建 pattern 后立即 `onOpenChange(false)` + `onNavigate(pattern.id)`
+- 文件上传改为**后台异步**（不阻塞弹窗关闭）
+- `PatternLibrary.tsx`: 传入 `onNavigate={(id) => navigate(\`/${category}/${id}\`)}`
 
-**Stitch Anchor Points (上层与下层对应关系)**:
-1. **Circular Rounds**: Each stitch in row N hooks into the top loop of a stitch in row N-1
-2. **Increase (inc/V)**: Two stitches hook into the same anchor point
-3. **Decrease (dec/A)**: One stitch hooks through two anchor points
-4. **Stitch Offset (半针错位)**: Odd rows may offset by half a stitch width
+### 2. PDF预览增强 — 可缩放 + 全屏
 
-**Visual Representation in 2D Charts**:
-- Standard stitches: Centered above their anchor stitch
-- Increases: V-shaped symbol indicating branch from single anchor
-- Decreases: Inverted V showing convergence point
-- Post stitches (fpdc/bpdc): Arrows showing direction around post
+**文件**: `PatternDetail.tsx`
 
-### Current Implementation Gap
-The current 2D chart renders stitches at uniform angular positions without considering:
-- Anchor point inheritance from previous row
-- Visual connection lines between rows
-- Increase/decrease topology visualization
+- PDF iframe 容器添加 `resize: vertical; overflow: auto` CSS
+- 添加全屏按钮，使用 `element.requestFullscreen()` API
+- 默认高度改为 `80vh`，可拖拽调节
 
-### Solution
-Add "anchor lines" connecting stitches to their parent stitch in the previous row, with special handling for increases (1→2) and decreases (2→1).
+### 3. AI解析支持PDF
 
-### Files to Modify
-- `src/pages/CrochetEngine.tsx`
-- `src/lib/enhancedCrochetParser.ts` (add anchor mapping)
+**Edge Function** `parse-chart-image/index.ts`:
+- 移除 `isSupportedImageUrl` 检查
+- 检测URL是否为PDF（扩展名或content-type）
+- PDF: 下载文件 → 转base64 → 发送为 `inline_data` (mime: `application/pdf`)
+- 图片: 保持现有 `image_url` 方式
 
-### Implementation Details
+**客户端**:
+- `AIParsePanel.tsx`: 移除 `isSupportedImage` 函数，`canParse` 默认 true
+- `PatternDetail.tsx`: `canParse` 改为 `!!currentFileUrl`（不再限制仅图片）
 
-**1. Parser Enhancement** (`enhancedCrochetParser.ts`):
-```text
-Add to ParsedStitch interface:
-  - anchorIndex: number | number[]  // Parent stitch index(es) in previous row
+### 4. AI面板底部：确认解析 + 开始跟织
 
-Algorithm:
-  - Track cumulative stitch count per row
-  - For regular stitches: anchorIndex = corresponding index
-  - For increase: anchorIndex = single parent, but outputs 2 children
-  - For decrease: anchorIndex = [idx1, idx2] two parents merged
-```
+**文件**: `AIParsePanel.tsx`
 
-**2. Chart Visualization** (`CrochetEngine.tsx`):
-```text
-Add SVG connection lines in circular chart:
-  - Draw thin curves from each stitch to its anchor(s)
-  - Color-code: normal=gray, increase=rose, decrease=sage
-  - Use quadratic bezier for smooth visual flow
-```
+- 添加 props: `onConfirmSteps`, `onStartCompanion`, `stepsConfirmed`
+- 解析完成后底部显示"确认解析内容"按钮
+- 确认后显示"开始跟织"按钮
+- `PatternDetail.tsx`: 移除顶部独立的"开始跟织"按钮
 
----
+### 5. 翻译统一
 
-## Part 3: 3D Crochet Wireframe Simulator
+**新增 ~50 个翻译键** 覆盖:
 
-### Requirements Analysis
+- `SmartYarnCalculator`: "Smart Yarn Calculator", "+10% Buffer", "Grams/Ball", "Meters/Ball", "Add Another Yarn", "Project Requirement", "Total Grams", "OR Total Meters", "You need", "balls of yarn", "Includes 10% buffer", "Per Yarn Breakdown", "total meters", "meters extra", "Enter yarn specs..."
+- `YarnGaugeVault`: "Yarn & Gauge Vault", "yarns", "Sign in to access...", "Search yarns...", "Root", "Folder", "Save Yarn", "Create New Folder", "Folder Name", "Save Current Gauge", "Yarn Name *", "Brand", "Color Code", "Fiber Content", "Weight", "Notes", "Current Gauge...", "Swatch:", "Will be saved to:", "Cancel", "Create", "Save", "Brand:", "Fiber:", "Gauge:", "Load", "No yarns found...", "Save your current gauge..."
 
-Based on the user specification and weishougong.cn reference:
+**修改组件**: 引入 `useI18n()`，替换所有硬编码字符串
 
-**Rendering Approach**: Use `THREE.LineSegments` with `BufferGeometry`
-- Single geometry with dynamic `Float32Array` vertex buffer
-- No individual mesh objects per stitch
-- Light gray background, dark yarn wireframe
+### 6. PDF缩略图
 
-**Stitch 3D Proportions** (from user specification):
+**Edge Function** 方式不可行（无Canvas），改用服务端方案:
 
-| Stitch | Height (Z) | Width (X/Y) |
-|--------|------------|-------------|
-| ch (chain) | 0.5 | 1.0 |
-| sc (single crochet) | 1.0 | 1.0 |
-| hdc (half double) | 2.0 | 1.0 |
-| dc (double crochet) | 3.0 | 1.0 |
-| inc (increase) | 1.0 | 2.0 (fork) |
-| dec (decrease) | 1.0 | 0.5 (merge) |
+- 在 `usePatternLibrary.uploadFile` 中，PDF上传时将文件URL直接设为 `cover_image_url`
+- `PatternCard.tsx`: 检测 cover URL 是否为 PDF，若是则显示 PDF 图标 + 标题作为占位符
+- 更好方案：使用 `<canvas>` + `pdf.js`(CDN worker) 在客户端渲染PDF第一页为缩略图
 
-**Topology Features**:
-1. **Spiral Ascent**: Z increases smoothly per stitch (not per round)
-2. **Yarn Tension Simulation**: Fork at inc, convergence at dec
-3. **Interactive Sync**: Click highlights corresponding text/2D chart
-
-### Architecture
-
-```text
-New Component Structure:
-
-src/components/3d/
-├── CrochetWireframeScene.tsx    # Main R3F scene with LineSegments
-├── useWireframeGeometry.ts      # Hook to generate/update vertex buffer
-└── crochetPathGenerator.ts      # Convert pattern → 3D vertex array
-
-Integration:
-  - CrochetEngine.tsx imports CrochetWireframeScene
-  - Replace current TubeGeometry 3D preview with new wireframe mode
-  - Add toggle: "Yarn Tubes" vs "Wireframe" mode
-```
-
-### Vertex Generation Algorithm
-
-```text
-Input: ParsedStitch[] from parser
-Output: Float32Array of line segment vertices
-
-For each stitch:
-  1. Calculate base position:
-     - Angle = (stitchIndex / totalInRow) * 2π
-     - Radius = baseRadius + (rowIndex * rowSpacing)
-     - Z = cumulativeStitchIndex * zIncrement (spiral)
-
-  2. Generate stitch geometry vertices:
-     - sc: vertical line + V head (6 vertices = 3 segments)
-     - dc: taller vertical + more wrap curves (12 vertices)
-     - inc: fork into 2 branches (8 vertices)
-     - dec: 2 inputs merging (8 vertices)
-
-  3. Add inter-row connecting segments:
-     - Line from stitch top to next stitch base
-     - Creates continuous yarn path illusion
-
-Performance:
-  - Pre-allocate buffer for max 5000 stitches
-  - Use Float32Array.set() for batch updates
-  - geometry.attributes.position.needsUpdate = true in useFrame
-```
-
-### Files to Create/Modify
-
-**New Files**:
-1. `src/components/3d/CrochetWireframeScene.tsx`
-2. `src/components/3d/useWireframeGeometry.ts`
-3. `src/lib/crochetPathGenerator.ts`
-
-**Modified Files**:
-1. `src/pages/CrochetEngine.tsx` - Add wireframe mode toggle
+具体实现：
+- 在 `thumbnailGenerator.ts` 中添加 `generatePdfThumbnail(file: File)` 函数
+- 使用 `pdfjs-dist` CDN worker 加载PDF → 渲染第一页到Canvas → 转为Blob
+- 上传时检测PDF文件 → 生成缩略图 → 上传到 `thumbnails/` 路径 → 设为 cover_image_url
 
 ---
 
-## Detailed Implementation
+## 实现顺序
 
-### File 1: `src/lib/crochetPathGenerator.ts`
+| 步骤 | 任务 | 文件 |
+|------|------|------|
+| 1 | 新增翻译键 | translations.ts |
+| 2 | SmartYarnCalculator i18n | SmartYarnCalculator.tsx |
+| 3 | YarnGaugeVault i18n | YarnGaugeVault.tsx |
+| 4 | Edge Function 支持PDF | parse-chart-image/index.ts |
+| 5 | 客户端移除PDF限制 + 确认UI | AIParsePanel.tsx |
+| 6 | 保存跳转 + PDF预览增强 | PatternDetail.tsx, PatternUploadDialog.tsx, PatternLibrary.tsx |
+| 7 | PDF缩略图生成 | thumbnailGenerator.ts, usePatternLibrary.ts |
 
-Purpose: Convert parsed crochet pattern to 3D wireframe vertices
-
-```text
-Constants:
-  STITCH_HEIGHTS = { ch: 0.5, sc: 1.0, hdc: 2.0, dc: 3.0, tr: 4.0, inc: 1.0, dec: 1.0 }
-  STITCH_WIDTHS = { default: 1.0, inc: 2.0, dec: 0.5 }
-  Z_INCREMENT = 0.02  // Per stitch spiral rise
-  BASE_RADIUS = 0.5
-  ROW_SPACING = 0.4
-
-Functions:
-  generateWireframeVertices(stitches: ParsedStitch[]): Float32Array
-    - Groups stitches by row
-    - Calculates 3D position for each stitch
-    - Generates line segment vertices for stitch shape
-    - Returns flat Float32Array [x1,y1,z1, x2,y2,z2, ...]
-
-  generateStitchSegments(type, position, scale): number[]
-    - Returns vertex pairs for each stitch type
-    - SC: simple V shape
-    - DC: taller with cross-overs
-    - INC: V fork with 2 branches
-    - DEC: inverted V convergence
-```
-
-### File 2: `src/components/3d/useWireframeGeometry.ts`
-
-Purpose: React hook managing BufferGeometry updates
-
-```text
-Hook: useWireframeGeometry(stitches: ParsedStitch[], options)
-
-State:
-  - geometryRef: THREE.BufferGeometry
-  - positionAttribute: THREE.BufferAttribute
-
-Logic:
-  - On stitches change: regenerate vertices
-  - Use useMemo for vertex generation
-  - Update buffer attribute on change
-  - Return { geometry, lineCount }
-
-Options:
-  - showConnectors: boolean (inter-stitch lines)
-  - colorByRow: boolean
-  - zSpiral: boolean (enable/disable spiral)
-```
-
-### File 3: `src/components/3d/CrochetWireframeScene.tsx`
-
-Purpose: R3F scene component with LineSegments rendering
-
-```text
-Component: CrochetWireframeScene
-
-Props:
-  - chart: CrochetCell[]
-  - hoveredCell: { row, stitch } | null
-  - onStitchClick: (row, stitch) => void
-
-Structure:
-  <Canvas>
-    <color attach="background" args={['#f0f0f0']} />  // Light gray
-    <OrbitControls />
-    
-    <lineSegments>
-      <bufferGeometry ref={geometryRef}>
-        <bufferAttribute
-          attach="attributes-position"
-          array={vertices}
-          count={vertexCount}
-          itemSize={3}
-        />
-      </bufferGeometry>
-      <lineBasicMaterial color="#333333" linewidth={1} />
-    </lineSegments>
-
-    {/* Hover highlight */}
-    {hoveredCell && <HighlightMesh position={getStitchPosition()} />}
-  </Canvas>
-
-Performance:
-  - useFrame for smooth animation (optional rotation)
-  - geometry.attributes.position.needsUpdate on pattern change
-  - instancedMesh for highlight points (optional)
-```
-
-### File 4: `src/pages/CrochetEngine.tsx` Updates
-
-```text
-Changes:
-
-1. Add state for 3D mode toggle:
-   const [view3DMode, setView3DMode] = useState<'wireframe' | 'tubes'>('wireframe');
-
-2. Add toggle buttons in 3D Preview header:
-   <Button onClick={() => setView3DMode('wireframe')}>Wireframe</Button>
-   <Button onClick={() => setView3DMode('tubes')}>Yarn Tubes</Button>
-
-3. Conditional rendering:
-   {view3DMode === 'wireframe' ? (
-     <CrochetWireframeScene chart={crochetChart} ... />
-   ) : (
-     <Canvas><Crochet3DScene ... /></Canvas>
-   )}
-
-4. Add bidirectional selection sync:
-   - Click on 3D stitch → highlight in 2D + scroll to text
-   - Click on 2D stitch → highlight in 3D
-   - Click on text token → highlight in both views
-```
-
-### File 5: 2D Chart Layer Connections (`CrochetEngine.tsx`)
-
-```text
-Add to circular chart rendering (lines 450-500):
-
-Before stitch symbols, render anchor lines:
-
-{Object.entries(rowGroups).map(([rowNum, cells]) => {
-  const row = parseInt(rowNum);
-  if (row <= 1) return null; // No connections from row 1
-  
-  const prevRow = rowGroups[row - 1] || [];
-  
-  return cells.map((cell, i) => {
-    const anchorIndices = getAnchorIndices(cell, prevRow);
-    // Draw SVG lines from cell position to anchor position(s)
-    return anchorIndices.map(anchorIdx => (
-      <line 
-        key={`anchor-${row}-${i}-${anchorIdx}`}
-        x1={cellX} y1={cellY}
-        x2={anchorX} y2={anchorY}
-        stroke={getAnchorColor(cell.type)}
-        strokeWidth={0.5}
-        opacity={0.4}
-      />
-    ));
-  });
-})}
-```
-
----
-
-## Technical Specifications
-
-### Performance Targets
-- Support up to 1000+ stitches at 60fps
-- Geometry update < 16ms on pattern change
-- Memory: Single Float32Array, no object allocation per frame
-
-### Visual Style (matching weishougong.cn aesthetic)
-- Background: `#f0f0f0` (light gray)
-- Yarn lines: `#333333` (dark gray) or custom color
-- Hover highlight: `#8B5CF6` (primary purple glow)
-- Line width: 1-2px base, 3px on hover
-
-### API Interface for Pattern Input
-```typescript
-interface PatternInstruction {
-  command: string;      // e.g., "R1:6x" or "R2:(2x,v)*6"
-  parsedStitches: ParsedStitch[];
-  vertices: Float32Array;
-}
-
-function parsePatternToVertices(input: string): PatternInstruction[];
-```
-
----
-
-## File Summary
-
-| File | Action | Purpose |
-|------|--------|---------|
-| `src/pages/PixelGenerator.tsx` | Modify | Sync canvas dimensions display |
-| `src/pages/CrochetEngine.tsx` | Modify | Add layer lines, wireframe toggle, bidirectional sync |
-| `src/lib/enhancedCrochetParser.ts` | Modify | Add anchor index tracking |
-| `src/lib/crochetPathGenerator.ts` | Create | Pattern → 3D vertices conversion |
-| `src/components/3d/useWireframeGeometry.ts` | Create | BufferGeometry management hook |
-| `src/components/3d/CrochetWireframeScene.tsx` | Create | LineSegments R3F scene |
-
----
-
-## Future Enhancement: Full Bidirectional Sync
-
-The plan includes foundation for click-to-highlight synchronization:
-- Text editor cursor position → 2D/3D highlight
-- 2D chart click → 3D highlight + text scroll
-- 3D wireframe click → 2D highlight + text scroll
-
-This creates a unified editing experience where all three views (Text, 2D Chart, 3D Model) stay synchronized.
