@@ -25,9 +25,9 @@ const translations = {
   'nav.swatchLab.desc': { zh: '密度计算器', en: 'Gauge Calculator' },
   'nav.pixelGenerator': { zh: '像素生成器', en: 'Pixel Generator' },
   'nav.pixelGenerator.desc': { zh: '图转针格', en: 'Image to Grid' },
-  'nav.crochetEngine': { zh: '钩针引擎', en: 'Crochet Engine' },
+  'nav.crochetEngine': { zh: '钩针图解库', en: 'Crochet Library' },
   'nav.crochetEngine.desc': { zh: '图解库 & AI 解析', en: 'Pattern Library & AI Parse' },
-  'nav.knittingEngine': { zh: '棒针引擎', en: 'Knitting Engine' },
+  'nav.knittingEngine': { zh: '棒针图解库', en: 'Knitting Library' },
   'nav.knittingEngine.desc': { zh: '图解库 & 跟织助手', en: 'Pattern Library & Companion' },
 
   // Auth
@@ -255,7 +255,7 @@ const translations = {
 
   // Pattern Status
   'pattern.filter.all': { zh: '全部', en: 'All' },
-  'pattern.status.preparing': { zh: '准备中', en: 'Preparing' },
+  'pattern.status.preparing': { zh: '未织', en: 'Not Started' },
   'pattern.status.inProgress': { zh: '进行中', en: 'In Progress' },
   'pattern.status.completed': { zh: '已完成', en: 'Completed' },
 
@@ -303,6 +303,19 @@ const translations = {
   // Navigation updates
   'nav.yarnVault': { zh: '线材库', en: 'Yarn Vault' },
   'nav.yarnVault.desc': { zh: '我的线材收藏', en: 'My Yarn Collection' },
+
+  // Additional Pattern UI
+  'pattern.initialStatus': { zh: '初始状态', en: 'Initial Status' },
+  'pattern.linkYarnOptional': { zh: '关联线材（可选）', en: 'Link Yarn (Optional)' },
+  'pattern.chooseYarnOptional': { zh: '选择线材...', en: 'Choose yarn...' },
+  'pattern.noLinkedYarn': { zh: '不关联线材', en: 'No linked yarn' },
+  'pattern.linkedGaugePreview': { zh: '密度预览', en: 'Gauge preview' },
+  'pattern.newNote': { zh: '新标注', en: 'New note' },
+  'pattern.annotationSaved': { zh: '标注已保存', en: 'Annotation saved' },
+  'pattern.parseImageOnly': { zh: '仅支持图片解析', en: 'Only images can be parsed' },
+  'pattern.parseFirst': { zh: '请先 AI 解析图解', en: 'Please parse the pattern first' },
+  'pattern.pdfPreview': { zh: 'PDF 预览', en: 'PDF Preview' },
+  'pattern.anchorCompare': { zh: '原图局部对比', en: 'Anchor Compare' },
 } as const;
 
 export type TranslationKey = keyof typeof translations;

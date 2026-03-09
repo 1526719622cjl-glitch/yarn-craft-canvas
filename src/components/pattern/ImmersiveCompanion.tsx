@@ -10,6 +10,7 @@ import type { PatternProgress } from '@/hooks/usePatternProgress';
 import type { GaugeData } from './GaugeInputDialog';
 import { PixelRowPreview } from './PixelRowPreview';
 import type { RowPixelData } from './PixelRowPreview';
+import { StepCounter } from './StepCounter';
 
 interface ImmersiveCompanionProps {
   steps: ParsedStep[];
@@ -25,7 +26,6 @@ interface ImmersiveCompanionProps {
   pixelRows?: RowPixelData[];
 }
 
-// Simple completion sound using Web Audio API
 function playCompletionSound() {
   try {
     const ctx = new AudioContext();
@@ -43,8 +43,17 @@ function playCompletionSound() {
 }
 
 export function ImmersiveCompanion({
-  steps, imageUrl, progress, percentage, estimatedTimeLeft,
-  onAdvance, onGoBack, onCorrection, onClose, gauge, pixelRows = [],
+  steps,
+  imageUrl,
+  progress,
+  percentage,
+  estimatedTimeLeft,
+  onAdvance,
+  onGoBack,
+  onCorrection,
+  onClose,
+  gauge,
+  pixelRows = [],
 }: ImmersiveCompanionProps) {
   const { t } = useI18n();
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -55,8 +64,7 @@ export function ImmersiveCompanion({
   const step = steps[currentStep];
   const corrections = progress?.corrections || {};
 
-  // Find pixel data for current step's row
-  const currentPixelRow = pixelRows.find(r => r.row === step?.row) || null;
+  const currentPixelRow = pixelRows.find((r) => r.row === step?.row) || null;
 
   const handleNext = () => {
     if (soundEnabled) playCompletionSound();
@@ -73,12 +81,17 @@ export function ImmersiveCompanion({
     setEditing(false);
   };
 
-  // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (editing) return;
-      if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); handleNext(); }
-      if (e.key === 'ArrowLeft') { e.preventDefault(); onGoBack(); }
+      if (e.key === 'ArrowRight' || e.key === ' ') {
+        e.preventDefault();
+        handleNext();
+      }
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        onGoBack();
+      }
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', handler);
@@ -96,9 +109,7 @@ export function ImmersiveCompanion({
     return `${m}m ${s}s`;
   };
 
-  // Gauge-based dimension hints
   const gaugeHint = gauge && step ? (() => {
-    // Try to extract stitch count from instruction via regex
     const stitchMatch = displayInstruction.match(/\b(\d+)\s*(st|sc|dc|hdc|tr|针)/i);
     if (!stitchMatch) return null;
     const stitches = parseInt(stitchMatch[1]);
@@ -113,10 +124,11 @@ export function ImmersiveCompanion({
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 bg-background/95 backdrop-blur-lg flex flex-col"
     >
-      {/* Top bar */}
       <div className="flex items-center justify-between p-4 border-b border-border/30">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="w-5 h-5" />
+          </Button>
           <div>
             <p className="text-sm font-medium">
               {t('pattern.step')} {currentStep + 1} / {steps.length}
@@ -130,12 +142,7 @@ export function ImmersiveCompanion({
         </div>
         <div className="flex items-center gap-2">
           {gauge && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-1.5 text-xs"
-              onClick={() => setShowGauge(!showGauge)}
-            >
+            <Button variant="ghost" size="sm" className="gap-1.5 text-xs" onClick={() => setShowGauge(!showGauge)}>
               <Ruler className="w-3.5 h-3.5" />
               {gauge.stitchesPer10cm}针/{gauge.rowsPer10cm}行
             </Button>
@@ -147,7 +154,6 @@ export function ImmersiveCompanion({
         </div>
       </div>
 
-      {/* Gauge info bar */}
       <AnimatePresence>
         {showGauge && gauge && (
           <motion.div
@@ -161,28 +167,19 @@ export function ImmersiveCompanion({
                 <Ruler className="w-4 h-4 text-primary" />
                 <span className="text-muted-foreground">{t('pattern.dimensionCalc')}</span>
               </div>
-              {gauge.yarnName && (
-                <span className="text-primary font-medium">{gauge.yarnName}</span>
-              )}
+              {gauge.yarnName && <span className="text-primary font-medium">{gauge.yarnName}</span>}
               <span className="font-mono">
                 {gauge.stitchesPer10cm} {t('yarn.stitchesPer10cm')} · {gauge.rowsPer10cm} {t('yarn.rowsPer10cm')}
               </span>
-              {gaugeHint && (
-                <span className="ml-auto text-muted-foreground">
-                  ≈ {gaugeHint.widthCm} cm
-                </span>
-              )}
+              {gaugeHint && <span className="ml-auto text-muted-foreground">≈ {gaugeHint.widthCm} cm</span>}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Progress */}
       <Progress value={percentage} className="h-1 rounded-none" />
 
-      {/* Main content */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        {/* Image region */}
         {step.anchorRegion && (
           <div className="lg:w-1/2 p-4 flex items-center justify-center bg-muted/10">
             <div className="relative max-w-full max-h-full overflow-hidden rounded-2xl">
@@ -191,16 +188,13 @@ export function ImmersiveCompanion({
                 alt="Pattern region"
                 className="max-h-[50vh] lg:max-h-[70vh] object-contain"
                 style={{
-                  clipPath: step.anchorRegion
-                    ? `inset(${step.anchorRegion.y}% ${100 - step.anchorRegion.x - step.anchorRegion.width}% ${100 - step.anchorRegion.y - step.anchorRegion.height}% ${step.anchorRegion.x}%)`
-                    : undefined,
+                  clipPath: `inset(${step.anchorRegion.y}% ${100 - step.anchorRegion.x - step.anchorRegion.width}% ${100 - step.anchorRegion.y - step.anchorRegion.height}% ${step.anchorRegion.x}%)`,
                 }}
               />
             </div>
           </div>
         )}
 
-        {/* Instruction + Pixel Preview */}
         <div className="flex-1 flex flex-col items-center justify-center p-8 gap-6 overflow-y-auto">
           <AnimatePresence mode="wait">
             <motion.div
@@ -211,42 +205,52 @@ export function ImmersiveCompanion({
               className="text-center max-w-lg space-y-6 w-full"
             >
               <p className="text-xs text-muted-foreground font-mono">R{step.row}</p>
+
               {editing ? (
                 <div className="space-y-3">
                   <Textarea value={editText} onChange={(e) => setEditText(e.target.value)} className="min-h-[100px] text-lg text-center" />
-                  <Button onClick={handleSaveEdit}><Check className="w-4 h-4 mr-1" />{t('common.save')}</Button>
+                  <Button onClick={handleSaveEdit}>
+                    <Check className="w-4 h-4 mr-1" />
+                    {t('common.save')}
+                  </Button>
                 </div>
               ) : (
                 <>
                   <p className="text-2xl lg:text-3xl font-medium leading-relaxed">{displayInstruction}</p>
-
-                  {/* Gauge dimension hint */}
                   {gaugeHint && gauge && (
-                    <motion.p
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="text-sm text-primary/70 font-mono"
-                    >
+                    <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm text-primary/70 font-mono">
                       ≈ {gaugeHint.widthCm} cm
                     </motion.p>
                   )}
-
                   <Button variant="ghost" size="sm" onClick={handleStartEdit}>
-                    <Edit3 className="w-3 h-3 mr-1" />{t('pattern.correct')}
+                    <Edit3 className="w-3 h-3 mr-1" />
+                    {t('pattern.correct')}
                   </Button>
                 </>
+              )}
+
+              {step.anchorRegion && (
+                <div className="mt-2 rounded-xl border border-border/50 p-2 bg-muted/20">
+                  <p className="text-xs text-muted-foreground mb-2">{t('pattern.anchorCompare')}</p>
+                  <img
+                    src={imageUrl}
+                    alt="Anchor compare"
+                    className="w-full h-28 object-cover rounded-lg"
+                    style={{
+                      clipPath: `inset(${step.anchorRegion.y}% ${100 - step.anchorRegion.x - step.anchorRegion.width}% ${100 - step.anchorRegion.y - step.anchorRegion.height}% ${step.anchorRegion.x}%)`,
+                    }}
+                  />
+                </div>
               )}
             </motion.div>
           </AnimatePresence>
 
-          {/* Pixel Row Preview for colorwork */}
           {currentPixelRow && (
             <div className="w-full max-w-lg">
               <PixelRowPreview rowData={currentPixelRow} />
             </div>
           )}
 
-          {/* Navigation */}
           <div className="flex items-center gap-6 mt-4">
             <Button variant="outline" size="lg" onClick={onGoBack} disabled={currentStep <= 0}>
               <ChevronLeft className="w-5 h-5" />
@@ -258,6 +262,8 @@ export function ImmersiveCompanion({
           </div>
         </div>
       </div>
+
+      <StepCounter />
     </motion.div>
   );
 }
