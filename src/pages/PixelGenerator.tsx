@@ -873,13 +873,9 @@ export default function PixelGenerator() {
             </div>
             
             {pixelGrid.length > 0 ? (
-              <p className="text-[10px] text-muted-foreground">
-                Editing dimensions will resize the canvas
-              </p>
+              <p className="text-[10px] text-muted-foreground">{t('pixel.editResize')}</p>
             ) : lockAspectRatio ? (
-              <p className="text-[10px] text-muted-foreground">
-                Height auto-calculated from stitch ratio
-              </p>
+              <p className="text-[10px] text-muted-foreground">{t('pixel.autoHeight')}</p>
             ) : null}
           </div>
           
