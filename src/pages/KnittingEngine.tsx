@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { useI18n } from '@/i18n/useI18n';
 import { useYarnCluesStore, KnittingStitch } from '@/store/useYarnCluesStore';
 import { Paintbrush, RotateCcw, FileText, Sparkles, Grid } from 'lucide-react';
 import { KnittingNeedlesIcon } from '@/components/icons';
