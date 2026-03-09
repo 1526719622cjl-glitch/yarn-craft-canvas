@@ -252,7 +252,7 @@ export default function CrochetEngine() {
           <Textarea
             value={crochetInput}
             onChange={(e) => handleInputChange(e.target.value)}
-            placeholder="Enter pattern commands (e.g., 6x, (2x, v)*6)..."
+            placeholder={t('crochet.inputPlaceholder')}
             className="input-glass min-h-[200px] font-mono text-sm"
           />
 
