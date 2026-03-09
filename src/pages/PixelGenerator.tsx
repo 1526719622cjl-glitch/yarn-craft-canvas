@@ -1022,7 +1022,7 @@ export default function PixelGenerator() {
 
           {/* Tools */}
           <div className="space-y-2 border-t border-border/30 pt-4">
-            <h3 className="text-sm font-medium text-muted-foreground">Drawing Tools</h3>
+            <h3 className="text-sm font-medium text-muted-foreground">{t('pixel.drawingTools')}</h3>
             <div className="grid grid-cols-3 gap-1">
               {tools.map((tool) => (
                 <Tooltip key={tool.type}>
