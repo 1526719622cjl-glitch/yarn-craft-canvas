@@ -1085,7 +1085,7 @@ export default function PixelGenerator() {
                       <Copy className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Copy</TooltipContent>
+                  <TooltipContent>{t('common.copy')}</TooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
