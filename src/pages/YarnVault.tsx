@@ -25,6 +25,8 @@ import {
   Loader2,
 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
+import { useI18n } from '@/i18n/useI18n';
+import type { TranslationKey } from '@/i18n/translations';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -36,26 +38,27 @@ const itemVariants = {
   show: { opacity: 1, y: 0 },
 };
 
-const YARN_WEIGHTS: { value: YarnWeight; label: string }[] = [
-  { value: 'lace', label: 'Lace' },
-  { value: 'fingering', label: 'Fingering' },
-  { value: 'sport', label: 'Sport' },
-  { value: 'dk', label: 'DK' },
-  { value: 'worsted', label: 'Worsted' },
-  { value: 'aran', label: 'Aran' },
-  { value: 'bulky', label: 'Bulky' },
-  { value: 'super_bulky', label: 'Super Bulky' },
+const YARN_WEIGHTS: { value: YarnWeight; labelKey: TranslationKey }[] = [
+  { value: 'lace', labelKey: 'yarn.weight.lace' },
+  { value: 'fingering', labelKey: 'yarn.weight.fingering' },
+  { value: 'sport', labelKey: 'yarn.weight.sport' },
+  { value: 'dk', labelKey: 'yarn.weight.dk' },
+  { value: 'worsted', labelKey: 'yarn.weight.worsted' },
+  { value: 'aran', labelKey: 'yarn.weight.aran' },
+  { value: 'bulky', labelKey: 'yarn.weight.bulky' },
+  { value: 'super_bulky', labelKey: 'yarn.weight.superBulky' },
 ];
 
-const YARN_STATUSES: { value: YarnStatus; label: string; color: string }[] = [
-  { value: 'new', label: 'New', color: 'bg-yarn-sage' },
-  { value: 'in_use', label: 'In Use', color: 'bg-yarn-sky' },
-  { value: 'scraps', label: 'Scraps', color: 'bg-yarn-honey' },
-  { value: 'finished', label: 'Finished', color: 'bg-muted' },
-  { value: 'wishlist', label: 'Wishlist', color: 'bg-yarn-lavender' },
+const YARN_STATUSES: { value: YarnStatus; labelKey: TranslationKey; color: string }[] = [
+  { value: 'new', labelKey: 'yarn.status.new', color: 'bg-yarn-sage' },
+  { value: 'in_use', labelKey: 'yarn.status.inUse', color: 'bg-yarn-sky' },
+  { value: 'scraps', labelKey: 'yarn.status.scraps', color: 'bg-yarn-honey' },
+  { value: 'finished', labelKey: 'yarn.status.finished', color: 'bg-muted' },
+  { value: 'wishlist', labelKey: 'yarn.status.wishlist', color: 'bg-yarn-lavender' },
 ];
 
 export default function YarnVault() {
+  const { t } = useI18n();
   const { user, loading: authLoading } = useAuth();
   const { folders, createFolder, deleteFolder, isLoading: foldersLoading } = useYarnFolders();
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
@@ -71,7 +74,6 @@ export default function YarnVault() {
     searchQuery
   );
 
-  // New yarn form state
   const [newYarn, setNewYarn] = useState<Partial<YarnEntry>>({
     name: '',
     brand: '',
@@ -138,8 +140,8 @@ export default function YarnVault() {
     : entries.filter(e => e.weight === weightFilter);
 
   const folderPath = selectedFolderId 
-    ? [{ id: null, name: 'All Yarns' }, ...getFolderPath(folders, selectedFolderId)]
-    : [{ id: null, name: 'All Yarns' }];
+    ? [{ id: null, name: t('yarn.vault.allYarns') }, ...getFolderPath(folders, selectedFolderId)]
+    : [{ id: null, name: t('yarn.vault.allYarns') }];
 
   return (
     <motion.div
@@ -155,8 +157,8 @@ export default function YarnVault() {
             <Package className="w-6 h-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-3xl font-display font-semibold text-foreground">Yarn Vault</h1>
-            <p className="text-muted-foreground">Your personal yarn library</p>
+            <h1 className="text-3xl font-display font-semibold text-foreground">{t('yarn.vault.title')}</h1>
+            <p className="text-muted-foreground">{t('yarn.vault.subtitle')}</p>
           </div>
         </div>
 
@@ -165,25 +167,25 @@ export default function YarnVault() {
             <DialogTrigger asChild>
               <Button variant="outline" className="rounded-xl soft-press">
                 <FolderPlus className="w-4 h-4 mr-2" />
-                New Folder
+                {t('yarn.vault.newFolder')}
               </Button>
             </DialogTrigger>
             <DialogContent className="rounded-3xl">
               <DialogHeader>
-                <DialogTitle>Create Folder</DialogTitle>
+                <DialogTitle>{t('yarn.vault.createFolder')}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 pt-4">
                 <div className="space-y-2">
-                  <Label>Folder Name</Label>
+                  <Label>{t('yarn.vault.folderName')}</Label>
                   <Input
                     value={newFolderName}
                     onChange={(e) => setNewFolderName(e.target.value)}
-                    placeholder="e.g., In Stock, Wishlist"
+                    placeholder={t('yarn.vault.folderPlaceholder')}
                     className="input-glass"
                   />
                 </div>
                 <Button onClick={handleCreateFolder} className="w-full rounded-xl">
-                  Create Folder
+                  {t('yarn.vault.createFolder')}
                 </Button>
               </div>
             </DialogContent>
@@ -193,24 +195,24 @@ export default function YarnVault() {
             <DialogTrigger asChild>
               <Button className="rounded-xl soft-press">
                 <Plus className="w-4 h-4 mr-2" />
-                Add Yarn
+                {t('yarn.vault.addYarn')}
               </Button>
             </DialogTrigger>
             <DialogContent className="rounded-3xl max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Add New Yarn</DialogTitle>
+                <DialogTitle>{t('yarn.vault.addNewYarn')}</DialogTitle>
               </DialogHeader>
               <Tabs defaultValue="basic" className="pt-4">
                 <TabsList className="grid w-full grid-cols-3 rounded-xl">
-                  <TabsTrigger value="basic" className="rounded-lg">Basic Info</TabsTrigger>
-                  <TabsTrigger value="gauge" className="rounded-lg">Gauge Data</TabsTrigger>
-                  <TabsTrigger value="specs" className="rounded-lg">Yarn Specs</TabsTrigger>
+                  <TabsTrigger value="basic" className="rounded-lg">{t('yarn.vault.basicInfo')}</TabsTrigger>
+                  <TabsTrigger value="gauge" className="rounded-lg">{t('yarn.vault.gaugeData')}</TabsTrigger>
+                  <TabsTrigger value="specs" className="rounded-lg">{t('yarn.vault.yarnSpecs')}</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="basic" className="space-y-4 pt-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2 col-span-2">
-                      <Label>Yarn Name *</Label>
+                      <Label>{t('yarn.vault.yarnName')}</Label>
                       <Input
                         value={newYarn.name}
                         onChange={(e) => setNewYarn({ ...newYarn, name: e.target.value })}
@@ -219,7 +221,7 @@ export default function YarnVault() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Brand</Label>
+                      <Label>{t('common.brand')}</Label>
                       <Input
                         value={newYarn.brand ?? ''}
                         onChange={(e) => setNewYarn({ ...newYarn, brand: e.target.value })}
@@ -228,7 +230,7 @@ export default function YarnVault() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Color Code</Label>
+                      <Label>{t('yarn.vault.colorCode')}</Label>
                       <Input
                         value={newYarn.color_code ?? ''}
                         onChange={(e) => setNewYarn({ ...newYarn, color_code: e.target.value })}
@@ -237,7 +239,7 @@ export default function YarnVault() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Fiber Content</Label>
+                      <Label>{t('yarn.vault.fiberContent')}</Label>
                       <Input
                         value={newYarn.fiber_content ?? ''}
                         onChange={(e) => setNewYarn({ ...newYarn, fiber_content: e.target.value })}
@@ -246,39 +248,39 @@ export default function YarnVault() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Weight</Label>
+                      <Label>{t('yarn.vault.weight')}</Label>
                       <Select
                         value={newYarn.weight ?? ''}
                         onValueChange={(v) => setNewYarn({ ...newYarn, weight: v as YarnWeight })}
                       >
                         <SelectTrigger className="input-glass">
-                          <SelectValue placeholder="Select weight" />
+                          <SelectValue placeholder={t('yarn.vault.selectWeight')} />
                         </SelectTrigger>
                         <SelectContent>
                           {YARN_WEIGHTS.map((w) => (
-                            <SelectItem key={w.value} value={w.value}>{w.label}</SelectItem>
+                            <SelectItem key={w.value} value={w.value}>{t(w.labelKey)}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label>Status</Label>
+                      <Label>{t('yarn.vault.status')}</Label>
                       <Select
                         value={newYarn.status}
                         onValueChange={(v) => setNewYarn({ ...newYarn, status: v as YarnStatus })}
                       >
                         <SelectTrigger className="input-glass">
-                          <SelectValue placeholder="Select status" />
+                          <SelectValue placeholder={t('yarn.vault.selectStatus')} />
                         </SelectTrigger>
                         <SelectContent>
                           {YARN_STATUSES.map((s) => (
-                            <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                            <SelectItem key={s.value} value={s.value}>{t(s.labelKey)}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label>Balls in Stock</Label>
+                      <Label>{t('yarn.vault.ballsInStock')}</Label>
                       <Input
                         type="number"
                         value={newYarn.balls_in_stock ?? 0}
@@ -291,11 +293,11 @@ export default function YarnVault() {
 
                 <TabsContent value="gauge" className="space-y-4 pt-4">
                   <p className="text-sm text-muted-foreground">
-                    Enter gauge data from your swatch (in 10cm x 10cm)
+                    {t('yarn.vault.gaugeHint')}
                   </p>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Stitches per 10cm</Label>
+                      <Label>{t('yarn.vault.stitchesPer10cm')}</Label>
                       <Input
                         type="number"
                         step="0.5"
@@ -306,7 +308,7 @@ export default function YarnVault() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Rows per 10cm</Label>
+                      <Label>{t('yarn.vault.rowsPer10cm')}</Label>
                       <Input
                         type="number"
                         step="0.5"
@@ -318,13 +320,13 @@ export default function YarnVault() {
                     </div>
                   </div>
                   <div className="p-4 bg-yarn-honey/20 rounded-2xl">
-                    <h4 className="font-medium mb-2">Post-Wash Dimensions</h4>
+                    <h4 className="font-medium mb-2">{t('yarn.vault.postWashDim')}</h4>
                     <p className="text-xs text-muted-foreground mb-3">
-                      Measure your 10x10cm swatch after washing
+                      {t('yarn.vault.postWashHint')}
                     </p>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>Width (cm)</Label>
+                        <Label>{t('swatch.widthCm')}</Label>
                         <Input
                           type="number"
                           step="0.1"
@@ -335,7 +337,7 @@ export default function YarnVault() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Height (cm)</Label>
+                        <Label>{t('swatch.heightCm')}</Label>
                         <Input
                           type="number"
                           step="0.1"
@@ -352,7 +354,7 @@ export default function YarnVault() {
                 <TabsContent value="specs" className="space-y-4 pt-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Meters per Ball</Label>
+                      <Label>{t('yarn.vault.metersPerBall')}</Label>
                       <Input
                         type="number"
                         value={newYarn.meters_per_ball ?? ''}
@@ -362,7 +364,7 @@ export default function YarnVault() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Grams per Ball</Label>
+                      <Label>{t('yarn.vault.gramsPerBall')}</Label>
                       <Input
                         type="number"
                         value={newYarn.grams_per_ball ?? ''}
@@ -373,11 +375,11 @@ export default function YarnVault() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label>Notes</Label>
+                    <Label>{t('common.notes')}</Label>
                     <Input
                       value={newYarn.notes ?? ''}
                       onChange={(e) => setNewYarn({ ...newYarn, notes: e.target.value })}
-                      placeholder="Any additional notes..."
+                      placeholder="..."
                       className="input-glass"
                     />
                   </div>
@@ -385,7 +387,7 @@ export default function YarnVault() {
               </Tabs>
 
               <Button onClick={handleCreateYarn} className="w-full rounded-xl mt-4" disabled={!newYarn.name?.trim()}>
-                Add to Library
+                {t('yarn.vault.addToLibrary')}
               </Button>
             </DialogContent>
           </Dialog>
@@ -414,7 +416,7 @@ export default function YarnVault() {
         <div className="relative flex-1 min-w-[250px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search by name, brand, color, fiber..."
+            placeholder={t('yarn.vault.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="input-glass pl-10"
@@ -423,12 +425,12 @@ export default function YarnVault() {
         <Select value={weightFilter} onValueChange={(v) => setWeightFilter(v as YarnWeight | 'all')}>
           <SelectTrigger className="w-[150px] input-glass">
             <Filter className="w-4 h-4 mr-2" />
-            <SelectValue placeholder="Filter weight" />
+            <SelectValue placeholder={t('common.filter')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Weights</SelectItem>
+            <SelectItem value="all">{t('yarn.vault.allWeights')}</SelectItem>
             {YARN_WEIGHTS.map((w) => (
-              <SelectItem key={w.value} value={w.value}>{w.label}</SelectItem>
+              <SelectItem key={w.value} value={w.value}>{t(w.labelKey)}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -456,7 +458,7 @@ export default function YarnVault() {
         {/* Folders Sidebar */}
         <motion.div variants={itemVariants} className="col-span-12 lg:col-span-3">
           <div className="glass-card p-4">
-            <h3 className="font-medium mb-3 text-sm text-muted-foreground">Folders</h3>
+            <h3 className="font-medium mb-3 text-sm text-muted-foreground">{t('yarn.vault.folders')}</h3>
             <ScrollArea className="h-[300px]">
               <div className="space-y-1">
                 <button
@@ -466,7 +468,7 @@ export default function YarnVault() {
                   }`}
                 >
                   <Folder className="w-4 h-4" />
-                  <span className="text-sm">All Yarns</span>
+                  <span className="text-sm">{t('yarn.vault.allYarns')}</span>
                   <span className="ml-auto text-xs text-muted-foreground">{entries.length}</span>
                 </button>
                 {folders.filter(f => !f.parent_id).map((folder) => (
@@ -494,13 +496,13 @@ export default function YarnVault() {
           ) : filteredEntries.length === 0 ? (
             <div className="glass-card p-12 text-center">
               <Package className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium mb-2">No yarns yet</h3>
+              <h3 className="text-lg font-medium mb-2">{t('yarn.vault.empty')}</h3>
               <p className="text-muted-foreground text-sm mb-4">
-                Add your first yarn to start building your library
+                {t('yarn.vault.emptyDesc')}
               </p>
               <Button onClick={() => setYarnDialogOpen(true)} className="rounded-xl">
                 <Plus className="w-4 h-4 mr-2" />
-                Add Yarn
+                {t('yarn.vault.addYarn')}
               </Button>
             </div>
           ) : viewMode === 'grid' ? (
@@ -583,6 +585,7 @@ function FolderItem({
 }
 
 function YarnCard({ entry, onDelete }: { entry: YarnEntry; onDelete: () => void }) {
+  const { t } = useI18n();
   const status = YARN_STATUSES.find((s) => s.value === entry.status);
   const weight = YARN_WEIGHTS.find((w) => w.value === entry.weight);
 
@@ -599,21 +602,21 @@ function YarnCard({ entry, onDelete }: { entry: YarnEntry; onDelete: () => void 
           <h3 className="font-medium text-sm">{entry.name}</h3>
           {entry.brand && <p className="text-xs text-muted-foreground">{entry.brand}</p>}
         </div>
-        <Badge className={`${status?.color} text-xs`}>{status?.label}</Badge>
+        {status && <Badge className={`${status.color} text-xs`}>{t(status.labelKey)}</Badge>}
       </div>
 
       <div className="space-y-2 text-xs text-muted-foreground">
-        {entry.color_code && <p>Color: {entry.color_code}</p>}
-        {weight && <p>Weight: {weight.label}</p>}
-        {entry.fiber_content && <p>Fiber: {entry.fiber_content}</p>}
+        {entry.color_code && <p>{t('yarn.vault.color')} {entry.color_code}</p>}
+        {weight && <p>{t('yarn.vault.weightLabel')} {t(weight.labelKey)}</p>}
+        {entry.fiber_content && <p>{t('yarn.vault.fiber')} {entry.fiber_content}</p>}
         {entry.balls_in_stock > 0 && (
-          <p className="text-primary font-medium">{entry.balls_in_stock} balls in stock</p>
+          <p className="text-primary font-medium">{entry.balls_in_stock} {t('yarn.vault.ballsInStockLabel')}</p>
         )}
       </div>
 
       <div className="flex items-center justify-between mt-4 pt-3 border-t border-border/50">
         <span className="text-xs text-muted-foreground">
-          Updated {new Date(entry.updated_at).toLocaleDateString()}
+          {t('yarn.vault.updatedAt')} {new Date(entry.updated_at).toLocaleDateString()}
         </span>
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <Button variant="ghost" size="icon" className="h-7 w-7">
@@ -629,6 +632,7 @@ function YarnCard({ entry, onDelete }: { entry: YarnEntry; onDelete: () => void 
 }
 
 function YarnListItem({ entry, onDelete }: { entry: YarnEntry; onDelete: () => void }) {
+  const { t } = useI18n();
   const status = YARN_STATUSES.find((s) => s.value === entry.status);
   const weight = YARN_WEIGHTS.find((w) => w.value === entry.weight);
 
@@ -640,15 +644,15 @@ function YarnListItem({ entry, onDelete }: { entry: YarnEntry; onDelete: () => v
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <h3 className="font-medium text-sm truncate">{entry.name}</h3>
-          <Badge className={`${status?.color} text-xs`}>{status?.label}</Badge>
+          {status && <Badge className={`${status.color} text-xs`}>{t(status.labelKey)}</Badge>}
         </div>
         <p className="text-xs text-muted-foreground truncate">
-          {[entry.brand, weight?.label, entry.fiber_content].filter(Boolean).join(' • ')}
+          {[entry.brand, weight ? t(weight.labelKey) : null, entry.fiber_content].filter(Boolean).join(' • ')}
         </p>
       </div>
 
       {entry.balls_in_stock > 0 && (
-        <span className="text-sm text-primary font-medium">{entry.balls_in_stock} balls</span>
+        <span className="text-sm text-primary font-medium">{entry.balls_in_stock} {t('yarn.vault.balls')}</span>
       )}
 
       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
