@@ -1156,7 +1156,7 @@ export default function PixelGenerator() {
                 </Tooltip>
                 <div className="w-px h-6 bg-border mx-1" />
                 <span className="text-sm text-muted-foreground">
-                  {gridWidth} × {gridHeight} stitches
+                  {gridWidth} × {gridHeight} {t('swatch.stitches')}
                 </span>
               </div>
             </div>
