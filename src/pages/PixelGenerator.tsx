@@ -930,7 +930,7 @@ export default function PixelGenerator() {
               onClick={() => createEmptyGrid()}
               className="w-full rounded-xl"
             >
-              Create Empty Canvas
+              {t('pixel.createEmpty')}
             </Button>
           </div>
 
