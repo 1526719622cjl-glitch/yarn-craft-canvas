@@ -423,7 +423,7 @@ export default function CrochetEngine() {
                 className="rounded-xl soft-press"
               >
                 <CrochetHookIcon className="w-4 h-4 mr-1" />
-                Rounds
+                {t('crochet.rounds')}
               </Button>
               <Button
                 variant={chartMode === 'linear' ? 'default' : 'outline'}
