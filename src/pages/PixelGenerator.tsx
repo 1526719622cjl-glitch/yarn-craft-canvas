@@ -1213,7 +1213,7 @@ export default function PixelGenerator() {
                     style={{ backgroundColor: emptyCanvasColor }}
                   />
                   <div className="flex-1">
-                    <p className="text-sm font-medium">Selected Fill Color</p>
+                    <p className="text-sm font-medium">{t('pixel.selectedFillColor')}</p>
                     <p className="text-xs text-muted-foreground">{emptyCanvasColor}</p>
                   </div>
                   <Button 
