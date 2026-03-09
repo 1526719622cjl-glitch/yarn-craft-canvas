@@ -259,8 +259,8 @@ export default function CrochetEngine() {
           {/* Stitch Count Validator */}
           <div className="frosted-panel space-y-2">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium">Stitch Count Validator</h3>
-              <span className="text-xs text-muted-foreground">{totalStitches} total</span>
+              <h3 className="text-sm font-medium">{t('crochet.stitchValidator')}</h3>
+              <span className="text-xs text-muted-foreground">{totalStitches} {t('crochet.total')}</span>
             </div>
             <div className="max-h-[150px] overflow-auto space-y-1">
               {parseResult.validations.map((v) => {
