@@ -1138,7 +1138,7 @@ export default function PixelGenerator() {
                       <Undo className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>撤销 (Ctrl+Z)</TooltipContent>
+                  <TooltipContent>{t('common.undo')} (Ctrl+Z)</TooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
