@@ -902,7 +902,7 @@ export default function PixelGenerator() {
                   disabled={canvasScale === 100}
                   className="rounded-xl"
                 >
-                  Apply
+                  {t('common.apply')}
                 </Button>
               </div>
               <p className="text-[10px] text-muted-foreground">
