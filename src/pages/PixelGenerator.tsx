@@ -906,7 +906,7 @@ export default function PixelGenerator() {
                 </Button>
               </div>
               <p className="text-[10px] text-muted-foreground">
-                Preview: {Math.round(gridWidth * canvasScale / 100)} × {Math.round(gridHeight * canvasScale / 100)} stitches
+                {t('pixel.preview')} {Math.round(gridWidth * canvasScale / 100)} × {Math.round(gridHeight * canvasScale / 100)} {t('swatch.stitches')}
               </p>
             </div>
           )}
