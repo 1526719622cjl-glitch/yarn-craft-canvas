@@ -774,7 +774,7 @@ export default function PixelGenerator() {
         <motion.div variants={itemVariants} className="glass-card p-6 space-y-5">
           <div className="flex items-center gap-2">
             <Upload className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-medium">Image Upload</h2>
+            <h2 className="text-lg font-medium">{t('pixel.imageUpload')}</h2>
           </div>
 
           <input
