@@ -921,7 +921,7 @@ export default function PixelGenerator() {
                 onChange={(e) => setUseDithering(e.target.checked)}
                 className="rounded"
               />
-              <Label htmlFor="dithering" className="text-sm">Floyd-Steinberg Dithering</Label>
+              <Label htmlFor="dithering" className="text-sm">{t('pixel.dithering')}</Label>
             </div>
             
             <Button
