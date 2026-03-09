@@ -369,7 +369,7 @@ export default function KnittingEngine() {
               <div className="flex items-center gap-2">
                 <Grid className="w-4 h-4 text-muted-foreground" />
                 <Label htmlFor="grid-toggle" className="text-sm font-medium">
-                  Grid Lines
+                  {t('knitting.gridLines')}
                 </Label>
               </div>
               <Switch
