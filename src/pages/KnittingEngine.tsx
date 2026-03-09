@@ -195,6 +195,7 @@ function Knitting3DScene({
 }
 
 export default function KnittingEngine() {
+  const { t } = useI18n();
   const { 
     knittingChart, 
     knittingWidth, 
