@@ -289,8 +289,8 @@ export default function KnittingEngine() {
             <KnittingNeedlesIcon className="w-6 h-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-3xl font-display font-semibold text-foreground">Knitting Engine</h1>
-            <p className="text-muted-foreground">Professional chart designer with auto WS instructions & 3D yarn simulation</p>
+            <h1 className="text-3xl font-display font-semibold text-foreground">{t('knitting.title')}</h1>
+            <p className="text-muted-foreground">{t('knitting.subtitle')}</p>
           </div>
         </div>
       </motion.div>
