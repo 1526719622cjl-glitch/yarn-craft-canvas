@@ -275,6 +275,31 @@ const translations = {
   'pattern.correct': { zh: '修正', en: 'Correct' },
   'pattern.counter': { zh: '计数', en: 'Count' },
 
+  // Gauge Input Dialog
+  'pattern.gaugeSetup': { zh: '小样数据', en: 'Gauge Setup' },
+  'pattern.gaugeDescription': { zh: '输入你的小样密度，系统将自动换算图解尺寸', en: 'Enter your gauge data to dynamically calculate pattern dimensions' },
+  'pattern.linkYarn': { zh: '关联线材', en: 'Link Yarn' },
+  'pattern.manualInput': { zh: '手动输入', en: 'Manual Input' },
+  'pattern.noYarnWithGauge': { zh: '没有包含密度数据的线材', en: 'No yarn entries with gauge data' },
+  'pattern.addGaugeHint': { zh: '请先在样片实验室保存线材并添加密度', en: 'Save a yarn with gauge data in Swatch Lab first' },
+  'pattern.selectYarn': { zh: '选择线材', en: 'Select Yarn' },
+  'pattern.chooseYarn': { zh: '选择一款线材...', en: 'Choose a yarn...' },
+  'pattern.linkedGauge': { zh: '关联密度', en: 'Linked Gauge' },
+  'pattern.startWithGauge': { zh: '确认并开始', en: 'Confirm & Start' },
+  'pattern.gaugeInfo': { zh: '小样：{s}针/{r}行 / 10cm', en: 'Gauge: {s}st/{r}rows / 10cm' },
+  'pattern.dimensionCalc': { zh: '尺寸换算', en: 'Dimension Calculation' },
+  'pattern.skipGauge': { zh: '跳过', en: 'Skip' },
+
+  // Pixel Row Preview
+  'pattern.pixelPreview': { zh: '色彩排布', en: 'Color Layout' },
+  'pattern.stitchesTotal': { zh: '针', en: 'sts' },
+  'pattern.colorworkRow': { zh: '提花行', en: 'Colorwork Row' },
+  'pattern.noColorData': { zh: '无色彩数据', en: 'No color data' },
+
+  // Yarn gauge keys
+  'yarn.stitchesPer10cm': { zh: '针 / 10cm', en: 'Stitches / 10cm' },
+  'yarn.rowsPer10cm': { zh: '行 / 10cm', en: 'Rows / 10cm' },
+
   // Navigation updates
   'nav.yarnVault': { zh: '线材库', en: 'Yarn Vault' },
   'nav.yarnVault.desc': { zh: '我的线材收藏', en: 'My Yarn Collection' },
