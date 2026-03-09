@@ -432,7 +432,7 @@ export default function CrochetEngine() {
                 className="rounded-xl soft-press"
               >
                 <LayoutGrid className="w-4 h-4 mr-1" />
-                Rows
+                {t('crochet.rows')}
               </Button>
             </div>
           </div>
