@@ -964,7 +964,7 @@ export default function PixelGenerator() {
                   onClick={toggleIgnoreBackground}
                   className="text-xs h-6 px-2"
                 >
-                  {ignoredColor ? 'Show BG' : 'Hide BG'}
+                  {ignoredColor ? t('pixel.showBg') : t('pixel.hideBg')}
                 </Button>
               </div>
               <div className="flex flex-wrap gap-2">
