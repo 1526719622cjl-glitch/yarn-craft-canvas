@@ -682,7 +682,7 @@ export default function CrochetEngine() {
                 className="rounded-lg h-7 px-3"
               >
                 <Layers className="w-3.5 h-3.5 mr-1" />
-                Yarn Tubes
+                {t('crochet.yarnTubes')}
               </Button>
             </div>
             
