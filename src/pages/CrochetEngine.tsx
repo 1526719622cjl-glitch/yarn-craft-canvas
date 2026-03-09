@@ -213,8 +213,8 @@ export default function CrochetEngine() {
               <CrochetHookIcon className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <h1 className="text-3xl font-display font-semibold text-foreground">Crochet Engine</h1>
-              <p className="text-muted-foreground">AI-powered NLP parser with JIS charting & 3D yarn simulation</p>
+              <h1 className="text-3xl font-display font-semibold text-foreground">{t('crochet.title')}</h1>
+              <p className="text-muted-foreground">{t('crochet.subtitle')}</p>
             </div>
           </div>
           
