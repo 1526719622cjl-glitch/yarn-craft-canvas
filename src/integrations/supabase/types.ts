@@ -129,6 +129,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          linked_yarn_id: string | null
           status: string
           tags: string[] | null
           title: string
@@ -141,6 +142,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          linked_yarn_id?: string | null
           status?: string
           tags?: string[] | null
           title: string
@@ -153,13 +155,22 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          linked_yarn_id?: string | null
           status?: string
           tags?: string[] | null
           title?: string
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "pattern_library_linked_yarn_id_fkey"
+            columns: ["linked_yarn_id"]
+            isOneToOne: false
+            referencedRelation: "yarn_entries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pattern_progress: {
         Row: {
