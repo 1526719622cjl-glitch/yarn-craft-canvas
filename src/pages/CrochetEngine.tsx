@@ -304,7 +304,7 @@ export default function CrochetEngine() {
           {/* Syntax Guide with Categories */}
           <div className="frosted-panel space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium">JIS Symbol Library</h3>
+              <h3 className="text-sm font-medium">{t('crochet.symbolLibrary')}</h3>
               <Button
                 variant="ghost"
                 size="sm"
