@@ -319,7 +319,7 @@ export default function KnittingEngine() {
 
           {/* Grid Dimensions */}
           <div className="space-y-3 pt-4 border-t border-border/50">
-            <h3 className="text-sm font-medium">Chart Dimensions</h3>
+            <h3 className="text-sm font-medium">{t('knitting.chartDimensions')}</h3>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
                 <Label className="text-xs">Width</Label>
