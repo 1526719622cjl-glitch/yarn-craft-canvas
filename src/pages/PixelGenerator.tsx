@@ -883,7 +883,7 @@ export default function PixelGenerator() {
           {pixelGrid.length > 0 && (
             <div className="space-y-2 border-t border-border/30 pt-4">
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium">Scale Canvas</Label>
+                <Label className="text-sm font-medium">{t('pixel.scaleCanvas')}</Label>
                 <span className="text-xs text-muted-foreground">{canvasScale}%</span>
               </div>
               <div className="flex gap-2">
