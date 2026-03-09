@@ -502,7 +502,7 @@ export default function KnittingEngine() {
           </div>
 
           <div className="frosted-panel text-center">
-            <p className="text-xs text-muted-foreground mb-1">Legend</p>
+            <p className="text-xs text-muted-foreground mb-1">{t('knitting.legend')}</p>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div className="flex items-center gap-1">
                 <span className="font-bold">K</span> = Knit
