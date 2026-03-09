@@ -26,9 +26,9 @@ const translations = {
   'nav.pixelGenerator': { zh: '像素生成器', en: 'Pixel Generator' },
   'nav.pixelGenerator.desc': { zh: '图转针格', en: 'Image to Grid' },
   'nav.crochetEngine': { zh: '钩针引擎', en: 'Crochet Engine' },
-  'nav.crochetEngine.desc': { zh: '图解解析器', en: 'Pattern Parser' },
+  'nav.crochetEngine.desc': { zh: '图解库 & AI 解析', en: 'Pattern Library & AI Parse' },
   'nav.knittingEngine': { zh: '棒针引擎', en: 'Knitting Engine' },
-  'nav.knittingEngine.desc': { zh: '编织图设计器', en: 'Chart Designer' },
+  'nav.knittingEngine.desc': { zh: '图解库 & 跟织助手', en: 'Pattern Library & Companion' },
 
   // Auth
   'auth.title': { zh: 'Yarn Clues', en: 'Yarn Clues' },
