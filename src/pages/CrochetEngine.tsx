@@ -658,9 +658,9 @@ export default function CrochetEngine() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-medium">3D Yarn Simulation</h2>
+            <h2 className="text-lg font-medium">{t('crochet.3dSimulation')}</h2>
             <span className="text-xs text-muted-foreground ml-2">
-              {view3DMode === 'wireframe' ? '(Wireframe - Spiral Topology)' : '(TubeGeometry + Fuzzy Shader)'}
+              {view3DMode === 'wireframe' ? t('crochet.wireframeDesc') : t('crochet.tubesDesc')}
             </span>
           </div>
           <div className="flex items-center gap-4">
