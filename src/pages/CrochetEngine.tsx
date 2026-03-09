@@ -398,7 +398,7 @@ export default function CrochetEngine() {
             {/* Pattern Legend - shows stitches used in current pattern */}
             {parseResult.stitches.length > 0 && (
               <div className="pt-2 border-t border-border/50">
-                <h4 className="text-xs font-medium mb-2 text-muted-foreground">Used in Pattern</h4>
+                <h4 className="text-xs font-medium mb-2 text-muted-foreground">{t('crochet.usedInPattern')}</h4>
                 <SymbolLegend 
                   stitchTypes={getUsedStitchTypes(parseResult.stitches) as CrochetStitchType[]} 
                   size={16} 
