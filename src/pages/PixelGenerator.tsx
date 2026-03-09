@@ -792,7 +792,7 @@ export default function PixelGenerator() {
           >
             <div className="text-center">
               <Upload className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Upload image</p>
+              <p className="text-sm text-muted-foreground">{t('pixel.uploadImage')}</p>
             </div>
           </Button>
 
