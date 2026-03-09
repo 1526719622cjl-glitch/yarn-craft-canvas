@@ -806,9 +806,9 @@ export default function PixelGenerator() {
           <div className="space-y-3 border-t border-border/30 pt-4">
             <div className="flex items-center justify-between">
               <Label className="text-xs font-medium">
-                Canvas Dimensions (stitches)
+                {t('pixel.canvasDimensions')}
                 {pixelGrid.length > 0 && (
-                  <span className="ml-2 text-[10px] text-primary">(Current)</span>
+                  <span className="ml-2 text-[10px] text-primary">{t('pixel.current')}</span>
                 )}
               </Label>
               <Tooltip>
