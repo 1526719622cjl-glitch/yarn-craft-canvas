@@ -1191,9 +1191,9 @@ export default function PixelGenerator() {
               <div className="space-y-6">
                 <div className="h-40 flex items-center justify-center rounded-2xl bg-muted/20 border-2 border-dashed border-border">
                   <div className="text-center">
-                    <p className="text-muted-foreground mb-3">Upload an image or create an empty canvas</p>
+                    <p className="text-muted-foreground mb-3">{t('pixel.uploadOrCreate')}</p>
                     <Button variant="outline" onClick={() => createEmptyGrid()} className="rounded-xl">
-                      Create {customGridWidth}×{calculatedHeight} Canvas
+                      {t('pixel.createCanvas')} {customGridWidth}×{calculatedHeight}
                     </Button>
                   </div>
                 </div>
