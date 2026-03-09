@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { useI18n } from '@/i18n/useI18n';
 import { useYarnCluesStore, CrochetStitch } from '@/store/useYarnCluesStore';
 import { Eye, LayoutGrid, ZoomIn, Sparkles, AlertCircle, CheckCircle, Loader2, Brain, Split, Palette, Layers, Grid3X3 } from 'lucide-react';
 import { CrochetHookIcon } from '@/components/icons';
@@ -96,6 +97,7 @@ function Crochet3DScene({
 }
 
 export default function CrochetEngine() {
+  const { t } = useI18n();
   const { 
     crochetInput, 
     setCrochetInput, 
@@ -211,15 +213,15 @@ export default function CrochetEngine() {
               <CrochetHookIcon className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <h1 className="text-3xl font-display font-semibold text-foreground">Crochet Engine</h1>
-              <p className="text-muted-foreground">AI-powered NLP parser with JIS charting & 3D yarn simulation</p>
+              <h1 className="text-3xl font-display font-semibold text-foreground">{t('crochet.title')}</h1>
+              <p className="text-muted-foreground">{t('crochet.subtitle')}</p>
             </div>
           </div>
           
           {/* AI Toggle */}
           <div className="flex items-center gap-3 frosted-panel px-4 py-2">
             <Brain className="w-4 h-4 text-primary" />
-            <Label htmlFor="ai-toggle" className="text-sm font-medium">AI Parser</Label>
+            <Label htmlFor="ai-toggle" className="text-sm font-medium">{t('crochet.aiParser')}</Label>
             <Switch
               id="ai-toggle"
               checked={useAIParser}
@@ -237,7 +239,7 @@ export default function CrochetEngine() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Split className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-medium">Pattern Editor</h2>
+              <h2 className="text-lg font-medium">{t('crochet.patternEditor')}</h2>
             </div>
             {aiError && (
               <span className="text-xs text-destructive flex items-center gap-1">
@@ -250,15 +252,15 @@ export default function CrochetEngine() {
           <Textarea
             value={crochetInput}
             onChange={(e) => handleInputChange(e.target.value)}
-            placeholder="Enter pattern commands (e.g., 6x, (2x, v)*6)..."
+            placeholder={t('crochet.inputPlaceholder')}
             className="input-glass min-h-[200px] font-mono text-sm"
           />
 
           {/* Stitch Count Validator */}
           <div className="frosted-panel space-y-2">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium">Stitch Count Validator</h3>
-              <span className="text-xs text-muted-foreground">{totalStitches} total</span>
+              <h3 className="text-sm font-medium">{t('crochet.stitchValidator')}</h3>
+              <span className="text-xs text-muted-foreground">{totalStitches} {t('crochet.total')}</span>
             </div>
             <div className="max-h-[150px] overflow-auto space-y-1">
               {parseResult.validations.map((v) => {
@@ -273,7 +275,7 @@ export default function CrochetEngine() {
                     }`}
                   >
                     <span className={`font-medium ${hasError ? 'text-destructive' : ''}`}>
-                      Row {v.row}
+                      {t('crochet.row')} {v.row}
                     </span>
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">{v.stitchCount} sts</span>
@@ -302,7 +304,7 @@ export default function CrochetEngine() {
           {/* Syntax Guide with Categories */}
           <div className="frosted-panel space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium">JIS Symbol Library</h3>
+              <h3 className="text-sm font-medium">{t('crochet.symbolLibrary')}</h3>
               <Button
                 variant="ghost"
                 size="sm"
@@ -310,7 +312,7 @@ export default function CrochetEngine() {
                 className="text-xs"
               >
                 <Palette className="w-3 h-3 mr-1" />
-                {showSymbolGuide ? 'Hide' : 'Expand'}
+                {showSymbolGuide ? t('crochet.hide') : t('crochet.expand')}
               </Button>
             </div>
             
@@ -396,7 +398,7 @@ export default function CrochetEngine() {
             {/* Pattern Legend - shows stitches used in current pattern */}
             {parseResult.stitches.length > 0 && (
               <div className="pt-2 border-t border-border/50">
-                <h4 className="text-xs font-medium mb-2 text-muted-foreground">Used in Pattern</h4>
+                <h4 className="text-xs font-medium mb-2 text-muted-foreground">{t('crochet.usedInPattern')}</h4>
                 <SymbolLegend 
                   stitchTypes={getUsedStitchTypes(parseResult.stitches) as CrochetStitchType[]} 
                   size={16} 
@@ -411,7 +413,7 @@ export default function CrochetEngine() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Eye className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-medium">Interactive Chart</h2>
+              <h2 className="text-lg font-medium">{t('crochet.interactiveChart')}</h2>
             </div>
             <div className="flex gap-2">
               <Button
@@ -421,7 +423,7 @@ export default function CrochetEngine() {
                 className="rounded-xl soft-press"
               >
                 <CrochetHookIcon className="w-4 h-4 mr-1" />
-                Rounds
+                {t('crochet.rounds')}
               </Button>
               <Button
                 variant={chartMode === 'linear' ? 'default' : 'outline'}
@@ -430,7 +432,7 @@ export default function CrochetEngine() {
                 className="rounded-xl soft-press"
               >
                 <LayoutGrid className="w-4 h-4 mr-1" />
-                Rows
+                {t('crochet.rows')}
               </Button>
             </div>
           </div>
@@ -451,7 +453,7 @@ export default function CrochetEngine() {
                     <ZoomIn className="w-4 h-4 rotate-180" />
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => resetTransform()} className="rounded-xl">
-                    Reset
+                    {t('common.reset')}
                   </Button>
                 </div>
                 
@@ -656,9 +658,9 @@ export default function CrochetEngine() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-medium">3D Yarn Simulation</h2>
+            <h2 className="text-lg font-medium">{t('crochet.3dSimulation')}</h2>
             <span className="text-xs text-muted-foreground ml-2">
-              {view3DMode === 'wireframe' ? '(Wireframe - Spiral Topology)' : '(TubeGeometry + Fuzzy Shader)'}
+              {view3DMode === 'wireframe' ? t('crochet.wireframeDesc') : t('crochet.tubesDesc')}
             </span>
           </div>
           <div className="flex items-center gap-4">
@@ -671,7 +673,7 @@ export default function CrochetEngine() {
                 className="rounded-lg h-7 px-3"
               >
                 <Grid3X3 className="w-3.5 h-3.5 mr-1" />
-                Wireframe
+                {t('crochet.wireframe')}
               </Button>
               <Button
                 variant={view3DMode === 'tubes' ? 'default' : 'ghost'}
@@ -680,13 +682,13 @@ export default function CrochetEngine() {
                 className="rounded-lg h-7 px-3"
               >
                 <Layers className="w-3.5 h-3.5 mr-1" />
-                Yarn Tubes
+                {t('crochet.yarnTubes')}
               </Button>
             </div>
             
             {view3DMode === 'tubes' && (
               <div className="flex items-center gap-2">
-                <Label htmlFor="hifi-toggle" className="text-sm">High Quality</Label>
+                <Label htmlFor="hifi-toggle" className="text-sm">{t('crochet.highQuality')}</Label>
                 <Switch
                   id="hifi-toggle"
                   checked={highFidelityMode}
@@ -701,7 +703,7 @@ export default function CrochetEngine() {
           {view3DMode === 'wireframe' ? (
             <Suspense fallback={
               <div className="w-full h-full flex items-center justify-center">
-                <div className="animate-pulse text-muted-foreground">Loading Wireframe Preview...</div>
+                <div className="animate-pulse text-muted-foreground">{t('crochet.loadingWireframe')}</div>
               </div>
             }>
               <CrochetWireframeScene
@@ -719,7 +721,7 @@ export default function CrochetEngine() {
           ) : (
             <Suspense fallback={
               <div className="w-full h-full flex items-center justify-center">
-                <div className="animate-pulse text-muted-foreground">Loading 3D Yarn Preview...</div>
+                <div className="animate-pulse text-muted-foreground">{t('crochet.loading3d')}</div>
               </div>
             }>
               <Canvas camera={{ position: [0, 0, 4], fov: 50 }} shadows={highFidelityMode}>
@@ -735,8 +737,8 @@ export default function CrochetEngine() {
 
         <p className="text-xs text-muted-foreground mt-3 text-center">
           {view3DMode === 'wireframe' 
-            ? 'Spiral topology • Auto-rotation • Click stitches to highlight in chart'
-            : 'Drag to rotate • Scroll to zoom • Hover on chart to highlight stitch with emissive glow'
+            ? t('crochet.wireframeTip')
+            : t('crochet.tubesTip')
           }
         </p>
       </motion.div>

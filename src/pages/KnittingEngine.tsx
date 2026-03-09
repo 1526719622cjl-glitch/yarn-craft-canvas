@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { useI18n } from '@/i18n/useI18n';
 import { useYarnCluesStore, KnittingStitch } from '@/store/useYarnCluesStore';
 import { Paintbrush, RotateCcw, FileText, Sparkles, Grid } from 'lucide-react';
 import { KnittingNeedlesIcon } from '@/components/icons';
@@ -194,6 +195,7 @@ function Knitting3DScene({
 }
 
 export default function KnittingEngine() {
+  const { t } = useI18n();
   const { 
     knittingChart, 
     knittingWidth, 
@@ -287,8 +289,8 @@ export default function KnittingEngine() {
             <KnittingNeedlesIcon className="w-6 h-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-3xl font-display font-semibold text-foreground">Knitting Engine</h1>
-            <p className="text-muted-foreground">Professional chart designer with auto WS instructions & 3D yarn simulation</p>
+            <h1 className="text-3xl font-display font-semibold text-foreground">{t('knitting.title')}</h1>
+            <p className="text-muted-foreground">{t('knitting.subtitle')}</p>
           </div>
         </div>
       </motion.div>
@@ -298,7 +300,7 @@ export default function KnittingEngine() {
         <motion.div variants={itemVariants} className="glass-card p-6 space-y-6">
           <div className="flex items-center gap-2">
             <Paintbrush className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-medium">Stitch Tools</h2>
+            <h2 className="text-lg font-medium">{t('knitting.stitchTools')}</h2>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
@@ -317,10 +319,10 @@ export default function KnittingEngine() {
 
           {/* Grid Dimensions */}
           <div className="space-y-3 pt-4 border-t border-border/50">
-            <h3 className="text-sm font-medium">Chart Dimensions</h3>
+            <h3 className="text-sm font-medium">{t('knitting.chartDimensions')}</h3>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <Label className="text-xs">Width</Label>
+                <Label className="text-xs">{t('common.width')}</Label>
                 <Input
                   type="number"
                   value={tempWidth}
@@ -331,7 +333,7 @@ export default function KnittingEngine() {
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Height</Label>
+                <Label className="text-xs">{t('common.height')}</Label>
                 <Input
                   type="number"
                   value={tempHeight}
@@ -348,14 +350,14 @@ export default function KnittingEngine() {
               onClick={applyDimensions}
               className="w-full rounded-xl"
             >
-              Apply Dimensions
+              {t('knitting.applyDimensions')}
             </Button>
           </div>
 
           <div className="space-y-4 pt-4 border-t border-border/50">
             <div className="flex items-center justify-between">
               <Label htmlFor="ws-toggle" className="text-sm font-medium">
-                Show Wrong Side
+                {t('knitting.showWrongSide')}
               </Label>
               <Switch
                 id="ws-toggle"
@@ -367,7 +369,7 @@ export default function KnittingEngine() {
               <div className="flex items-center gap-2">
                 <Grid className="w-4 h-4 text-muted-foreground" />
                 <Label htmlFor="grid-toggle" className="text-sm font-medium">
-                  Grid Lines
+                  {t('knitting.gridLines')}
                 </Label>
               </div>
               <Switch
@@ -384,11 +386,11 @@ export default function KnittingEngine() {
             className="w-full rounded-2xl soft-press"
           >
             <RotateCcw className="w-4 h-4 mr-2" />
-            Reset Grid
+            {t('knitting.resetGrid')}
           </Button>
 
           <div className="frosted-panel">
-            <p className="text-xs text-muted-foreground mb-2">Grid Size</p>
+            <p className="text-xs text-muted-foreground mb-2">{t('knitting.gridSize')}</p>
             <p className="text-lg font-medium">
               {knittingWidth} × {knittingHeight}
             </p>
@@ -399,10 +401,10 @@ export default function KnittingEngine() {
         <motion.div variants={itemVariants} className="xl:col-span-2 glass-card p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-medium">
-              {showWrongSide ? 'Wrong Side View' : 'Right Side View'}
+              {showWrongSide ? t('knitting.wrongSideView') : t('knitting.rightSideView')}
             </h2>
             <span className="text-sm text-muted-foreground">
-              Click and drag to paint
+              {t('knitting.clickDragPaint')}
             </span>
           </div>
 
@@ -475,7 +477,7 @@ export default function KnittingEngine() {
         <motion.div variants={itemVariants} className="glass-card p-6 space-y-6">
           <div className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-medium">Written Instructions</h2>
+            <h2 className="text-lg font-medium">{t('knitting.writtenInstructions')}</h2>
           </div>
 
           <div className="space-y-2 max-h-[300px] overflow-auto">
@@ -500,7 +502,7 @@ export default function KnittingEngine() {
           </div>
 
           <div className="frosted-panel text-center">
-            <p className="text-xs text-muted-foreground mb-1">Legend</p>
+            <p className="text-xs text-muted-foreground mb-1">{t('knitting.legend')}</p>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div className="flex items-center gap-1">
                 <span className="font-bold">K</span> = Knit
@@ -524,12 +526,12 @@ export default function KnittingEngine() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-medium">3D Yarn Simulation</h2>
-            <span className="text-xs text-muted-foreground ml-2">(TubeGeometry + Fuzzy Shader)</span>
+            <h2 className="text-lg font-medium">{t('knitting.3dSimulation')}</h2>
+            <span className="text-xs text-muted-foreground ml-2">{t('knitting.tubeShader')}</span>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <Label htmlFor="knit-hifi-toggle" className="text-sm">High Quality (AO)</Label>
+              <Label htmlFor="knit-hifi-toggle" className="text-sm">{t('knitting.highQualityAO')}</Label>
               <Switch
                 id="knit-hifi-toggle"
                 checked={knittingHighFidelityMode}
@@ -542,7 +544,7 @@ export default function KnittingEngine() {
         <div className="h-[400px] rounded-2xl overflow-hidden bg-gradient-to-b from-muted/30 to-muted/10">
           <Suspense fallback={
             <div className="w-full h-full flex items-center justify-center">
-              <div className="animate-pulse text-muted-foreground">Loading 3D Yarn Preview...</div>
+              <div className="animate-pulse text-muted-foreground">{t('knitting.loading3d')}</div>
             </div>
           }>
             <Canvas camera={{ position: [0, 0, 5], fov: 50 }} shadows={knittingHighFidelityMode}>
@@ -558,7 +560,7 @@ export default function KnittingEngine() {
         </div>
 
         <p className="text-xs text-muted-foreground mt-3 text-center">
-          Drag to rotate • Scroll to zoom • Hover on chart to highlight stitch with emissive glow
+          {t('knitting.3dTip')}
         </p>
       </motion.div>
     </motion.div>

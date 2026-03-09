@@ -1,5 +1,6 @@
 // PixelGenerator - Updated 2026-02-04
 import { motion } from 'framer-motion';
+import { useI18n } from '@/i18n/useI18n';
 import { useYarnCluesStore, PixelTool, PixelCell } from '@/store/useYarnCluesStore';
 import { 
   Grid3X3, Upload, Palette, Pencil, Eraser, PaintBucket, Pipette, 
@@ -173,6 +174,7 @@ const tools: { type: ExtendedTool; icon: typeof Pencil; label: string }[] = [
 // Ruler component moved to InfiniteCanvas component
 
 export default function PixelGenerator() {
+  const { t } = useI18n();
   const { 
     gaugeData, 
     pixelGrid, 
@@ -761,8 +763,8 @@ export default function PixelGenerator() {
             <Grid3X3 className="w-6 h-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-3xl font-display font-semibold text-foreground">Pixel Generator</h1>
-            <p className="text-muted-foreground">Gauge-aware conversion with K-Means quantization & symmetry tools</p>
+            <h1 className="text-3xl font-display font-semibold text-foreground">{t('pixel.title')}</h1>
+            <p className="text-muted-foreground">{t('pixel.subtitle')}</p>
           </div>
         </div>
       </motion.div>
@@ -772,7 +774,7 @@ export default function PixelGenerator() {
         <motion.div variants={itemVariants} className="glass-card p-6 space-y-5">
           <div className="flex items-center gap-2">
             <Upload className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-medium">Image Upload</h2>
+            <h2 className="text-lg font-medium">{t('pixel.imageUpload')}</h2>
           </div>
 
           <input
@@ -790,13 +792,13 @@ export default function PixelGenerator() {
           >
             <div className="text-center">
               <Upload className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Upload image</p>
+              <p className="text-sm text-muted-foreground">{t('pixel.uploadImage')}</p>
             </div>
           </Button>
 
           {/* Stitch Type Selector */}
           <div className="space-y-2">
-            <Label className="text-sm text-muted-foreground">Stitch Type</Label>
+            <Label className="text-sm text-muted-foreground">{t('pixel.stitchType')}</Label>
             <StitchTypeSelector value={stitchType} onChange={setStitchType} />
           </div>
 
@@ -804,9 +806,9 @@ export default function PixelGenerator() {
           <div className="space-y-3 border-t border-border/30 pt-4">
             <div className="flex items-center justify-between">
               <Label className="text-xs font-medium">
-                Canvas Dimensions (stitches)
+                {t('pixel.canvasDimensions')}
                 {pixelGrid.length > 0 && (
-                  <span className="ml-2 text-[10px] text-primary">(Current)</span>
+                  <span className="ml-2 text-[10px] text-primary">{t('pixel.current')}</span>
                 )}
               </Label>
               <Tooltip>
@@ -825,14 +827,14 @@ export default function PixelGenerator() {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {lockAspectRatio ? 'Unlock aspect ratio' : 'Lock aspect ratio'}
+                  {lockAspectRatio ? t('pixel.unlockAspectRatio') : t('pixel.lockAspectRatio')}
                 </TooltipContent>
               </Tooltip>
             </div>
             
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <Label className="text-[10px] text-muted-foreground">Width</Label>
+                <Label className="text-[10px] text-muted-foreground">{t('common.width')}</Label>
                 <Input
                   type="number"
                   value={pixelGrid.length > 0 ? gridWidth : customGridWidth}
@@ -850,7 +852,7 @@ export default function PixelGenerator() {
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-[10px] text-muted-foreground">Height</Label>
+                <Label className="text-[10px] text-muted-foreground">{t('common.height')}</Label>
                 <Input
                   type="number"
                   value={pixelGrid.length > 0 ? gridHeight : (lockAspectRatio ? calculatedHeight : manualHeight)}
@@ -871,13 +873,9 @@ export default function PixelGenerator() {
             </div>
             
             {pixelGrid.length > 0 ? (
-              <p className="text-[10px] text-muted-foreground">
-                Editing dimensions will resize the canvas
-              </p>
+              <p className="text-[10px] text-muted-foreground">{t('pixel.editResize')}</p>
             ) : lockAspectRatio ? (
-              <p className="text-[10px] text-muted-foreground">
-                Height auto-calculated from stitch ratio
-              </p>
+              <p className="text-[10px] text-muted-foreground">{t('pixel.autoHeight')}</p>
             ) : null}
           </div>
           
@@ -885,7 +883,7 @@ export default function PixelGenerator() {
           {pixelGrid.length > 0 && (
             <div className="space-y-2 border-t border-border/30 pt-4">
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium">Scale Canvas</Label>
+                <Label className="text-sm font-medium">{t('pixel.scaleCanvas')}</Label>
                 <span className="text-xs text-muted-foreground">{canvasScale}%</span>
               </div>
               <div className="flex gap-2">
@@ -904,11 +902,11 @@ export default function PixelGenerator() {
                   disabled={canvasScale === 100}
                   className="rounded-xl"
                 >
-                  Apply
+                  {t('common.apply')}
                 </Button>
               </div>
               <p className="text-[10px] text-muted-foreground">
-                Preview: {Math.round(gridWidth * canvasScale / 100)} × {Math.round(gridHeight * canvasScale / 100)} stitches
+                {t('pixel.preview')} {Math.round(gridWidth * canvasScale / 100)} × {Math.round(gridHeight * canvasScale / 100)} {t('swatch.stitches')}
               </p>
             </div>
           )}
@@ -923,7 +921,7 @@ export default function PixelGenerator() {
                 onChange={(e) => setUseDithering(e.target.checked)}
                 className="rounded"
               />
-              <Label htmlFor="dithering" className="text-sm">Floyd-Steinberg Dithering</Label>
+              <Label htmlFor="dithering" className="text-sm">{t('pixel.dithering')}</Label>
             </div>
             
             <Button
@@ -932,7 +930,7 @@ export default function PixelGenerator() {
               onClick={() => createEmptyGrid()}
               className="w-full rounded-xl"
             >
-              Create Empty Canvas
+              {t('pixel.createEmpty')}
             </Button>
           </div>
 
@@ -941,7 +939,7 @@ export default function PixelGenerator() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Sliders className="w-4 h-4 text-primary" />
-                <h3 className="font-medium text-sm">Max Colors</h3>
+                <h3 className="font-medium text-sm">{t('pixel.maxColors')}</h3>
               </div>
               <span className="text-sm font-semibold text-primary">{colorCount}</span>
             </div>
@@ -959,14 +957,14 @@ export default function PixelGenerator() {
           {colorPalette.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-muted-foreground">Project Palette</h3>
+                <h3 className="text-sm font-medium text-muted-foreground">{t('pixel.projectPalette')}</h3>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={toggleIgnoreBackground}
                   className="text-xs h-6 px-2"
                 >
-                  {ignoredColor ? 'Show BG' : 'Hide BG'}
+                  {ignoredColor ? t('pixel.showBg') : t('pixel.hideBg')}
                 </Button>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -990,7 +988,7 @@ export default function PixelGenerator() {
             <div className="space-y-3 border-t border-border/30 pt-4">
               <div className="flex items-center gap-2">
                 <Palette className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm font-medium text-muted-foreground">Add Custom Color</span>
+                <span className="text-sm font-medium text-muted-foreground">{t('pixel.addCustomColor')}</span>
               </div>
               <div className="flex gap-2">
                 <input
@@ -1016,7 +1014,7 @@ export default function PixelGenerator() {
                       <Plus className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Add to palette</TooltipContent>
+                  <TooltipContent>{t('pixel.addToPalette')}</TooltipContent>
                 </Tooltip>
               </div>
             </div>
@@ -1024,7 +1022,7 @@ export default function PixelGenerator() {
 
           {/* Tools */}
           <div className="space-y-2 border-t border-border/30 pt-4">
-            <h3 className="text-sm font-medium text-muted-foreground">Drawing Tools</h3>
+            <h3 className="text-sm font-medium text-muted-foreground">{t('pixel.drawingTools')}</h3>
             <div className="grid grid-cols-3 gap-1">
               {tools.map((tool) => (
                 <Tooltip key={tool.type}>
@@ -1049,7 +1047,7 @@ export default function PixelGenerator() {
           <div className="space-y-2 border-t border-border/30 pt-4">
             <div className="flex items-center gap-2">
               <FlipHorizontal className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium text-muted-foreground">Symmetry</span>
+              <span className="text-sm font-medium text-muted-foreground">{t('pixel.symmetry')}</span>
             </div>
             <SymmetryTools mode={symmetryMode} onChange={setSymmetryMode} />
           </div>
@@ -1059,7 +1057,7 @@ export default function PixelGenerator() {
             <div className="space-y-2 border-t border-border/30 pt-4">
               <div className="flex items-center gap-2">
                 <Layers className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm font-medium text-muted-foreground">Trace Opacity</span>
+                <span className="text-sm font-medium text-muted-foreground">{t('pixel.traceOpacity')}</span>
               </div>
               <Slider
                 value={[traceOpacity]}
@@ -1079,7 +1077,7 @@ export default function PixelGenerator() {
               animate={{ opacity: 1, height: 'auto' }}
               className="space-y-2 border-t border-border/30 pt-4"
             >
-              <h3 className="text-sm font-medium text-muted-foreground">Selection</h3>
+              <h3 className="text-sm font-medium text-muted-foreground">{t('pixel.selection')}</h3>
               <div className="grid grid-cols-3 gap-2">
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -1087,7 +1085,7 @@ export default function PixelGenerator() {
                       <Copy className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Copy</TooltipContent>
+                  <TooltipContent>{t('common.copy')}</TooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -1101,7 +1099,7 @@ export default function PixelGenerator() {
                       <Move className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Paste</TooltipContent>
+                  <TooltipContent>{t('common.paste')}</TooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -1109,11 +1107,11 @@ export default function PixelGenerator() {
                       <RotateCw className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Rotate 90°</TooltipContent>
+                  <TooltipContent>{t('pixel.rotate90')}</TooltipContent>
                 </Tooltip>
               </div>
               <Button variant="ghost" size="sm" onClick={clearSelection} className="w-full rounded-xl text-muted-foreground">
-                Clear Selection
+                {t('pixel.clearSelection')}
               </Button>
             </motion.div>
           )}
@@ -1125,7 +1123,7 @@ export default function PixelGenerator() {
           {/* Preview Card */}
           <div className="glass-card p-6 min-h-[500px] flex flex-col">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-medium">Yarn Grid Preview</h2>
+              <h2 className="text-lg font-medium">{t('pixel.yarnGridPreview')}</h2>
               <div className="flex items-center gap-2">
                 {/* Undo/Redo Buttons */}
                 <Tooltip>
@@ -1140,7 +1138,7 @@ export default function PixelGenerator() {
                       <Undo className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>撤销 (Ctrl+Z)</TooltipContent>
+                  <TooltipContent>{t('common.undo')} (Ctrl+Z)</TooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -1154,11 +1152,11 @@ export default function PixelGenerator() {
                       <Redo className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>重做 (Ctrl+Y)</TooltipContent>
+                  <TooltipContent>{t('common.redo')} (Ctrl+Y)</TooltipContent>
                 </Tooltip>
                 <div className="w-px h-6 bg-border mx-1" />
                 <span className="text-sm text-muted-foreground">
-                  {gridWidth} × {gridHeight} stitches
+                  {gridWidth} × {gridHeight} {t('swatch.stitches')}
                 </span>
               </div>
             </div>
@@ -1193,9 +1191,9 @@ export default function PixelGenerator() {
               <div className="space-y-6">
                 <div className="h-40 flex items-center justify-center rounded-2xl bg-muted/20 border-2 border-dashed border-border">
                   <div className="text-center">
-                    <p className="text-muted-foreground mb-3">Upload an image or create an empty canvas</p>
+                    <p className="text-muted-foreground mb-3">{t('pixel.uploadOrCreate')}</p>
                     <Button variant="outline" onClick={() => createEmptyGrid()} className="rounded-xl">
-                      Create {customGridWidth}×{calculatedHeight} Canvas
+                      {t('pixel.createCanvas')} {customGridWidth}×{calculatedHeight}
                     </Button>
                   </div>
                 </div>
@@ -1215,14 +1213,14 @@ export default function PixelGenerator() {
                     style={{ backgroundColor: emptyCanvasColor }}
                   />
                   <div className="flex-1">
-                    <p className="text-sm font-medium">Selected Fill Color</p>
+                    <p className="text-sm font-medium">{t('pixel.selectedFillColor')}</p>
                     <p className="text-xs text-muted-foreground">{emptyCanvasColor}</p>
                   </div>
                   <Button 
                     onClick={() => createEmptyGrid(emptyCanvasColor)} 
                     className="rounded-xl"
                   >
-                    Create Canvas
+                    {t('pixel.createCanvas')}
                   </Button>
                 </div>
               </div>
