@@ -834,7 +834,7 @@ export default function PixelGenerator() {
             
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <Label className="text-[10px] text-muted-foreground">Width</Label>
+                <Label className="text-[10px] text-muted-foreground">{t('common.width')}</Label>
                 <Input
                   type="number"
                   value={pixelGrid.length > 0 ? gridWidth : customGridWidth}
