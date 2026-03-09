@@ -4,7 +4,7 @@ import { Ruler, Calculator, TrendingUp, TrendingDown, Target, Undo, Redo, Save, 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { SmartYarnCalculator } from '@/components/swatch/SmartYarnCalculator';
 import { YarnGaugeVault } from '@/components/swatch/YarnGaugeVault';
 import { useUndoRedo, useUndoRedoKeyboard } from '@/hooks/useUndoRedo';
