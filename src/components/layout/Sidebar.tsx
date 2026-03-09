@@ -4,18 +4,22 @@ import { Ruler, Grid3X3, Sparkles, LogOut, LogIn, User } from 'lucide-react';
 import { CrochetHookIcon, KnittingNeedlesIcon } from '@/components/icons';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
+import { useI18n } from '@/i18n/useI18n';
+import { LanguageSwitcher } from './LanguageSwitcher';
+import type { TranslationKey } from '@/i18n/translations';
 
-const navItems = [
-  { path: '/', icon: Ruler, label: 'Swatch Lab', description: 'Gauge Calculator' },
-  { path: '/pixel', icon: Grid3X3, label: 'Pixel Generator', description: 'Image to Grid' },
-  { path: '/crochet', icon: CrochetHookIcon, label: 'Crochet Engine', description: 'Pattern Parser' },
-  { path: '/knitting', icon: KnittingNeedlesIcon, label: 'Knitting Engine', description: 'Chart Designer' },
+const navItems: { path: string; icon: any; labelKey: TranslationKey; descKey: TranslationKey }[] = [
+  { path: '/', icon: Ruler, labelKey: 'nav.swatchLab', descKey: 'nav.swatchLab.desc' },
+  { path: '/pixel', icon: Grid3X3, labelKey: 'nav.pixelGenerator', descKey: 'nav.pixelGenerator.desc' },
+  { path: '/crochet', icon: CrochetHookIcon, labelKey: 'nav.crochetEngine', descKey: 'nav.crochetEngine.desc' },
+  { path: '/knitting', icon: KnittingNeedlesIcon, labelKey: 'nav.knittingEngine', descKey: 'nav.knittingEngine.desc' },
 ];
 
 export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut, loading } = useAuth();
+  const { t } = useI18n();
 
   return (
     <motion.aside
@@ -26,19 +30,22 @@ export function Sidebar() {
     >
       {/* Logo */}
       <div className="p-6 border-b border-border/30">
-        <motion.div 
-          className="flex items-center gap-3"
-          whileHover={{ scale: 1.02 }}
-          transition={{ type: "spring", stiffness: 400 }}
-        >
-          <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center">
-            <Sparkles className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-lg font-display font-semibold text-foreground">Yarn Clues</h1>
-            <p className="text-xs text-muted-foreground">线·索 · All for Yarn</p>
-          </div>
-        </motion.div>
+        <div className="flex items-center justify-between">
+          <motion.div 
+            className="flex items-center gap-3"
+            whileHover={{ scale: 1.02 }}
+            transition={{ type: "spring", stiffness: 400 }}
+          >
+            <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-lg font-display font-semibold text-foreground">Yarn Clues</h1>
+              <p className="text-xs text-muted-foreground">{t('sidebar.subtitle')}</p>
+            </div>
+          </motion.div>
+          <LanguageSwitcher />
+        </div>
       </div>
 
       {/* Navigation */}
@@ -63,8 +70,8 @@ export function Sidebar() {
                   <Icon className={`w-4 h-4 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium">{item.label}</span>
-                  <span className="text-xs text-muted-foreground">{item.description}</span>
+                  <span className="text-sm font-medium">{t(item.labelKey)}</span>
+                  <span className="text-xs text-muted-foreground">{t(item.descKey)}</span>
                 </div>
               </motion.div>
             </NavLink>
@@ -92,7 +99,7 @@ export function Sidebar() {
                 className="w-full justify-start rounded-xl text-muted-foreground hover:text-foreground"
               >
                 <LogOut className="w-4 h-4 mr-2" />
-                Sign Out
+                {t('common.signOut')}
               </Button>
             </div>
           ) : (
@@ -103,13 +110,13 @@ export function Sidebar() {
               className="w-full rounded-xl"
             >
               <LogIn className="w-4 h-4 mr-2" />
-              Sign In
+              {t('common.signIn')}
             </Button>
           )
         )}
         <div className="text-center pt-2">
           <p className="text-xs text-muted-foreground">
-            Design Suite: All for Yarn
+            {t('sidebar.footer')}
           </p>
         </div>
       </div>
