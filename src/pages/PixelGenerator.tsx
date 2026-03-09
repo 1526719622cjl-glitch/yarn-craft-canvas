@@ -798,7 +798,7 @@ export default function PixelGenerator() {
 
           {/* Stitch Type Selector */}
           <div className="space-y-2">
-            <Label className="text-sm text-muted-foreground">Stitch Type</Label>
+            <Label className="text-sm text-muted-foreground">{t('pixel.stitchType')}</Label>
             <StitchTypeSelector value={stitchType} onChange={setStitchType} />
           </div>
 
