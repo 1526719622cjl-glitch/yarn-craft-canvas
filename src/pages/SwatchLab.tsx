@@ -1,10 +1,10 @@
 import { motion } from 'framer-motion';
 import { useYarnCluesStore } from '@/store/useYarnCluesStore';
-import { Ruler, Calculator, TrendingUp, TrendingDown, Target, Undo, Redo, Save, Droplets, Info, Loader2, FileImage } from 'lucide-react';
+import { Ruler, Calculator, TrendingUp, TrendingDown, Target, Undo, Redo, Save, Droplets, Info, Loader2, FileImage, Camera, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { SmartYarnCalculator } from '@/components/swatch/SmartYarnCalculator';
 import { YarnGaugeVault } from '@/components/swatch/YarnGaugeVault';
 import { useUndoRedo, useUndoRedoKeyboard } from '@/hooks/useUndoRedo';
@@ -67,6 +67,16 @@ export default function SwatchLab() {
   const [showReportGenerator, setShowReportGenerator] = useState(false);
   const [customToolSize, setCustomToolSize] = useState('');
   const [isCustomToolSize, setIsCustomToolSize] = useState(false);
+  const [preWashImage, setPreWashImage] = useState<string | null>(null);
+  const [postWashImage, setPostWashImage] = useState<string | null>(null);
+  const preWashFileRef = useRef<HTMLInputElement>(null);
+  const postWashFileRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = (file: File, setter: (url: string | null) => void) => {
+    const reader = new FileReader();
+    reader.onload = (e) => setter(e.target?.result as string);
+    reader.readAsDataURL(file);
+  };
 
   // Safe defaults + null/NaN normalization
   const num = (value: unknown, fallback: number) => {
@@ -316,6 +326,42 @@ export default function SwatchLab() {
               </div>
             </div>
 
+            {/* Pre-wash image upload */}
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">📷 织片照片（可选）</Label>
+              <input
+                ref={preWashFileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleImageUpload(file, setPreWashImage);
+                }}
+              />
+              {preWashImage ? (
+                <div className="relative group">
+                  <img src={preWashImage} alt="Pre-wash swatch" className="w-full h-32 object-cover rounded-xl border border-border/30" />
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => { setPreWashImage(null); if (preWashFileRef.current) preWashFileRef.current.value = ''; }}
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => preWashFileRef.current?.click()}
+                  className="w-full h-24 border-2 border-dashed border-border/40 rounded-xl flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors"
+                >
+                  <Camera className="w-5 h-5" />
+                  <span className="text-xs">上传织片照片</span>
+                </button>
+              )}
+            </div>
+
             {/* Pre-wash gauge result */}
             <div className="pt-3 border-t border-border/30">
               <p className="text-xs text-muted-foreground">Pre-wash gauge:</p>
@@ -388,6 +434,42 @@ export default function SwatchLab() {
                   className="input-glass h-12 text-lg font-medium"
                 />
               </div>
+            </div>
+
+            {/* Post-wash image upload */}
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">📷 织片照片（可选）</Label>
+              <input
+                ref={postWashFileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleImageUpload(file, setPostWashImage);
+                }}
+              />
+              {postWashImage ? (
+                <div className="relative group">
+                  <img src={postWashImage} alt="Post-wash swatch" className="w-full h-32 object-cover rounded-xl border border-border/30" />
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => { setPostWashImage(null); if (postWashFileRef.current) postWashFileRef.current.value = ''; }}
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => postWashFileRef.current?.click()}
+                  className="w-full h-24 border-2 border-dashed border-border/40 rounded-xl flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors"
+                >
+                  <Camera className="w-5 h-5" />
+                  <span className="text-xs">上传织片照片</span>
+                </button>
+              )}
             </div>
 
             {/* Post-wash gauge result */}
@@ -761,6 +843,8 @@ export default function SwatchLab() {
         gaugeData={safeGaugeData}
         yarnName={yarnName}
         yarnBrand={yarnBrand}
+        preWashImage={preWashImage}
+        postWashImage={postWashImage}
       />
     </motion.div>
   );
