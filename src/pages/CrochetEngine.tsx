@@ -688,7 +688,7 @@ export default function CrochetEngine() {
             
             {view3DMode === 'tubes' && (
               <div className="flex items-center gap-2">
-                <Label htmlFor="hifi-toggle" className="text-sm">High Quality</Label>
+                <Label htmlFor="hifi-toggle" className="text-sm">{t('crochet.highQuality')}</Label>
                 <Switch
                   id="hifi-toggle"
                   checked={highFidelityMode}
