@@ -357,7 +357,7 @@ export default function KnittingEngine() {
           <div className="space-y-4 pt-4 border-t border-border/50">
             <div className="flex items-center justify-between">
               <Label htmlFor="ws-toggle" className="text-sm font-medium">
-                Show Wrong Side
+                {t('knitting.showWrongSide')}
               </Label>
               <Switch
                 id="ws-toggle"
