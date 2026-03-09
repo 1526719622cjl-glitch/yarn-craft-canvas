@@ -404,7 +404,7 @@ export default function KnittingEngine() {
               {showWrongSide ? t('knitting.wrongSideView') : t('knitting.rightSideView')}
             </h2>
             <span className="text-sm text-muted-foreground">
-              Click and drag to paint
+              {t('knitting.clickDragPaint')}
             </span>
           </div>
 
