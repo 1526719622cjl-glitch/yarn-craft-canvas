@@ -30,7 +30,7 @@ export default function PatternDetail() {
   const [loading, setLoading] = useState(true);
   const [showGaugeDialog, setShowGaugeDialog] = useState(false);
   const [gauge, setGauge] = useState<GaugeData | null>(null);
-  const [pixelRows] = useState<RowPixelData[]>([]);
+  const [pixelRows, setPixelRows] = useState<RowPixelData[]>([]);
 
   const { progress, percentage, estimatedTimeLeft, initProgress, advanceStep, goBack, addCorrection } = usePatternProgress(id || null);
 
