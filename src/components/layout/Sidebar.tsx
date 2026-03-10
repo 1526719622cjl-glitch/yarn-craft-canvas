@@ -15,7 +15,11 @@ const navItems: { path: string; icon: any; labelKey: TranslationKey; descKey: Tr
   { path: '/knitting', icon: KnittingNeedlesIcon, labelKey: 'nav.knittingEngine', descKey: 'nav.knittingEngine.desc' },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  onNavigate?: () => void;
+}
+
+export function Sidebar({ onNavigate }: SidebarProps = {}) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut, loading } = useAuth();
@@ -51,11 +55,11 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="p-4 space-y-2">
         {navItems.map((item, index) => {
-          const isActive = location.pathname === item.path;
+          const isActive = item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path);
           const Icon = item.icon;
 
           return (
-            <NavLink key={item.path} to={item.path}>
+            <NavLink key={item.path} to={item.path} onClick={onNavigate}>
               <motion.div
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
