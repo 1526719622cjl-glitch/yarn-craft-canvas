@@ -438,6 +438,8 @@ const translations = {
   'pattern.confirmSteps': { zh: '确认解析内容', en: 'Confirm Parse Results' },
   'pattern.stepsConfirmed': { zh: '已确认', en: 'Confirmed' },
   'pattern.fullscreen': { zh: '全屏', en: 'Fullscreen' },
+  'pattern.editOriginal': { zh: '原文', en: 'Original' },
+  'pattern.editTranslation': { zh: '中文翻译', en: 'Chinese Translation' },
 } as const;
 
 export type TranslationKey = keyof typeof translations;

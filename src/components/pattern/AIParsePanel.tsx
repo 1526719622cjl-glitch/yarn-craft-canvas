@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Brain, Loader2, ChevronRight, CheckCircle2, Play } from 'lucide-react';
+import { Brain, Loader2, ChevronRight, CheckCircle2, Play, Pencil, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useI18n } from '@/i18n/useI18n';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,6 +10,7 @@ import { toast } from '@/hooks/use-toast';
 export interface ParsedStep {
   row: number;
   instruction: string;
+  translatedInstruction?: string;
   anchorRegion?: { x: number; y: number; width: number; height: number };
   colors?: { color: string; count: number }[];
 }
@@ -42,10 +44,12 @@ export function AIParsePanel({
 }: AIParsePanelProps) {
   const { t } = useI18n();
   const [parsing, setParsing] = useState(false);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editOriginal, setEditOriginal] = useState('');
+  const [editTranslated, setEditTranslated] = useState('');
 
   const handleParse = async () => {
     if (!canParse) return;
-
     setParsing(true);
     try {
       const { data, error } = await supabase.functions.invoke('parse-chart-image', {
@@ -56,9 +60,7 @@ export function AIParsePanel({
       const parsedSteps: ParsedStep[] = data?.steps || [];
       onStepsLoaded(parsedSteps);
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase.from('pattern_ai_parses').insert({
           pattern_id: patternId,
@@ -74,6 +76,24 @@ export function AIParsePanel({
       toast({ title: t('pattern.parseError'), description: e.message, variant: 'destructive' });
     }
     setParsing(false);
+  };
+
+  const startEditing = (index: number) => {
+    const step = steps[index];
+    setEditingIndex(index);
+    setEditOriginal(step.instruction);
+    setEditTranslated(step.translatedInstruction || '');
+  };
+
+  const saveEditing = () => {
+    if (editingIndex === null) return;
+    const updated = steps.map((s, i) =>
+      i === editingIndex
+        ? { ...s, instruction: editOriginal.trim(), translatedInstruction: editTranslated.trim() }
+        : s
+    );
+    onStepsLoaded(updated);
+    setEditingIndex(null);
   };
 
   return (
@@ -98,38 +118,75 @@ export function AIParsePanel({
         ) : (
           <div className="p-2 space-y-2">
             {steps.map((step, i) => (
-              <button
+              <div
                 key={i}
-                onClick={() => onStepClick(i)}
                 className={`w-full text-left p-3 rounded-xl transition-all text-sm ${
                   currentStep === i ? 'bg-primary/10 ring-1 ring-primary/30' : 'hover:bg-muted/50'
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono text-muted-foreground w-8">R{step.row}</span>
-                  <span className="flex-1 line-clamp-2">{step.instruction}</span>
-                  <ChevronRight className={`w-3 h-3 transition-transform ${currentStep === i ? 'text-primary' : 'text-muted-foreground'}`} />
-                </div>
-
-                {step.anchorRegion && (
-                  <div className="mt-2 h-14 rounded-md overflow-hidden border border-border/50">
-                    <img
-                      src={imageUrl}
-                      alt="row anchor"
-                      className="w-full h-full object-cover"
-                      style={{
-                        clipPath: `inset(${step.anchorRegion.y}% ${100 - step.anchorRegion.x - step.anchorRegion.width}% ${100 - step.anchorRegion.y - step.anchorRegion.height}% ${step.anchorRegion.x}%)`,
-                      }}
+                {editingIndex === i ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono text-muted-foreground w-8">R{step.row}</span>
+                      <span className="text-xs text-muted-foreground">{t('pattern.editOriginal')}</span>
+                    </div>
+                    <Input
+                      value={editOriginal}
+                      onChange={(e) => setEditOriginal(e.target.value)}
+                      className="text-xs h-8"
                     />
+                    <span className="text-xs text-muted-foreground">{t('pattern.editTranslation')}</span>
+                    <Input
+                      value={editTranslated}
+                      onChange={(e) => setEditTranslated(e.target.value)}
+                      className="text-xs h-8"
+                    />
+                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={saveEditing}>
+                      <Check className="w-3 h-3 mr-1" />
+                      {t('common.save')}
+                    </Button>
                   </div>
+                ) : (
+                  <button onClick={() => onStepClick(i)} className="w-full text-left">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono text-muted-foreground w-8">R{step.row}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="line-clamp-2 text-foreground">{step.instruction}</p>
+                        {step.translatedInstruction && (
+                          <p className="line-clamp-2 text-muted-foreground text-xs mt-0.5">{step.translatedInstruction}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); startEditing(i); }}
+                          className="p-1 rounded hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                        <ChevronRight className={`w-3 h-3 ${currentStep === i ? 'text-primary' : 'text-muted-foreground'}`} />
+                      </div>
+                    </div>
+
+                    {step.anchorRegion && (
+                      <div className="mt-2 h-14 rounded-md overflow-hidden border border-border/50">
+                        <img
+                          src={imageUrl}
+                          alt="row anchor"
+                          className="w-full h-full object-cover"
+                          style={{
+                            clipPath: `inset(${step.anchorRegion.y}% ${100 - step.anchorRegion.x - step.anchorRegion.width}% ${100 - step.anchorRegion.y - step.anchorRegion.height}% ${step.anchorRegion.x}%)`,
+                          }}
+                        />
+                      </div>
+                    )}
+                  </button>
                 )}
-              </button>
+              </div>
             ))}
           </div>
         )}
       </ScrollArea>
 
-      {/* Bottom: Confirm + Start Companion */}
       {steps.length > 0 && (
         <div className="p-4 border-t border-border/30 space-y-2">
           {!stepsConfirmed ? (
