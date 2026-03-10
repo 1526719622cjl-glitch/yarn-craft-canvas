@@ -15,7 +15,11 @@ const navItems: { path: string; icon: any; labelKey: TranslationKey; descKey: Tr
   { path: '/knitting', icon: KnittingNeedlesIcon, labelKey: 'nav.knittingEngine', descKey: 'nav.knittingEngine.desc' },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  onNavigate?: () => void;
+}
+
+export function Sidebar({ onNavigate }: SidebarProps = {}) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut, loading } = useAuth();
