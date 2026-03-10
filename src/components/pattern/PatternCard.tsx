@@ -58,7 +58,7 @@ export function PatternCard({ pattern, onClick, onDelete, onStatusChange }: Patt
               <DropdownMenuItem onClick={() => onStatusChange('preparing')}>{t('pattern.status.preparing')}</DropdownMenuItem>
               <DropdownMenuItem onClick={() => onStatusChange('in_progress')}>{t('pattern.status.inProgress')}</DropdownMenuItem>
               <DropdownMenuItem onClick={() => onStatusChange('completed')}>{t('pattern.status.completed')}</DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive" onClick={onDelete}>
+              <DropdownMenuItem className="text-destructive" onClick={() => setDeleteOpen(true)}>
                 <Trash2 className="w-3 h-3 mr-2" />{t('common.delete')}
               </DropdownMenuItem>
             </DropdownMenuContent>
