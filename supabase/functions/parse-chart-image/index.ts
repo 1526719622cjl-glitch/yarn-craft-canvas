@@ -5,10 +5,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-function isPdfUrl(url: string): boolean {
-  return /\.pdf(\?.*)?$/i.test(url);
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -24,68 +20,33 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const systemPrompt = category === 'crochet'
-      ? `You are a crochet chart analyzer.
-Extract rows/rounds from top-to-bottom in the chart into structured steps.
+    const stitchTerms = category === 'crochet'
+      ? 'ch, sl st, sc, hdc, dc, tr, inc, dec, BLO, FLO, rep markers'
+      : 'K, P, YO, K2tog, SSK, C4F, C4B, etc.';
+
+    const systemPrompt = `You are a ${category} pattern/chart analyzer.
+Scan the entire document thoroughly. Identify ALL text and chart symbols.
+Extract rows/rounds from top-to-bottom into structured steps.
+
 For each step, return:
 - row: visible row/round number (number only)
-- instruction: normalized crochet abbreviations (ch, sl st, sc, hdc, dc, tr, inc, dec, BLO, FLO, rep markers)
-- anchorRegion: {x,y,width,height} percentages for the exact local region on source image
-- colors: optional color segments [{color,count}] for colorwork rows
+- originalInstruction: the EXACT original text/abbreviation as it appears in the document (preserve original language)
+- translatedInstruction: Chinese translation of the instruction (标准中文编织术语)
+- anchorRegion: {x,y,width,height} percentages for the region on source image
+- colors: optional [{color,count}] for colorwork rows
 
 Rules:
-- If chart is rounds, keep increasing sequence by round.
-- If symbols are shown (JIS or chart symbols), translate to standard written abbreviations.
-- Do not invent rows. Return only visible or inferable rows.
-Return ONLY tool output JSON.`
-      : `You are a knitting chart analyzer.
-Extract Rows/Rounds from top-to-bottom in the chart into structured steps.
-For each step, return:
-- row: visible row/round number (number only)
-- instruction: normalized knitting terms (K, P, YO, K2tog, SSK, C4F, C4B, etc.)
-- anchorRegion: {x,y,width,height} percentages for the exact local region on source image
-- colors: optional color segments [{color,count}] for colorwork rows
-
-Rules:
-- Preserve row order exactly as chart flow.
-- Convert symbols into concise written terms.
+- Keep the original language exactly as shown in the document for originalInstruction
+- Translate ALL instructions to Chinese for translatedInstruction using standard ${category === 'crochet' ? '钩针' : '棒针'} terminology
+- Use standard abbreviations: ${stitchTerms}
 - Do not invent rows. Return only visible or inferable rows.
 Return ONLY tool output JSON.`;
 
-    // Build user content based on file type
-    const isPdf = isPdfUrl(imageUrl);
-    let userContent: any[];
-
-    if (isPdf) {
-      // Download PDF and convert to base64 for Gemini inline_data
-      console.log("Downloading PDF for inline processing...");
-      const pdfResp = await fetch(imageUrl);
-      if (!pdfResp.ok) throw new Error(`Failed to download PDF: ${pdfResp.status}`);
-      const pdfBuffer = await pdfResp.arrayBuffer();
-      const pdfBytes = new Uint8Array(pdfBuffer);
-
-      // Convert to base64
-      let binary = '';
-      for (let i = 0; i < pdfBytes.length; i++) {
-        binary += String.fromCharCode(pdfBytes[i]);
-      }
-      const base64 = btoa(binary);
-
-      userContent = [
-        { type: "text", text: "Extract rows/rounds and stitch terms with accurate anchor regions from this pattern document." },
-        {
-          type: "image_url",
-          image_url: {
-            url: `data:application/pdf;base64,${base64}`,
-          },
-        },
-      ];
-    } else {
-      userContent = [
-        { type: "text", text: "Extract rows/rounds and stitch terms with accurate anchor regions." },
-        { type: "image_url", image_url: { url: imageUrl } },
-      ];
-    }
+    // Pass URL directly to Gemini — no downloading, avoids memory limits
+    const userContent = [
+      { type: "text", text: "Scan the entire document. Extract all rows/rounds with original text and Chinese translation. Include anchor regions." },
+      { type: "image_url", image_url: { url: imageUrl } },
+    ];
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -94,7 +55,7 @@ Return ONLY tool output JSON.`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userContent },
@@ -104,7 +65,7 @@ Return ONLY tool output JSON.`;
             type: "function",
             function: {
               name: "extract_pattern_steps",
-              description: "Extract structured rows/rounds and local anchor areas from pattern chart image",
+              description: "Extract structured rows/rounds from pattern chart",
               parameters: {
                 type: "object",
                 properties: {
@@ -114,7 +75,8 @@ Return ONLY tool output JSON.`;
                       type: "object",
                       properties: {
                         row: { type: "number" },
-                        instruction: { type: "string" },
+                        originalInstruction: { type: "string", description: "Original text exactly as shown in the document" },
+                        translatedInstruction: { type: "string", description: "Chinese translation of the instruction" },
                         anchorRegion: {
                           type: "object",
                           properties: {
@@ -137,7 +99,7 @@ Return ONLY tool output JSON.`;
                           },
                         },
                       },
-                      required: ["row", "instruction"],
+                      required: ["row", "originalInstruction", "translatedInstruction"],
                     },
                   },
                 },
@@ -154,14 +116,12 @@ Return ONLY tool output JSON.`;
       const body = await response.text();
       if (response.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limited, please try again later" }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       if (response.status === 402) {
         return new Response(JSON.stringify({ error: "Payment required, please add credits" }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       console.error("AI gateway error:", response.status, body);
@@ -185,21 +145,17 @@ Return ONLY tool output JSON.`;
       }
     }
 
+    const clamp = (v: number) => Math.max(0, Math.min(100, Number(v) || 0));
+
     const normalizedSteps = steps.map((step: any) => ({
       row: Number(step.row),
-      instruction: String(step.instruction || '').trim(),
+      instruction: String(step.originalInstruction || step.instruction || '').trim(),
+      translatedInstruction: String(step.translatedInstruction || '').trim(),
       anchorRegion: step.anchorRegion
-        ? {
-            x: Math.max(0, Math.min(100, Number(step.anchorRegion.x) || 0)),
-            y: Math.max(0, Math.min(100, Number(step.anchorRegion.y) || 0)),
-            width: Math.max(0, Math.min(100, Number(step.anchorRegion.width) || 0)),
-            height: Math.max(0, Math.min(100, Number(step.anchorRegion.height) || 0)),
-          }
+        ? { x: clamp(step.anchorRegion.x), y: clamp(step.anchorRegion.y), width: clamp(step.anchorRegion.width), height: clamp(step.anchorRegion.height) }
         : undefined,
       colors: Array.isArray(step.colors)
-        ? step.colors
-            .map((c: any) => ({ color: String(c.color || ''), count: Number(c.count || 0) }))
-            .filter((c: any) => c.color && c.count > 0)
+        ? step.colors.map((c: any) => ({ color: String(c.color || ''), count: Number(c.count || 0) })).filter((c: any) => c.color && c.count > 0)
         : undefined,
     })).filter((step: any) => step.row > 0 && step.instruction);
 
@@ -209,8 +165,7 @@ Return ONLY tool output JSON.`;
   } catch (e) {
     console.error("parse-chart-image error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
