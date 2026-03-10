@@ -202,6 +202,9 @@ export function usePatternLibrary(category: 'crochet' | 'knitting') {
       }
     }
 
+    // Refresh pattern list so thumbnails appear immediately
+    await fetchPatterns();
+
     return fileUrl;
   };
 
