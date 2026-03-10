@@ -23,6 +23,7 @@ interface PatternCardProps {
 
 export function PatternCard({ pattern, onClick, onDelete, onStatusChange }: PatternCardProps) {
   const { t } = useI18n();
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const StatusIcon = statusConfig[pattern.status]?.icon || Clock;
 
   return (
