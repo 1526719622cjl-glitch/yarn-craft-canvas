@@ -278,6 +278,9 @@ const translations = {
   'pattern.parseHint': { zh: '点击"开始解析"让 AI 识别图解中的步骤', en: 'Click "Start Parse" to let AI extract steps from the chart' },
   'pattern.parseSuccess': { zh: 'AI 解析完成', en: 'AI parse complete' },
   'pattern.parseError': { zh: 'AI 解析失败', en: 'AI parse failed' },
+  'pattern.deleteConfirmTitle': { zh: '确认删除', en: 'Confirm Delete' },
+  'pattern.deleteConfirmDesc': { zh: '此操作不可撤销，确定要删除这个图解吗？', en: 'This action cannot be undone. Are you sure you want to delete this pattern?' },
+  'common.cancel': { zh: '取消', en: 'Cancel' },
 
   // Immersive Companion
   'pattern.startCompanion': { zh: '开始跟织', en: 'Start Companion' },
