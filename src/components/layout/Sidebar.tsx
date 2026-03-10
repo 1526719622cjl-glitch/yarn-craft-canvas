@@ -55,7 +55,7 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
       {/* Navigation */}
       <nav className="p-4 space-y-2">
         {navItems.map((item, index) => {
-          const isActive = location.pathname === item.path;
+          const isActive = item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path);
           const Icon = item.icon;
 
           return (
