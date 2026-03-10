@@ -217,6 +217,9 @@ export function ImmersiveCompanion({
               ) : (
                 <>
                   <p className="text-2xl lg:text-3xl font-medium leading-relaxed">{displayInstruction}</p>
+                  {step.translatedInstruction && (
+                    <p className="text-lg text-muted-foreground leading-relaxed">{step.translatedInstruction}</p>
+                  )}
                   {gaugeHint && gauge && (
                     <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm text-primary/70 font-mono">
                       ≈ {gaugeHint.widthCm} cm

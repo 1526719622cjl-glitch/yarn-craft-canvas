@@ -51,48 +51,68 @@ export default function PatternDetail() {
 
   const { progress, percentage, estimatedTimeLeft, initProgress, advanceStep, goBack, addCorrection } = usePatternProgress(id || null);
 
-  useEffect(() => {
+  const fetchPatternData = useCallback(async () => {
     if (!id || !user) return;
-    (async () => {
-      setLoading(true);
-      const { data: p } = await supabase.from('pattern_library').select('*').eq('id', id).single();
-      if (p) {
-        const patternData = p as unknown as PatternEntry;
-        setPattern(patternData);
-        if ((patternData as any).linked_yarn_id) {
-          const { data: yarn } = await supabase
-            .from('yarn_entries')
-            .select('id, name, brand, stitches_per_10cm, rows_per_10cm')
-            .eq('id', (patternData as any).linked_yarn_id)
-            .maybeSingle();
-          if (yarn?.stitches_per_10cm && yarn?.rows_per_10cm) {
-            setGauge({
-              stitchesPer10cm: Number(yarn.stitches_per_10cm),
-              rowsPer10cm: Number(yarn.rows_per_10cm),
-              yarnEntryId: yarn.id,
-              yarnName: yarn.brand ? `${yarn.brand} ${yarn.name}` : yarn.name,
-            });
-          }
+    const { data: p } = await supabase.from('pattern_library').select('*').eq('id', id).single();
+    if (p) {
+      const patternData = p as unknown as PatternEntry;
+      setPattern(patternData);
+      if ((patternData as any).linked_yarn_id) {
+        const { data: yarn } = await supabase
+          .from('yarn_entries')
+          .select('id, name, brand, stitches_per_10cm, rows_per_10cm')
+          .eq('id', (patternData as any).linked_yarn_id)
+          .maybeSingle();
+        if (yarn?.stitches_per_10cm && yarn?.rows_per_10cm) {
+          setGauge({
+            stitchesPer10cm: Number(yarn.stitches_per_10cm),
+            rowsPer10cm: Number(yarn.rows_per_10cm),
+            yarnEntryId: yarn.id,
+            yarnName: yarn.brand ? `${yarn.brand} ${yarn.name}` : yarn.name,
+          });
         }
       }
-      const { data: f } = await supabase.from('pattern_files').select('*').eq('pattern_id', id).order('sort_order');
-      if (f) setFiles(f as unknown as PatternFile[]);
+    }
+    const { data: f } = await supabase.from('pattern_files').select('*').eq('pattern_id', id).order('sort_order');
+    if (f) setFiles(f as unknown as PatternFile[]);
 
-      const { data: parses } = await supabase
-        .from('pattern_ai_parses')
-        .select('*')
-        .eq('pattern_id', id)
-        .order('created_at', { ascending: false })
-        .limit(1);
-      if (parses && parses.length > 0) {
-        const parsedSteps = ((parses[0] as any).parsed_steps || []) as ParsedStep[];
-        setSteps(parsedSteps);
-        setPixelRows(buildPixelRows(parsedSteps));
-        if (parsedSteps.length > 0) setStepsConfirmed(true);
-      }
-      setLoading(false);
-    })();
+    const { data: parses } = await supabase
+      .from('pattern_ai_parses')
+      .select('*')
+      .eq('pattern_id', id)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (parses && parses.length > 0) {
+      const parsedSteps = ((parses[0] as any).parsed_steps || []) as ParsedStep[];
+      setSteps(parsedSteps);
+      setPixelRows(buildPixelRows(parsedSteps));
+      if (parsedSteps.length > 0) setStepsConfirmed(true);
+    }
+    setLoading(false);
   }, [id, user]);
+
+  useEffect(() => {
+    if (!id || !user) return;
+    setLoading(true);
+    fetchPatternData();
+  }, [id, user, fetchPatternData]);
+
+  // Poll for files if none found yet (handles background upload race condition)
+  useEffect(() => {
+    if (!id || !user || loading || files.length > 0) return;
+    let attempts = 0;
+    const maxAttempts = 6;
+    const interval = setInterval(async () => {
+      attempts++;
+      const { data: f } = await supabase.from('pattern_files').select('*').eq('pattern_id', id).order('sort_order');
+      if (f && f.length > 0) {
+        setFiles(f as unknown as PatternFile[]);
+        clearInterval(interval);
+      }
+      if (attempts >= maxAttempts) clearInterval(interval);
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [id, user, loading, files.length]);
 
   const currentFile = files[selectedFileIndex];
   const currentFileUrl = currentFile?.file_url;
