@@ -42,10 +42,29 @@ Rules:
 - Do not invent rows. Return only visible or inferable rows.
 Return ONLY tool output JSON.`;
 
-    // Pass URL directly to Gemini — no downloading, avoids memory limits
+    // Gemini only accepts image URLs (PNG/JPEG/WebP/GIF). PDFs must be base64 data URLs.
+    let filePayload: { type: string; image_url: { url: string } };
+    const isPdf = imageUrl.toLowerCase().endsWith('.pdf');
+
+    if (isPdf) {
+      const pdfResp = await fetch(imageUrl);
+      if (!pdfResp.ok) throw new Error(`Failed to fetch PDF: ${pdfResp.status}`);
+      const pdfBuffer = await pdfResp.arrayBuffer();
+      // Edge functions have ~150MB limit; reject very large files early
+      if (pdfBuffer.byteLength > 20 * 1024 * 1024) {
+        return new Response(JSON.stringify({ error: "PDF too large (max 20MB)" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(pdfBuffer)));
+      filePayload = { type: "image_url", image_url: { url: `data:application/pdf;base64,${base64}` } };
+    } else {
+      filePayload = { type: "image_url", image_url: { url: imageUrl } };
+    }
+
     const userContent = [
       { type: "text", text: "Scan the entire document. Extract all rows/rounds with original text and Chinese translation. Include anchor regions." },
-      { type: "image_url", image_url: { url: imageUrl } },
+      filePayload,
     ];
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
