@@ -50,13 +50,19 @@ Return ONLY tool output JSON.`;
       const pdfResp = await fetch(imageUrl);
       if (!pdfResp.ok) throw new Error(`Failed to fetch PDF: ${pdfResp.status}`);
       const pdfBuffer = await pdfResp.arrayBuffer();
-      // Edge functions have ~150MB limit; reject very large files early
       if (pdfBuffer.byteLength > 20 * 1024 * 1024) {
         return new Response(JSON.stringify({ error: "PDF too large (max 20MB)" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(pdfBuffer)));
+      // Convert to base64 in chunks to avoid call stack overflow
+      const bytes = new Uint8Array(pdfBuffer);
+      let binary = '';
+      const chunkSize = 8192;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+      }
+      const base64 = btoa(binary);
       filePayload = { type: "image_url", image_url: { url: `data:application/pdf;base64,${base64}` } };
     } else {
       filePayload = { type: "image_url", image_url: { url: imageUrl } };

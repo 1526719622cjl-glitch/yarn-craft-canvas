@@ -59,7 +59,7 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
           const Icon = item.icon;
 
           return (
-            <NavLink key={item.path} to={item.path}>
+            <NavLink key={item.path} to={item.path} onClick={onNavigate}>
               <motion.div
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
