@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Clock, CheckCircle, Loader2, MoreVertical, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useI18n } from '@/i18n/useI18n';
 import type { PatternEntry } from '@/hooks/usePatternLibrary';
