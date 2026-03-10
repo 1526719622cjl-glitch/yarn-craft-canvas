@@ -19,7 +19,7 @@ const pageVariants = {
 };
 
 export function Layout({ children }: LayoutProps) {
-  const isMobile = useMobile();
+  const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
