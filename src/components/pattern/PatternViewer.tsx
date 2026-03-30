@@ -143,7 +143,7 @@ export function PatternViewer({
 
   return (
     <div className="relative w-full h-full min-h-[400px] bg-muted/20 rounded-2xl overflow-hidden">
-      <TransformWrapper initialScale={1} minScale={0.5} maxScale={5} centerOnInit>
+      <TransformWrapper initialScale={1} minScale={0.5} maxScale={5} centerOnInit disabled={tool !== 'none'}>
         {({ zoomIn, zoomOut, resetTransform }) => (
           <>
             <AnnotationToolbar
