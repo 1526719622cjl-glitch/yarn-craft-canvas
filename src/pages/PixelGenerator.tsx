@@ -301,6 +301,14 @@ export default function PixelGenerator() {
     }
   }, [customGridWidth, combinedRatio, lockAspectRatio]);
 
+  // Re-process from original image when colorCount changes
+  useEffect(() => {
+    if (uploadedImage && pixelGrid.length > 0) {
+      processImageWithDimensions(uploadedImage, gridWidth, gridHeight);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [colorCount]);
+
   const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
