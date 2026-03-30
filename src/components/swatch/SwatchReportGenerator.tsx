@@ -48,6 +48,7 @@ interface SwatchReportGeneratorProps {
   };
   compensatedStitches?: number;
   compensatedRows?: number;
+  projectName?: string;
 }
 
 export function SwatchReportGenerator({
@@ -62,6 +63,7 @@ export function SwatchReportGenerator({
   projectPlan,
   compensatedStitches,
   compensatedRows,
+  projectName,
 }: SwatchReportGeneratorProps) {
   const reportRef = useRef<HTMLDivElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -133,7 +135,7 @@ export function SwatchReportGenerator({
             <div ref={reportRef} className="p-6 bg-gradient-to-br from-[#FDFBF7] to-[#F5F0E8]" style={{ width: '100%', minHeight: '400px' }}>
               <div className="text-center mb-6">
                 <h2 className="text-2xl font-display font-semibold text-[#5D4E37]">{t('report.header')}</h2>
-                <p className="text-sm text-[#8B7355] mt-1">Swatch Report</p>
+                {projectName && <p className="text-base font-medium text-[#5D4E37] mt-1">{projectName}</p>}
               </div>
 
               <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 mb-4 shadow-sm">
