@@ -1,128 +1,97 @@
+# 多项修改：样片清空位置、定位编织保存提示、图解标注增强
 
-目标是一次性修复 4 个仍未完成的问题：样片实验室一键清空、线材库图片同步、像素图“原始颜色+当前方向”双基准、图解库 PDF/图片文字标注。
+## 修改清单
 
-## 已确认根因
+### 1. 样片实验室清空按钮移到右上角 + 清空后数字归零
 
-1. 样片实验室没有“一键清空”
-- `SwatchLab.tsx` 只有局部删图和保存，没有统一重置入口。
-- 当前需要同时清空 store 状态、表单状态、图片状态、文件输入值。
+**文件**: `src/pages/SwatchLab.tsx`
 
-2. 线材库图片没有真正同步
-- `SwatchLab.tsx` 的 `handleSaveToCloud` 会先上传图片再存 URL。
-- 但 `YarnGaugeVault.tsx` 的 `handleSaveYarn` 直接把 `preWashImage/postWashImage` 写进表。
-- 如果传入的是本地 data URL，就不是稳定的持久地址；加载时也没有在空值情况下清空旧图。
-- 同时“加载线材后名称排在最前面”的显示依赖 `SwatchLab.tsx` 的本地 state，同步逻辑需要补全清空/覆盖分支。
+- 把清空按钮从底部（第585行）移到页面头部右上角 undo/redo 按钮旁边
+- 清空时所有数值设为 0 而非当前的默认值（`preWashWidth: 0, preWashHeight: 0, stitchesPreWash: 0, rowsPreWash: 0` 等）
+- `projectPlan` 也全归零
 
-3. 最大颜色数调整没有保留当前方向
-- `PixelGenerator.tsx` 现在的 `useEffect([colorCount])` 虽然从 `baseImageDataUrl` 重建，但只是按当前宽高 `drawImage`，没有保存“旋转后的方向状态”。
-- `rotateCanvas90()` 只改了当前 grid 和尺寸，没有同步一个独立的方向基准。
-- 所以重新量化时会回到未旋转方向的重采样结果。
+### 2. 定位编织前强制先保存
 
-4. 图解库文字标注两边都不完整
-- `PatternDetail.tsx` 中 PDF 仍然是 `iframe`，没有接入 `PatternViewer`，所以 PDF 不可能有文字工具。
-- `PatternViewer.tsx` 里现有文字工具被放在同一层，父层在非绘制状态下 `pointerEvents: none`，已添加的文字/便签会失去可编辑性。
+**文件**: `src/pages/PixelGenerator.tsx`
 
-## 实现方案
+- 点击"开始定位编织"按钮时（第1586行），检查 `activeDesignId` 是否存在
+- 若未保存（无 `activeDesignId`），弹出提示"请先保存设计到图库，以便保存编织进度"并阻止进入，直接弹出保存按钮，然后弹出开始定位编织按钮，可直接进入
+- 可用 toast 提示或 confirm 弹窗
 
-### 1. 样片实验室加“一键清空当前数据”
-文件：
-- `src/pages/SwatchLab.tsx`
+### 3. 图解标注工具增强
 
-修改：
-- 增加一个明显的“清空当前数据”按钮，放在保存/报告相关操作区。
-- 用确认弹窗避免误触。
-- 清空以下内容：
-  - `setSwatchData(...)` 回到默认样片值
-  - `setProjectPlan(...)` 回到默认项目规划值
-  - `yarnName / yarnBrand / yarnWeight / fiberContent / projectName`
-  - `preWashImage / postWashImage`
-  - `customToolSize / isCustomToolSize`
-  - `selectedFolderId`
-  - 两个文件 input 的 `.value`
-- 只清空当前编辑态，不删除库中已保存数据。
+**文件**: `src/components/pattern/AnnotationToolbar.tsx` + `src/components/pattern/PatternViewer.tsx`
 
-### 2. 统一线材图片保存与加载
-文件：
-- `src/pages/SwatchLab.tsx`
-- `src/components/swatch/YarnGaugeVault.tsx`
+#### 3a. 颜色选择器
 
-修改：
-- 把 `uploadSwatchPhoto` 提升为可复用保存能力，传给 `YarnGaugeVault`，或将“库内保存”统一委托给 `SwatchLab`。
-- `YarnGaugeVault.tsx` 保存线材时不再直接写本地图片字符串，而是先上传，再存 `pre_wash_photo_url / post_wash_photo_url`。
-- `onLoadYarn` 回调补全覆盖逻辑：
-  - 设置 `yarnName`
-  - 设置 `yarnBrand`
-  - 若有图则加载 URL
-  - 若无图则显式清空 `setPreWashImage(null)` / `setPostWashImage(null)`
-- 这样线材名称和图片都能随加载立即同步，不会残留上一条数据。
+- 在 `AnnotationToolbar` 中新增颜色选择，对画笔/荧光笔/文字工具生效
+- 添加一个小的颜色 input（`<input type="color">`）或几个预设色块
+- `PatternViewer` 里用选定颜色渲染 stroke、highlight、text
 
-### 3. 像素图改成“原始颜色 + 当前方向”双基准
-文件：
-- `src/pages/PixelGenerator.tsx`
+#### 3b. 空文本自动清除
 
-修改：
-- 新增独立方向状态，例如 `rotationTurns`（0/1/2/3）。
-- 首次导入裁剪确认后：
-  - `baseImageDataUrl` 固定保存“原始基准图”
-- 旋转画布时：
-  - 继续更新当前 `pixelGrid`
-  - 同时更新 `rotationTurns`
-- 调整最大颜色数时：
-  - 始终从 `baseImageDataUrl` 重新取样
-  - 先按当前方向状态把原图做同向旋转
-  - 再按当前 `gridWidth/gridHeight` 重新量化生成新 grid
-- 不再让颜色重算依赖当前 `pixelGrid` 的已量化结果。
-- 若页面里还有“同步颜色”按钮走旧逻辑，也一起改到同一套重建函数，避免回退。
+- `PatternViewer` 中文字编辑 `onBlur` 时，若 `txt.text` 为空，从 annotations 中移除该条目
 
-### 4. 修复图片文字标注可编辑
-文件：
-- `src/components/pattern/PatternViewer.tsx`
+#### 3c. 橡皮擦改为"指哪擦哪"
 
-修改：
-- 将“绘制捕获层”和“已存在文字/便签交互层”拆开。
-- 规则改为：
-  - pen/highlight/note/text 放置时，只有绘制层接管指针
-  - 已有 `notes` / `texts` 始终保持 `pointer-events: auto`
-- 保留现有文本输入逻辑，但确保：
-  - 点击文字可再次编辑
-  - 回车或失焦可完成输入
-  - 空文本可删除或保留占位（实现时选当前结构最少改动方案）
+- 当前橡皮擦是一键清空全部。改为：
+  - 选中"橡皮擦"工具后，点击某个 stroke/highlight/note/text 可单独删除它
+  - 需要做命中检测：点击点与 stroke 路径的距离、是否在 highlight rect 内、是否点到 note/text 元素
+- 对 SVG 元素加 `pointerEvents` 和 `onClick`，在 eraser 模式下删除被点击的元素
 
-### 5. 让 PDF 进入同一套标注系统
-文件：
-- `src/pages/PatternDetail.tsx`
-- 可新增一个轻量 PDF 渲染组件
-- 可复用 `src/lib/thumbnailGenerator.ts` 里的 `pdfjs-dist` 配置
+#### 3d. 前进/后退（undo/redo）
 
-修改：
-- 替换当前 PDF `iframe` 预览。
-- 用 PDF.js 将当前页渲染成 canvas / image。
-- 将渲染结果传入 `PatternViewer`，从而复用现有：
-  - 画笔
-  - 高亮
-  - 便签
-  - 文字输入
-  - 保存标注
-- 第一版优先支持单页查看与标注；若现有详情页没有分页 UI，可先渲染首页，后续再扩展多页切换。
+- 在 `PatternViewer` 中维护 annotation 操作历史栈
+- 每次 `updateAnnotations` 时 push 当前状态到 undo 栈
+- 工具栏增加 Undo/Redo 按钮
+
+#### 3e. 一键清空
+
+- 保留清空功能，但把橡皮擦图标改为"一键清空"的独立按钮（如 `Trash2` 图标）
+- 原橡皮擦图标保留用于"指哪擦哪"
+
+#### 3f. 保存功能 — 标注 + 计数器
+
+- 标注保存已有（`saveAnnotations` in `PatternDetail`）
+- 计数器（`StepCounter`）当前是纯本地 state，不保存。需要：
+  - 给 `StepCounter` 加 `patternId` prop
+  - 使用 `usePatternProgress` hook 或 localStorage 持久化计数器值
+  - 进入 `PatternDetail` 时加载已保存的计数器值
+
+### 技术细节
+
+**AnnotationToolbar** 新增 props：
+
+- `color: string` + `onColorChange: (color: string) => void`
+- 增加 `onUndo` / `onRedo` / `canUndo` / `canRedo` props
+
+**PatternViewer** 新增状态：
+
+- `annotationColor: string`（默认 `#6366f1`）
+- `undoStack: PatternAnnotationData[]` / `redoStack: PatternAnnotationData[]`
+- 每个 stroke 和 highlight 增加 `color` 属性存储（扩展接口）
+- eraser 模式：SVG 元素在 `tool === 'eraser'` 时 `pointerEvents: 'auto'` + `cursor: crosshair`，点击时从 annotations 中按 index 删除
+
+**StepCounter** 改造：
+
+- 接收 `patternId` prop
+- 用 `usePatternProgress(patternId)` 加载/保存
+- `count` 映射到 `progress.current_step`
 
 ## 涉及文件
-- `src/pages/SwatchLab.tsx`
-- `src/components/swatch/YarnGaugeVault.tsx`
-- `src/pages/PixelGenerator.tsx`
-- `src/components/pattern/PatternViewer.tsx`
-- `src/pages/PatternDetail.tsx`
-- 可能新增：`src/components/pattern/PdfPatternViewer.tsx`
 
-## 建议实现顺序
-1. `SwatchLab.tsx`：一键清空
-2. `SwatchLab.tsx` + `YarnGaugeVault.tsx`：线材图片上传/加载统一
-3. `PixelGenerator.tsx`：加入 `rotationTurns`，修正颜色重算
-4. `PatternViewer.tsx`：修复图片文字编辑交互
-5. `PatternDetail.tsx`：PDF 改为 PDF.js 渲染并接入标注层
 
-## 预期结果
-- 样片实验室可一键清空当前内容
-- 线材库保存和加载都能稳定同步洗前/洗后图片
-- 最大颜色数调整始终以原图颜色为准，但保持当前旋转方向
-- 图片图解文字可正常输入与再次编辑
-- PDF 图解也拥有与图片版一致的文字标注能力
+| 步骤  | 文件                                                                                         |
+| --- | ------------------------------------------------------------------------------------------ |
+| 1   | `src/pages/SwatchLab.tsx`                                                                  |
+| 2   | `src/pages/PixelGenerator.tsx`                                                             |
+| 3   | `src/components/pattern/AnnotationToolbar.tsx`, `src/components/pattern/PatternViewer.tsx` |
+| 4   | `src/components/pattern/StepCounter.tsx`, `src/pages/PatternDetail.tsx`                    |
+
+
+## 实现顺序
+
+1. 样片清空移至右上角 + 归零
+2. 定位编织保存前提示
+3. 标注工具全面增强（颜色/橡皮擦/undo-redo/清空/空文本清除）
+4. 计数器持久化
