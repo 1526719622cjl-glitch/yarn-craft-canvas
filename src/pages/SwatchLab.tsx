@@ -269,7 +269,7 @@ export default function SwatchLab() {
             </div>
           </div>
 
-          {/* Undo/Redo Controls */}
+          {/* Undo/Redo + Clear Controls */}
           <div className="flex gap-2">
             <Tooltip>
               <TooltipTrigger asChild>
@@ -286,6 +286,27 @@ export default function SwatchLab() {
                 </Button>
               </TooltipTrigger>
               <TooltipContent>{t('common.redo')} (Ctrl+Y)</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" className="rounded-xl soft-press text-destructive hover:text-destructive" onClick={() => {
+                  if (!confirm('确定要清空当前所有数据吗？已保存到线材库的数据不受影响。')) return;
+                  setSwatchData({
+                    preWashWidth: 0, preWashHeight: 0, stitchesPreWash: 0, rowsPreWash: 0,
+                    postWashWidth: 0, postWashHeight: 0, stitchesPostWash: 0, rowsPostWash: 0,
+                    toolType: null, toolSizeMm: null,
+                  });
+                  setProjectPlan({ targetWidth: 0, targetHeight: 0, startingStitches: 0, startingRows: 0 });
+                  setYarnName(''); setYarnBrand(''); setYarnWeight(''); setFiberContent(''); setProjectName('');
+                  setPreWashImage(null); setPostWashImage(null);
+                  setCustomToolSize(''); setIsCustomToolSize(false); setSelectedFolderId(null);
+                  if (preWashFileRef.current) preWashFileRef.current.value = '';
+                  if (postWashFileRef.current) postWashFileRef.current.value = '';
+                }}>
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>清空当前数据</TooltipContent>
             </Tooltip>
           </div>
         </div>
@@ -581,24 +602,7 @@ export default function SwatchLab() {
             </div>
           )}
 
-          <div className="flex justify-between mt-6 pt-4 border-t border-border/30">
-            <Button variant="outline" onClick={() => {
-              if (!confirm('确定要清空当前所有数据吗？已保存到线材库的数据不受影响。')) return;
-              setSwatchData({
-                preWashWidth: 10, preWashHeight: 10, stitchesPreWash: 20, rowsPreWash: 28,
-                postWashWidth: 10, postWashHeight: 10, stitchesPostWash: 20, rowsPostWash: 28,
-                toolType: null, toolSizeMm: null,
-              });
-              setProjectPlan({ targetWidth: 50, targetHeight: 60, startingStitches: 0, startingRows: 0 });
-              setYarnName(''); setYarnBrand(''); setYarnWeight(''); setFiberContent(''); setProjectName('');
-              setPreWashImage(null); setPostWashImage(null);
-              setCustomToolSize(''); setIsCustomToolSize(false); setSelectedFolderId(null);
-              if (preWashFileRef.current) preWashFileRef.current.value = '';
-              if (postWashFileRef.current) postWashFileRef.current.value = '';
-            }} className="rounded-xl text-destructive hover:text-destructive">
-              <Trash2 className="w-4 h-4 mr-2" />
-              清空当前数据
-            </Button>
+          <div className="flex justify-end mt-6 pt-4 border-t border-border/30">
             {user ? (
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setShowReportGenerator(true)} className="rounded-xl soft-press">
