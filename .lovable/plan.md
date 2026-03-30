@@ -1,62 +1,27 @@
 
 
-# 修复与增强：样片照片显示 + 像素生成器功能扩展
+# 样片报告图片 + 定位编织UI + 图库缩略图优化
 
-## 5个需求
+## 修改内容
 
-1. **样片照片框太小** — 当前 `h-32`（128px）固定高度 + `object-cover` 截取。改为 `object-contain` + 自适应高度，保留裁剪后的完整图片。
-2. **像素图库UI不可见** — 代码已有 `showLibrary` Dialog，但按钮可能被隐藏在 `pixelGrid.length > 0` 条件外。检查确认：Library 按钮在第1277行已在条件外，应该可见。可能是用户未注意到 FolderOpen 图标按钮。改为更明显的带文字按钮。
-3. **导出PNG增加选项** — 可选包含/不包含网格线和边缘定位数字（行列号）。
-4. **导入图片 + 成品旋转功能** — 在导入图片后和编辑画布时增加90°旋转整个画布的功能。
-5. **橡皮擦区域清除** — 当前橡皮擦是单像素擦除。改为鼠标拖动时持续擦除（已支持通过 `handleMouseEnter`），但需要支持更大区域的"框选清除"模式：长按时标记区域，松开后批量清除。
+### 1. 样片报告图片尺寸同步 — `SwatchReportGenerator.tsx`
+第153、157行的图片仍为 `h-32 object-cover`，与 SwatchLab 已改的 `max-h-48 object-contain` 不一致。改为 `max-h-48 object-contain` 保持一致，完整显示裁剪后的图片。
 
-## 修改方案
+### 2. 定位编织按钮更醒目 — `PixelGenerator.tsx`
+当前第1401行是一个小图标按钮（`size="icon" h-8 w-8`），不易注意。改为带文字的醒目按钮，使用 `variant="default"` 主色调突出显示，类似 `开始定位编织 / Start Knitting`。
 
-### 1. 样片照片自适应显示 — `SwatchLab.tsx`
-
-- 第315行：`h-32 object-cover` → `max-h-48 object-contain`（pre-wash）
-- 第377行：同样修改（post-wash）
-- 这样裁剪后的图片会完整显示，不再被二次截取
-
-### 2. 像素图库按钮更明显 — `PixelGenerator.tsx`
-
-- 将 FolderOpen 图标按钮改为带文字按钮，如 `图库/Library`
-- 确保在没有 pixelGrid 时也能访问库（已在条件外，OK）
-
-### 3. PNG导出选项 — `PixelGenerator.tsx`
-
-- 点击下载按钮时弹出小对话框，包含三个 Checkbox：
-  - ☑ 包含网格线
-  - ☑ 包含行列定位数字
-  - 导出按钮
-- 修改 `handleDownloadPNG` 接受参数：`showGrid`, `showNumbers`
-- 有网格线时每个像素格子画边框
-- 有定位数字时在画布上/左添加刻度标注
-
-### 4. 旋转整个画布 — `PixelGenerator.tsx`
-
-- 新增 `rotateCanvas90` 函数：将整个 pixelGrid 旋转90°，交换 gridWidth/gridHeight
-- 在工具栏或画布顶部增加旋转按钮（RotateCw 图标）
-- 导入图片后和编辑中均可使用
-
-### 5. 橡皮擦区域清除 — `PixelGenerator.tsx`
-
-当前橡皮擦在拖动时已经逐像素擦除（`handleMouseEnter` 中 `isDragging && currentTool === 'eraser'` 会调用 `handleCellClick`）。这已实现拖拽擦除。
-
-增强：橡皮擦支持可调大小（如 1x1, 3x3, 5x5），拖动时一次擦除周围区域。在工具栏选择橡皮擦时显示大小选择器。
-
-### 6. 翻译补充
-
-新增键：`pixel.exportOptions`, `pixel.includeGrid`, `pixel.includeNumbers`, `pixel.rotateCanvas`, `pixel.eraserSize`
+### 3. 图库缩略图放大 — `PixelGenerator.tsx`
+当前第1570行缩略图只有 `w-12 h-12`（48px），太小。改为类似线材库的卡片式网格布局：
+- 从列表布局改为 `grid grid-cols-2 gap-4` 网格布局
+- 缩略图放大到 `w-full h-32`（与线材库风格一致）
+- 名称和操作按钮在缩略图下方
+- Dialog 宽度改为 `max-w-2xl`
 
 ## 实现顺序
 
-| 步骤 | 任务 | 文件 |
-|------|------|------|
-| 1 | 样片照片 object-contain + 自适应高度 | SwatchLab.tsx |
-| 2 | 新增翻译键 | translations.ts |
-| 3 | PNG导出选项对话框 + 网格/数字渲染 | PixelGenerator.tsx |
-| 4 | 旋转画布功能 | PixelGenerator.tsx |
-| 5 | 橡皮擦大小选择 + 区域擦除 | PixelGenerator.tsx |
-| 6 | 图库按钮更醒目 | PixelGenerator.tsx |
+| 步骤 | 文件 |
+|------|------|
+| 1 | SwatchReportGenerator.tsx — 图片 `object-contain` + `max-h-48` |
+| 2 | PixelGenerator.tsx — 定位编织按钮放大+带文字 |
+| 3 | PixelGenerator.tsx — 图库改为网格卡片布局+大缩略图 |
 
