@@ -608,9 +608,11 @@ export default function SwatchLab() {
         </motion.div>
 
         <YarnGaugeVault compact onLoadYarn={(yarn) => {
+          setYarnName(yarn.name);
+          setYarnBrand(yarn.brand || '');
           if (yarn.pre_wash_photo_url) setPreWashImage(yarn.pre_wash_photo_url);
           if (yarn.post_wash_photo_url) setPostWashImage(yarn.post_wash_photo_url);
-        }} />
+        }} preWashImage={preWashImage} postWashImage={postWashImage} />
 
         {/* Smart Yarn Calculator */}
         <SmartYarnCalculator />
