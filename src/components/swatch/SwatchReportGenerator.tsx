@@ -205,13 +205,13 @@ export function SwatchReportGenerator({
                     </tr>
                     <tr className="border-b border-[#E8D5C4]/50">
                       <td className="py-2 text-[#8B7355]">{t('report.stitchRows')}</td>
-                      <td className="text-center font-medium">{swatchData.stitchesPreWash} st × {swatchData.rowsPreWash} rows</td>
-                      <td className="text-center font-medium">{swatchData.stitchesPostWash} st × {swatchData.rowsPostWash} rows</td>
+                      <td className="text-center font-medium">{swatchData.stitchesPreWash} 针 × {swatchData.rowsPreWash} 行</td>
+                      <td className="text-center font-medium">{swatchData.stitchesPostWash} 针 × {swatchData.rowsPostWash} 行</td>
                     </tr>
                     <tr>
                       <td className="py-2 text-[#8B7355]">{t('report.density')}</td>
-                      <td className="text-center font-medium">{gaugeData.preWashStitchDensity.toFixed(2)} st × {gaugeData.preWashRowDensity.toFixed(2)} rows</td>
-                      <td className="text-center font-medium">{gaugeData.postWashStitchDensity.toFixed(2)} st × {gaugeData.postWashRowDensity.toFixed(2)} rows</td>
+                      <td className="text-center font-medium">{gaugeData.preWashStitchDensity.toFixed(2)} 针 × {gaugeData.preWashRowDensity.toFixed(2)} 行</td>
+                      <td className="text-center font-medium">{gaugeData.postWashStitchDensity.toFixed(2)} 针 × {gaugeData.postWashRowDensity.toFixed(2)} 行</td>
                     </tr>
                   </tbody>
                 </table>
@@ -235,7 +235,7 @@ export function SwatchReportGenerator({
 
               {projectPlan && projectPlan.startingStitches > 0 && (
                 <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 mb-4 shadow-sm">
-                  <h3 className="font-medium text-[#5D4E37] mb-3">{t('report.projectPlan')}</h3>
+                  <h3 className="font-medium text-[#5D4E37] mb-3">{t('report.projectPlan')}{localProjectName ? ` — ${localProjectName}` : ''}</h3>
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
                       <span className="text-[#8B7355]">{t('report.targetSize')}：</span>
@@ -243,12 +243,12 @@ export function SwatchReportGenerator({
                     </div>
                     <div>
                       <span className="text-[#8B7355]">{t('report.castOn')}：</span>
-                      <span className="font-medium">{projectPlan.startingStitches} st × {projectPlan.startingRows} rows</span>
+                      <span className="font-medium">{projectPlan.startingStitches} 针 × {projectPlan.startingRows} 行</span>
                     </div>
                     {compensatedStitches && compensatedRows && (compensatedStitches !== projectPlan.startingStitches || compensatedRows !== projectPlan.startingRows) && (
                       <div className="col-span-2">
                         <span className="text-[#8B7355]">{t('report.compensated')}：</span>
-                        <span className="font-medium">{compensatedStitches} st × {compensatedRows} rows</span>
+                        <span className="font-medium">{compensatedStitches} 针 × {compensatedRows} 行</span>
                       </div>
                     )}
                   </div>
