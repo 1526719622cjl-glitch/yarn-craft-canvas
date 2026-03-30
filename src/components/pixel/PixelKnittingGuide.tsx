@@ -146,51 +146,77 @@ export function PixelKnittingGuide({ pixelGrid, gridWidth, gridHeight, onClose, 
       {/* Grid */}
       <div className="flex-1 overflow-auto flex items-center justify-center p-4">
         <div className="inline-block">
-          {rows.map((row, y) => (
-            <div
-              key={y}
-              className="flex"
-              style={{
-                opacity: y === currentRow ? 1 : 0.3,
-                outline: y === currentRow ? '3px solid hsl(var(--primary))' : 'none',
-                outlineOffset: '1px',
-                transition: 'opacity 0.2s, outline 0.2s',
-              }}
-            >
-              {/* Row number label */}
-              <div className="flex items-center justify-end pr-1 text-[10px] text-muted-foreground" style={{ width: 28 }}>
-                {gridHeight - y}
+          {rows.map((row, y) => {
+            const isCurrentRow = y === currentRow;
+            return (
+              <div
+                key={y}
+                className="flex"
+                style={{
+                  opacity: isCurrentRow ? 1 : 0.35,
+                  outline: isCurrentRow ? '3px solid #FF4444' : 'none',
+                  outlineOffset: '1px',
+                  transition: 'opacity 0.2s, outline 0.2s',
+                  cursor: isCurrentRow ? 'default' : 'pointer',
+                }}
+                onClick={() => { if (!isCurrentRow) setCurrentRow(y); }}
+              >
+                {/* Row number label */}
+                <div
+                  className="flex items-center justify-end pr-1 text-[10px] text-muted-foreground select-none"
+                  style={{ width: 28, cursor: 'pointer', fontWeight: isCurrentRow ? 700 : 400 }}
+                  onClick={(e) => { e.stopPropagation(); setCurrentRow(y); }}
+                >
+                  {gridHeight - y}
+                </div>
+                {row.map((cell, x) => {
+                  const cellKey = `${cell.x},${cell.y}`;
+                  const isHighlighted = highlightedCells.has(cellKey);
+                  return (
+                    <div
+                      key={x}
+                      style={{
+                        width: cellSize,
+                        height: cellSize,
+                        backgroundColor: cell.color,
+                        borderRight: '1px solid rgba(0,0,0,0.05)',
+                        borderBottom: '1px solid rgba(0,0,0,0.05)',
+                        outline: isHighlighted ? '3px solid #FF4444' : 'none',
+                        outlineOffset: '-2px',
+                        cursor: isCurrentRow ? 'pointer' : 'pointer',
+                        position: 'relative',
+                        zIndex: isHighlighted ? 2 : 0,
+                      }}
+                      onClick={(e) => {
+                        if (isCurrentRow) {
+                          e.stopPropagation();
+                          handleCellClick(cell.x, cell.y);
+                        }
+                      }}
+                      onPointerDown={() => isCurrentRow && handleCellLongPressStart(cell.x, cell.y)}
+                      onPointerUp={handleCellLongPressEnd}
+                      onPointerLeave={handleCellLongPressEnd}
+                    >
+                      {isHighlighted && (
+                        <div className="absolute inset-0 flex items-center justify-center" style={{
+                          background: 'rgba(255, 68, 68, 0.35)',
+                          backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.3) 2px, rgba(255,255,255,0.3) 4px)',
+                        }}>
+                          <div style={{
+                            width: Math.max(4, cellSize * 0.3),
+                            height: Math.max(4, cellSize * 0.3),
+                            borderRadius: '50%',
+                            backgroundColor: '#FF4444',
+                            boxShadow: '0 0 2px rgba(0,0,0,0.5)',
+                          }} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-              {row.map((cell, x) => {
-                const cellKey = `${cell.x},${cell.y}`;
-                const isHighlighted = highlightedCells.has(cellKey);
-                return (
-                  <div
-                    key={x}
-                    style={{
-                      width: cellSize,
-                      height: cellSize,
-                      backgroundColor: cell.color,
-                      borderRight: '1px solid rgba(0,0,0,0.05)',
-                      borderBottom: '1px solid rgba(0,0,0,0.05)',
-                      outline: isHighlighted ? '2px solid hsl(var(--primary))' : 'none',
-                      outlineOffset: '-1px',
-                      cursor: y === currentRow ? 'pointer' : 'default',
-                      position: 'relative',
-                    }}
-                    onClick={() => y === currentRow && handleCellClick(cell.x, cell.y)}
-                    onPointerDown={() => y === currentRow && handleCellLongPressStart(cell.x, cell.y)}
-                    onPointerUp={handleCellLongPressEnd}
-                    onPointerLeave={handleCellLongPressEnd}
-                  >
-                    {isHighlighted && (
-                      <div className="absolute inset-0 bg-primary/20" />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
