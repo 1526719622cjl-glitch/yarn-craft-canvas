@@ -9,6 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { usePatternLibrary } from '@/hooks/usePatternLibrary';
 import { PatternCard } from './PatternCard';
 import { PatternUploadDialog } from './PatternUploadDialog';
+import { StepCounter } from './StepCounter';
 import { useNavigate } from 'react-router-dom';
 
 interface PatternLibraryProps {
@@ -139,6 +140,9 @@ export function PatternLibrary({ category, icon }: PatternLibraryProps) {
         onUploadFile={uploadFile}
         onNavigate={(id) => navigate(`/${category}/${id}`)}
       />
+
+      {/* Floating Step Counter */}
+      <StepCounter />
     </motion.div>
   );
 }
