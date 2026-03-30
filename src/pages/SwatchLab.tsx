@@ -630,13 +630,13 @@ export default function SwatchLab() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="yarn-name">{t('save.yarnName')}</Label>
-              <Input id="yarn-name" value={yarnName} onChange={(e) => setYarnName(e.target.value)} placeholder="e.g., Malabrigo Rios - Azul Profundo" autoFocus />
+              <Input id="yarn-name" value={yarnName} onChange={(e) => setYarnName(e.target.value)} placeholder="如：美丽诺羊毛线" autoFocus />
             </div>
             
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="yarn-brand">{t('save.brand')}</Label>
-                <Input id="yarn-brand" value={yarnBrand} onChange={(e) => setYarnBrand(e.target.value)} placeholder="Malabrigo" />
+                <Input id="yarn-brand" value={yarnBrand} onChange={(e) => setYarnBrand(e.target.value)} placeholder="如：编织人生" />
               </div>
               <div className="space-y-2">
                 <Label>{t('save.weight')}</Label>
