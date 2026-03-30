@@ -1178,12 +1178,11 @@ export default function PixelGenerator() {
               value={[colorCount]}
               onValueChange={([val]) => {
                 setColorCount(val);
-                // Auto-reprocess from original uploaded image when changing color count
+              }}
+              onValueCommit={([val]) => {
+                // When user finishes dragging, reprocess from original image
                 if (uploadedImage && pixelGrid.length > 0) {
-                  // Use setTimeout to ensure colorCount state is updated before processing
-                  setTimeout(() => {
-                    processImageWithDimensions(uploadedImage, gridWidth, gridHeight);
-                  }, 50);
+                  processImageWithDimensions(uploadedImage, gridWidth, gridHeight);
                 }
               }}
               min={2}
