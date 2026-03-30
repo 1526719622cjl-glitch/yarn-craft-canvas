@@ -684,7 +684,54 @@ export default function PixelGenerator() {
     }
   };
 
-  const toggleIgnoreBackground = () => {
+  // Download pixel grid as PNG
+  const handleDownloadPNG = useCallback(() => {
+    if (pixelGrid.length === 0) return;
+    const scale = 10;
+    const canvas = document.createElement('canvas');
+    canvas.width = gridWidth * scale;
+    canvas.height = gridHeight * scale;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    for (const cell of pixelGrid) {
+      ctx.fillStyle = cell.color;
+      ctx.fillRect(cell.x * scale, cell.y * scale, scale, scale);
+    }
+    const link = document.createElement('a');
+    link.download = 'pixel-design.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }, [pixelGrid, gridWidth, gridHeight]);
+
+  // Save design to library
+  const handleSaveDesign = useCallback(async () => {
+    if (!designName.trim()) return;
+    try {
+      await saveDesign.mutateAsync({
+        name: designName.trim(),
+        grid_data: pixelGrid,
+        width: gridWidth,
+        height: gridHeight,
+        color_palette: colorPalette,
+      });
+      toast({ title: t('pixel.designSaved') });
+      setShowSaveDialog(false);
+    } catch (e: any) {
+      toast({ title: e.message, variant: 'destructive' });
+    }
+  }, [designName, pixelGrid, gridWidth, gridHeight, colorPalette, saveDesign, toast, t]);
+
+  // Load design from library
+  const handleLoadDesign = useCallback((design: any) => {
+    setGridDimensions(design.width, design.height);
+    setPixelGrid(design.grid_data);
+    setColorPalette(design.color_palette);
+    resetUndoHistory(design.grid_data);
+    setShowLibrary(false);
+    toast({ title: t('pixel.designLoaded') });
+  }, [setGridDimensions, setPixelGrid, setColorPalette, resetUndoHistory, toast, t]);
+
+
     if (ignoredColor) {
       setIgnoredColor(null);
     } else if (colorPalette.length > 0) {
