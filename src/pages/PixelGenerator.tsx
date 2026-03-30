@@ -889,6 +889,8 @@ export default function PixelGenerator() {
     setPixelGrid(design.grid_data);
     setColorPalette(design.color_palette);
     resetUndoHistory(design.grid_data);
+    setActiveDesignId(design.id);
+    setActiveDesignProgress(design.knitting_progress || null);
     setShowLibrary(false);
     toast({ title: t('pixel.designLoaded') });
   }, [setGridDimensions, setPixelGrid, setColorPalette, resetUndoHistory, toast, t]);
