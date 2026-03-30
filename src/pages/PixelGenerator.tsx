@@ -506,12 +506,20 @@ export default function PixelGenerator() {
       case 'eraser':
         const defaultColor = colorPalette[0] || '#FDFBF7';
         const eraseGrid = [...pixelGrid];
-        const eraseIdx = eraseGrid.findIndex(p => p.x === x && p.y === y);
-        if (eraseIdx >= 0) {
-          eraseGrid[eraseIdx] = { ...eraseGrid[eraseIdx], color: defaultColor };
-          setPixelGrid(eraseGrid);
-          setUndoableGrid(eraseGrid);
+        const halfSize = Math.floor(eraserSize / 2);
+        for (let dy = -halfSize; dy <= halfSize; dy++) {
+          for (let dx = -halfSize; dx <= halfSize; dx++) {
+            const ex = x + dx;
+            const ey = y + dy;
+            if (ex < 0 || ex >= gridWidth || ey < 0 || ey >= gridHeight) continue;
+            const eraseIdx = eraseGrid.findIndex(p => p.x === ex && p.y === ey);
+            if (eraseIdx >= 0) {
+              eraseGrid[eraseIdx] = { ...eraseGrid[eraseIdx], color: defaultColor };
+            }
+          }
         }
+        setPixelGrid(eraseGrid);
+        setUndoableGrid(eraseGrid);
         break;
       case 'bucket':
         // Custom bucket fill that tracks undo
