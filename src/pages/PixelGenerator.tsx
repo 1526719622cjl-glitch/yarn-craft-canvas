@@ -1347,7 +1347,7 @@ export default function PixelGenerator() {
                     <div className="w-px h-6 bg-border mx-1" />
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="outline" size="icon" className="rounded-xl h-8 w-8" onClick={handleDownloadPNG}>
+                        <Button variant="outline" size="icon" className="rounded-xl h-8 w-8" onClick={() => setShowExportDialog(true)}>
                           <Download className="w-4 h-4" />
                         </Button>
                       </TooltipTrigger>
@@ -1367,6 +1367,14 @@ export default function PixelGenerator() {
                     </Tooltip>
                     <Tooltip>
                       <TooltipTrigger asChild>
+                        <Button variant="outline" size="icon" className="rounded-xl h-8 w-8" onClick={rotateCanvas90}>
+                          <RotateCw className="w-4 h-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('pixel.rotateCanvas')}</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
                         <Button variant="outline" size="icon" className="rounded-xl h-8 w-8" onClick={() => setShowKnittingGuide(true)}>
                           <Navigation className="w-4 h-4" />
                         </Button>
@@ -1375,14 +1383,10 @@ export default function PixelGenerator() {
                     </Tooltip>
                   </>
                 )}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="outline" size="icon" className="rounded-xl h-8 w-8" onClick={() => setShowLibrary(true)}>
-                      <FolderOpen className="w-4 h-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{t('pixel.designLibrary')}</TooltipContent>
-                </Tooltip>
+                <Button variant="outline" size="sm" className="rounded-xl h-8 gap-1.5" onClick={() => setShowLibrary(true)}>
+                  <FolderOpen className="w-4 h-4" />
+                  <span className="text-xs">{t('pixel.library')}</span>
+                </Button>
               </div>
             </div>
 
