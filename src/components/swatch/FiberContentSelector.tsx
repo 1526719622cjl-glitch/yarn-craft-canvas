@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { Plus, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useI18n } from '@/i18n/useI18n';
 import type { TranslationKey } from '@/i18n/translations';
 
@@ -83,8 +82,15 @@ export function FiberContentSelector({ value, onChange }: FiberContentSelectorPr
     setRows(prev => prev.length > 1 ? prev.filter(r => r.id !== id) : prev);
   };
 
+  const datalistId = 'fiber-presets';
+
   return (
     <div className="space-y-2">
+      <datalist id={datalistId}>
+        {FIBER_PRESETS.map((f) => (
+          <option key={f.value} value={f.value}>{t(f.labelKey)}</option>
+        ))}
+      </datalist>
       {rows.map((row) => (
         <div key={row.id} className="flex items-center gap-2">
           <Input
@@ -96,16 +102,13 @@ export function FiberContentSelector({ value, onChange }: FiberContentSelectorPr
             placeholder="%"
             className="w-16 h-9 text-sm"
           />
-          <Select value={row.material} onValueChange={(v) => updateRow(row.id, 'material', v)}>
-            <SelectTrigger className="flex-1 h-9">
-              <SelectValue placeholder={t('fiber.selectMaterial')} />
-            </SelectTrigger>
-            <SelectContent>
-              {FIBER_PRESETS.map((f) => (
-                <SelectItem key={f.value} value={f.value}>{t(f.labelKey)}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Input
+            list={datalistId}
+            value={row.material}
+            onChange={(e) => updateRow(row.id, 'material', e.target.value)}
+            placeholder={t('fiber.selectMaterial')}
+            className="flex-1 h-9 text-sm"
+          />
           {rows.length > 1 && (
             <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => removeRow(row.id)}>
               <X className="w-3 h-3" />
