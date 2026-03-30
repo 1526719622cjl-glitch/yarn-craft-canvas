@@ -376,7 +376,7 @@ export default function SwatchLab() {
             <div className="pt-3 border-t border-border/30">
               <p className="text-xs text-muted-foreground">{t('swatch.preWashGauge')}</p>
               <p className="text-sm font-medium">
-                {safeGaugeData.preWashStitchDensity.toFixed(2)} st/cm × {safeGaugeData.preWashRowDensity.toFixed(2)} rows/cm
+                {safeGaugeData.preWashStitchDensity.toFixed(2)} st/cm × {safeGaugeData.preWashRowDensity.toFixed(2)} 行/cm
               </p>
             </div>
           </motion.div>
@@ -438,7 +438,7 @@ export default function SwatchLab() {
             <div className="pt-3 border-t border-border/30">
               <p className="text-xs text-muted-foreground">{t('swatch.postWashGauge')}</p>
               <p className="text-sm font-medium">
-                {safeGaugeData.postWashStitchDensity.toFixed(2)} st/cm × {safeGaugeData.postWashRowDensity.toFixed(2)} rows/cm
+                {safeGaugeData.postWashStitchDensity.toFixed(2)} st/cm × {safeGaugeData.postWashRowDensity.toFixed(2)} 行/cm
               </p>
             </div>
           </motion.div>
