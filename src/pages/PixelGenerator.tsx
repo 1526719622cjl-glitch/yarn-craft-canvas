@@ -201,6 +201,10 @@ export default function PixelGenerator() {
     erasePixel,
     bucketFill
   } = useYarnCluesStore();
+
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const { designs, saveDesign, deleteDesign } = usePixelDesigns();
   
   const [colorCount, setColorCount] = useState(8);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
