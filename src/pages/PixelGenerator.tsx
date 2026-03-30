@@ -210,6 +210,7 @@ export default function PixelGenerator() {
   const [colorCount, setColorCount] = useState(8);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [baseImageDataUrl, setBaseImageDataUrl] = useState<string | null>(null);
+  const [rotationTurns, setRotationTurns] = useState(0); // 0-3, tracks 90° CW rotations from original
   const [isDragging, setIsDragging] = useState(false);
   const [useDithering, setUseDithering] = useState(true);
   const [showGridLines, setShowGridLines] = useState(true);
