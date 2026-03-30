@@ -205,7 +205,7 @@ export default function PixelGenerator() {
 
   const { user } = useAuth();
   const { toast } = useToast();
-  const { designs, saveDesign, deleteDesign } = usePixelDesigns();
+  const { designs, saveDesign, deleteDesign, updateKnittingProgress } = usePixelDesigns();
   
   const [colorCount, setColorCount] = useState(8);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
