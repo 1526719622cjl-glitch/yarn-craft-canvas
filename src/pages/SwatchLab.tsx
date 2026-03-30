@@ -77,6 +77,7 @@ export default function SwatchLab() {
   const preWashFileRef = useRef<HTMLInputElement>(null);
   const postWashFileRef = useRef<HTMLInputElement>(null);
   const [fiberContent, setFiberContent] = useState('');
+  const [projectName, setProjectName] = useState('');
 
   // Crop dialog state
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
@@ -521,6 +522,12 @@ export default function SwatchLab() {
             </div>
           </div>
 
+          <div className="space-y-4 mb-6">
+            <div className="space-y-2">
+              <Label htmlFor="project-name" className="text-sm text-muted-foreground">{t('swatch.projectName')}</Label>
+              <Input id="project-name" value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder={t('swatch.projectNamePlaceholder')} className="input-glass h-12 text-lg font-medium" />
+            </div>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <h3 className="text-sm font-medium text-muted-foreground">{t('swatch.targetDimensions')}</h3>
@@ -705,6 +712,7 @@ export default function SwatchLab() {
         projectPlan={safeProjectPlan.startingStitches > 0 ? safeProjectPlan : undefined}
         compensatedStitches={compensatedStitches}
         compensatedRows={compensatedRows}
+        projectName={projectName}
       />
 
       {/* Image Crop Dialog */}
