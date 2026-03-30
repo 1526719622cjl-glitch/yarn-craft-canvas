@@ -1117,15 +1117,52 @@ export default function PixelGenerator() {
                         size="sm"
                         className="h-7 px-2 rounded-lg text-xs"
                         onClick={() => {
-                          // Re-quantize from current pixel grid colors, not re-process image (preserves rotation)
-                          const colorCounts: Record<string, number> = {};
-                          for (const cell of pixelGrid) {
-                            colorCounts[cell.color] = (colorCounts[cell.color] || 0) + 1;
+                          // Re-quantize from current pixel grid colors (preserves rotation & edits)
+                          const pixels: [number, number, number][] = pixelGrid.map(cell => {
+                            const match = cell.color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+                            if (match) return [parseInt(match[1]), parseInt(match[2]), parseInt(match[3])] as [number, number, number];
+                            // Handle hex colors
+                            const hex = cell.color.replace('#', '');
+                            if (hex.length === 6) {
+                              return [parseInt(hex.slice(0,2),16), parseInt(hex.slice(2,4),16), parseInt(hex.slice(4,6),16)] as [number, number, number];
+                            }
+                            return [128, 128, 128] as [number, number, number];
+                          });
+                          
+                          // Build ImageData from current grid for k-means
+                          const imgData = new ImageData(gridWidth, gridHeight);
+                          pixels.forEach((p, i) => {
+                            imgData.data[i*4] = p[0];
+                            imgData.data[i*4+1] = p[1];
+                            imgData.data[i*4+2] = p[2];
+                            imgData.data[i*4+3] = 255;
+                          });
+                          
+                          let paletteRgb = kMeansQuantize(imgData, colorCount);
+                          if (limitToPalette && stashColors.length > 0) {
+                            paletteRgb = stashColors.map(c => {
+                              const m = c.hex.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
+                              return m ? [parseInt(m[1],16), parseInt(m[2],16), parseInt(m[3],16)] as [number,number,number] : [128,128,128] as [number,number,number];
+                            });
                           }
-                          // Get top N colors via k-means on existing grid
-                          if (uploadedImage) {
-                            processImageWithDimensions(uploadedImage, gridWidth, gridHeight);
-                          }
+                          
+                          setColorPalette(paletteRgb.map(rgbToString));
+                          
+                          // Map each pixel to nearest palette color
+                          const newGrid = pixelGrid.map(cell => {
+                            const idx = pixels.indexOf(pixels[pixelGrid.indexOf(cell)]);
+                            const p = pixels[pixelGrid.indexOf(cell)];
+                            let minDist = Infinity;
+                            let best = paletteRgb[0];
+                            for (const c of paletteRgb) {
+                              const d = (p[0]-c[0])**2 + (p[1]-c[1])**2 + (p[2]-c[2])**2;
+                              if (d < minDist) { minDist = d; best = c; }
+                            }
+                            return { ...cell, color: `rgb(${Math.round(best[0])}, ${Math.round(best[1])}, ${Math.round(best[2])})` };
+                          });
+                          
+                          setPixelGrid(newGrid);
+                          resetUndoHistory(newGrid);
                         }}
                       >
                         <RefreshCw className="w-3 h-3 mr-1" />

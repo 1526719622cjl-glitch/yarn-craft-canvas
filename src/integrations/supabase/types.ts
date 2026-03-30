@@ -367,8 +367,10 @@ export type Database = {
           name: string
           notes: string | null
           post_wash_height_cm: number | null
+          post_wash_photo_url: string | null
           post_wash_width_cm: number | null
           pre_wash_height_cm: number | null
+          pre_wash_photo_url: string | null
           pre_wash_width_cm: number | null
           rows_per_10cm: number | null
           rows_post_wash: number | null
@@ -396,8 +398,10 @@ export type Database = {
           name: string
           notes?: string | null
           post_wash_height_cm?: number | null
+          post_wash_photo_url?: string | null
           post_wash_width_cm?: number | null
           pre_wash_height_cm?: number | null
+          pre_wash_photo_url?: string | null
           pre_wash_width_cm?: number | null
           rows_per_10cm?: number | null
           rows_post_wash?: number | null
@@ -425,8 +429,10 @@ export type Database = {
           name?: string
           notes?: string | null
           post_wash_height_cm?: number | null
+          post_wash_photo_url?: string | null
           post_wash_width_cm?: number | null
           pre_wash_height_cm?: number | null
+          pre_wash_photo_url?: string | null
           pre_wash_width_cm?: number | null
           rows_per_10cm?: number | null
           rows_post_wash?: number | null

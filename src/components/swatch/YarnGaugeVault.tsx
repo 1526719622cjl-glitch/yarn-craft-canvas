@@ -114,6 +114,7 @@ export function YarnGaugeVault({ onLoadYarn, compact = false }: YarnGaugeVaultPr
       tool_type: swatchData.toolType,
       tool_size_mm: swatchData.toolSizeMm,
       meters_per_ball: null, grams_per_ball: null, balls_in_stock: 0,
+      pre_wash_photo_url: null, post_wash_photo_url: null,
       notes: newYarn.notes.trim() || null,
     });
     setNewYarn({ name: '', brand: '', color_code: '', fiber_content: '', weight: '', notes: '' });
