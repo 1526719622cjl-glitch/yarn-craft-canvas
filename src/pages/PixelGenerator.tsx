@@ -1176,15 +1176,7 @@ export default function PixelGenerator() {
             </div>
              <Slider
               value={[colorCount]}
-              onValueChange={([val]) => {
-                setColorCount(val);
-              }}
-              onValueCommit={([val]) => {
-                // When user finishes dragging, reprocess from original image
-                if (uploadedImage && pixelGrid.length > 0) {
-                  processImageWithDimensions(uploadedImage, gridWidth, gridHeight);
-                }
-              }}
+              onValueChange={([val]) => setColorCount(val)}
               min={2}
               max={32}
               step={1}
