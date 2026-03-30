@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { FiberContentSelector } from '@/components/swatch/FiberContentSelector';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -116,7 +116,7 @@ export function YarnGaugeVault({ onLoadYarn, compact = false, preWashImage, post
       tool_type: swatchData.toolType,
       tool_size_mm: swatchData.toolSizeMm,
       meters_per_ball: null, grams_per_ball: null, balls_in_stock: 0,
-      pre_wash_photo_url: null, post_wash_photo_url: null,
+      pre_wash_photo_url: preWashImage || null, post_wash_photo_url: postWashImage || null,
       notes: newYarn.notes.trim() || null,
     });
     setNewYarn({ name: '', brand: '', color_code: '', fiber_content: '', weight: '', notes: '' });
@@ -225,7 +225,7 @@ export function YarnGaugeVault({ onLoadYarn, compact = false, preWashImage, post
                       {yarn.brand && <p className="truncate text-xs">{t('vault.brandLabel')} {yarn.brand}</p>}
                       {yarn.fiber_content && <p className="truncate text-xs">{t('vault.fiberLabel')} {yarn.fiber_content}</p>}
                       {(yarn.stitches_per_10cm || yarn.rows_per_10cm) && (
-                        <p className="text-xs">{t('vault.gaugeLabel')} {yarn.stitches_per_10cm ?? '-'} st × {yarn.rows_per_10cm ?? '-'} rows / 10cm</p>
+                        <p className="text-xs">{t('vault.gaugeLabel')} {yarn.stitches_per_10cm ?? '-'} 针 × {yarn.rows_per_10cm ?? '-'} 行 / 10cm</p>
                       )}
                     </div>
                     <div className="flex gap-2 pt-2">
