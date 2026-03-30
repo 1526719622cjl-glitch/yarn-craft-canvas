@@ -494,6 +494,12 @@ const translations = {
   'pixel.rotateCanvas': { zh: '旋转画布90°', en: 'Rotate Canvas 90°' },
   'pixel.eraserSize': { zh: '橡皮擦大小', en: 'Eraser Size' },
   'pixel.library': { zh: '图库', en: 'Library' },
+  'pattern.favorite': { zh: '收藏', en: 'Favorite' },
+  'pattern.unfavorite': { zh: '取消收藏', en: 'Unfavorite' },
+  'pattern.favorites': { zh: '收藏', en: 'Favorites' },
+  'pattern.uploadFinishedPhoto': { zh: '上传实物图片', en: 'Upload Finished Photo' },
+  'pattern.finishedPhoto': { zh: '实物图片', en: 'Finished Photo' },
+  'pattern.annotationOnly': { zh: '图解标注', en: 'Annotations' },
 } as const;
 
 export type TranslationKey = keyof typeof translations;

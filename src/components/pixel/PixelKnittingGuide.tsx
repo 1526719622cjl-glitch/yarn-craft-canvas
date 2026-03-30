@@ -25,13 +25,26 @@ export function PixelKnittingGuide({ pixelGrid, gridWidth, gridHeight, onClose }
     return result;
   }, [pixelGrid, gridHeight]);
 
-  const currentRowColors = useMemo(() => {
+  // Build actual color sequence for current row (consecutive same-color groups)
+  const currentRowSequence = useMemo(() => {
     const row = rows[currentRow] || [];
-    const counts: Record<string, number> = {};
+    if (row.length === 0) return [];
+    const sequence: { color: string; count: number }[] = [];
+    let currentColor = row[0]?.color;
+    let currentCount = 0;
     for (const cell of row) {
-      counts[cell.color] = (counts[cell.color] || 0) + 1;
+      if (cell.color === currentColor) {
+        currentCount++;
+      } else {
+        sequence.push({ color: currentColor, count: currentCount });
+        currentColor = cell.color;
+        currentCount = 1;
+      }
     }
-    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    if (currentCount > 0) {
+      sequence.push({ color: currentColor, count: currentCount });
+    }
+    return sequence;
   }, [rows, currentRow]);
 
   const cellSize = Math.min(Math.floor((window.innerWidth - 80) / gridWidth), 24);
@@ -86,15 +99,18 @@ export function PixelKnittingGuide({ pixelGrid, gridWidth, gridHeight, onClose }
         </div>
       </div>
 
-      {/* Row color stats */}
-      <div className="px-4 py-2 border-t border-border/50 flex flex-wrap items-center justify-center gap-3">
-        <span className="text-xs text-muted-foreground font-medium">{t('pixel.rowColors')}:</span>
-        {currentRowColors.map(([color, count]) => (
-          <div key={color} className="flex items-center gap-1">
-            <div className="w-4 h-4 rounded border border-border" style={{ backgroundColor: color }} />
-            <span className="text-xs font-mono">{count}</span>
-          </div>
-        ))}
+      {/* Row color sequence (actual order, not totals) */}
+      <div className="px-4 py-2 border-t border-border/50 overflow-x-auto">
+        <div className="flex items-center gap-1 justify-center flex-wrap">
+          <span className="text-xs text-muted-foreground font-medium mr-1">{t('pixel.rowColors')}:</span>
+          {currentRowSequence.map((seg, i) => (
+            <div key={i} className="flex items-center gap-0.5">
+              <div className="w-4 h-4 rounded border border-border" style={{ backgroundColor: seg.color }} />
+              <span className="text-xs font-mono">{seg.count}</span>
+              {i < currentRowSequence.length - 1 && <span className="text-muted-foreground text-[10px] mx-0.5">→</span>}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Bottom controls */}
