@@ -957,7 +957,25 @@ export default function PixelGenerator() {
                 <Sliders className="w-4 h-4 text-primary" />
                 <h3 className="font-medium text-sm">{t('pixel.maxColors')}</h3>
               </div>
-              <span className="text-sm font-semibold text-primary">{colorCount}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-primary">{colorCount}</span>
+                {uploadedImage && pixelGrid.length > 0 && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 rounded-lg text-xs"
+                        onClick={() => processImageWithDimensions(uploadedImage, gridWidth, gridHeight)}
+                      >
+                        <RefreshCw className="w-3 h-3 mr-1" />
+                        {t('pixel.syncColors')}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('pixel.syncColors')}</TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
             </div>
             <Slider
               value={[colorCount]}
@@ -1174,6 +1192,47 @@ export default function PixelGenerator() {
                 <span className="text-sm text-muted-foreground">
                   {gridWidth} × {gridHeight} {t('swatch.stitches')}
                 </span>
+                {pixelGrid.length > 0 && (
+                  <>
+                    <div className="w-px h-6 bg-border mx-1" />
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="outline" size="icon" className="rounded-xl h-8 w-8" onClick={handleDownloadPNG}>
+                          <Download className="w-4 h-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('pixel.download')}</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="outline" size="icon" className="rounded-xl h-8 w-8" onClick={() => {
+                          if (!user) { toast({ title: t('common.signIn'), variant: 'destructive' }); return; }
+                          setDesignName('');
+                          setShowSaveDialog(true);
+                        }}>
+                          <Save className="w-4 h-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('pixel.saveToLibrary')}</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="outline" size="icon" className="rounded-xl h-8 w-8" onClick={() => setShowKnittingGuide(true)}>
+                          <Navigation className="w-4 h-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('pixel.startKnitting')}</TooltipContent>
+                    </Tooltip>
+                  </>
+                )}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="icon" className="rounded-xl h-8 w-8" onClick={() => setShowLibrary(true)}>
+                      <FolderOpen className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('pixel.designLibrary')}</TooltipContent>
+                </Tooltip>
               </div>
             </div>
 
