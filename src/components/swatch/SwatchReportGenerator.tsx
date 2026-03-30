@@ -213,7 +213,28 @@ export function SwatchReportGenerator({
                 </div>
               )}
 
-              {notes && (
+              {projectPlan && projectPlan.startingStitches > 0 && (
+                <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 mb-4 shadow-sm">
+                  <h3 className="font-medium text-[#5D4E37] mb-3">{t('report.projectPlan')}</h3>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <span className="text-[#8B7355]">{t('report.targetSize')}：</span>
+                      <span className="font-medium">{projectPlan.targetWidth} × {projectPlan.targetHeight} cm</span>
+                    </div>
+                    <div>
+                      <span className="text-[#8B7355]">{t('report.castOn')}：</span>
+                      <span className="font-medium">{projectPlan.startingStitches} st × {projectPlan.startingRows} rows</span>
+                    </div>
+                    {compensatedStitches && compensatedRows && (compensatedStitches !== projectPlan.startingStitches || compensatedRows !== projectPlan.startingRows) && (
+                      <div className="col-span-2">
+                        <span className="text-[#8B7355]">{t('report.compensated')}：</span>
+                        <span className="font-medium">{compensatedStitches} st × {compensatedRows} rows</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
                 <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 shadow-sm">
                   <h3 className="font-medium text-[#5D4E37] mb-2">{t('report.notesSection')}</h3>
                   <p className="text-sm text-[#5D4E37] whitespace-pre-wrap">{notes}</p>
