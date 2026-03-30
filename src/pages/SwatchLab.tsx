@@ -628,6 +628,11 @@ export default function SwatchLab() {
             </div>
 
             <div className="space-y-2">
+              <Label>{t('fiber.title')}</Label>
+              <FiberContentSelector value={fiberContent} onChange={setFiberContent} />
+            </div>
+
+            <div className="space-y-2">
               <Label>{t('save.folder')}</Label>
               <Select value={selectedFolderId || 'root'} onValueChange={(v) => setSelectedFolderId(v === 'root' ? null : v)}>
                 <SelectTrigger className="rounded-xl">
@@ -673,6 +678,17 @@ export default function SwatchLab() {
         yarnBrand={yarnBrand}
         preWashImage={preWashImage}
         postWashImage={postWashImage}
+        projectPlan={safeProjectPlan.startingStitches > 0 ? safeProjectPlan : undefined}
+        compensatedStitches={compensatedStitches}
+        compensatedRows={compensatedRows}
+      />
+
+      {/* Image Crop Dialog */}
+      <ImageCropDialog
+        imageUrl={pendingImageUrl}
+        open={cropDialogOpen}
+        onOpenChange={setCropDialogOpen}
+        onCropComplete={handleCropComplete}
       />
     </motion.div>
   );
