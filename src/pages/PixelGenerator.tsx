@@ -232,7 +232,13 @@ export default function PixelGenerator() {
   
   // Canvas scaling state
   const [canvasScale, setCanvasScale] = useState(100);
-  
+
+  // New features state
+  const [showKnittingGuide, setShowKnittingGuide] = useState(false);
+  const [showLibrary, setShowLibrary] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [designName, setDesignName] = useState('');
+
   // Undo/Redo state for pixel grid
   const {
     state: undoablePixelGrid,
