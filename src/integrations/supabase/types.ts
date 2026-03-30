@@ -128,7 +128,9 @@ export type Database = {
           cover_image_url: string | null
           created_at: string
           description: string | null
+          finished_photo_url: string | null
           id: string
+          is_favorite: boolean
           linked_yarn_id: string | null
           status: string
           tags: string[] | null
@@ -141,7 +143,9 @@ export type Database = {
           cover_image_url?: string | null
           created_at?: string
           description?: string | null
+          finished_photo_url?: string | null
           id?: string
+          is_favorite?: boolean
           linked_yarn_id?: string | null
           status?: string
           tags?: string[] | null
@@ -154,7 +158,9 @@ export type Database = {
           cover_image_url?: string | null
           created_at?: string
           description?: string | null
+          finished_photo_url?: string | null
           id?: string
+          is_favorite?: boolean
           linked_yarn_id?: string | null
           status?: string
           tags?: string[] | null

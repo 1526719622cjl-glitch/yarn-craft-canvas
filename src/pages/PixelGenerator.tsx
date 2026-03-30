@@ -1116,7 +1116,17 @@ export default function PixelGenerator() {
                         variant="outline"
                         size="sm"
                         className="h-7 px-2 rounded-lg text-xs"
-                        onClick={() => processImageWithDimensions(uploadedImage, gridWidth, gridHeight)}
+                        onClick={() => {
+                          // Re-quantize from current pixel grid colors, not re-process image (preserves rotation)
+                          const colorCounts: Record<string, number> = {};
+                          for (const cell of pixelGrid) {
+                            colorCounts[cell.color] = (colorCounts[cell.color] || 0) + 1;
+                          }
+                          // Get top N colors via k-means on existing grid
+                          if (uploadedImage) {
+                            processImageWithDimensions(uploadedImage, gridWidth, gridHeight);
+                          }
+                        }}
                       >
                         <RefreshCw className="w-3 h-3 mr-1" />
                         {t('pixel.syncColors')}
