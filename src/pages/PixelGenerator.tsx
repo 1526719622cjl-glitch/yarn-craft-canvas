@@ -731,7 +731,7 @@ export default function PixelGenerator() {
     toast({ title: t('pixel.designLoaded') });
   }, [setGridDimensions, setPixelGrid, setColorPalette, resetUndoHistory, toast, t]);
 
-
+  const toggleIgnoreBackground = () => {
     if (ignoredColor) {
       setIgnoredColor(null);
     } else if (colorPalette.length > 0) {
