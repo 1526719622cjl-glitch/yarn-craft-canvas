@@ -1398,8 +1398,9 @@ export default function PixelGenerator() {
                     </Tooltip>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="outline" size="icon" className="rounded-xl h-8 w-8" onClick={() => setShowKnittingGuide(true)}>
+                        <Button variant="default" size="sm" className="rounded-xl h-8 gap-1.5" onClick={() => setShowKnittingGuide(true)}>
                           <Navigation className="w-4 h-4" />
+                          <span className="text-xs">{t('pixel.startKnitting')}</span>
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>{t('pixel.startKnitting')}</TooltipContent>
@@ -1556,56 +1557,57 @@ export default function PixelGenerator() {
 
       {/* Design Library Dialog */}
       <Dialog open={showLibrary} onOpenChange={setShowLibrary}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{t('pixel.designLibrary')}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+          <div className="max-h-[60vh] overflow-y-auto">
             {designs.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">{t('pixel.noDesigns')}</p>
             ) : (
-              designs.map((design) => (
-                <div key={design.id} className="flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-muted/30 transition-colors">
-                  {/* Mini preview */}
-                  <div className="w-12 h-12 rounded-lg overflow-hidden border border-border bg-muted/20 shrink-0">
-                    <canvas
-                      ref={(canvas) => {
-                        if (!canvas) return;
-                        const ctx = canvas.getContext('2d');
-                        if (!ctx) return;
-                        canvas.width = design.width;
-                        canvas.height = design.height;
-                        for (const cell of design.grid_data) {
-                          ctx.fillStyle = cell.color;
-                          ctx.fillRect(cell.x, cell.y, 1, 1);
-                        }
-                      }}
-                      className="w-full h-full"
-                      style={{ imageRendering: 'pixelated' }}
-                    />
+              <div className="grid grid-cols-2 gap-4">
+                {designs.map((design) => (
+                  <div key={design.id} className="rounded-xl border border-border hover:bg-muted/30 transition-colors overflow-hidden">
+                    <div className="w-full h-32 overflow-hidden border-b border-border bg-muted/20">
+                      <canvas
+                        ref={(canvas) => {
+                          if (!canvas) return;
+                          const ctx = canvas.getContext('2d');
+                          if (!ctx) return;
+                          canvas.width = design.width;
+                          canvas.height = design.height;
+                          for (const cell of design.grid_data) {
+                            ctx.fillStyle = cell.color;
+                            ctx.fillRect(cell.x, cell.y, 1, 1);
+                          }
+                        }}
+                        className="w-full h-full"
+                        style={{ imageRendering: 'pixelated' }}
+                      />
+                    </div>
+                    <div className="p-3">
+                      <p className="text-sm font-medium truncate">{design.name}</p>
+                      <p className="text-xs text-muted-foreground mb-2">{design.width}×{design.height}</p>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" className="rounded-lg flex-1" onClick={() => handleLoadDesign(design)}>
+                          {t('pixel.loadDesign')}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive shrink-0"
+                          onClick={async () => {
+                            await deleteDesign.mutateAsync(design.id);
+                            toast({ title: t('pixel.designDeleted') });
+                          }}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{design.name}</p>
-                    <p className="text-xs text-muted-foreground">{design.width}×{design.height}</p>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button variant="outline" size="sm" className="rounded-lg" onClick={() => handleLoadDesign(design)}>
-                      {t('pixel.loadDesign')}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive"
-                      onClick={async () => {
-                        await deleteDesign.mutateAsync(design.id);
-                        toast({ title: t('pixel.designDeleted') });
-                      }}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
         </DialogContent>
