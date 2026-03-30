@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Image as ImageIcon, FileText, Maximize, Upload, X } from 'lucide-react';
+import { ArrowLeft, Image as ImageIcon, FileText, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/i18n/useI18n';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { PatternViewer, type PatternAnnotationData } from '@/components/pattern/PatternViewer';
+import { PdfPatternViewer } from '@/components/pattern/PdfPatternViewer';
 import { StepCounter } from '@/components/pattern/StepCounter';
 import type { PatternEntry, PatternFile } from '@/hooks/usePatternLibrary';
 import { toast } from '@/hooks/use-toast';
@@ -111,6 +112,8 @@ export default function PatternDetail() {
     pdfContainerRef.current?.requestFullscreen?.();
   };
 
+  // Unused now but kept for potential future use
+
   const handleUploadFinishedPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user || !id) return;
@@ -208,23 +211,13 @@ export default function PatternDetail() {
                 savingAnnotation={savingAnnotation}
               />
             ) : (
-              <div
-                ref={pdfContainerRef}
-                className="w-full bg-muted/20 rounded-2xl overflow-hidden border border-border/50"
-                style={{ resize: 'vertical', overflow: 'auto', minHeight: '400px', height: '80vh' }}
-              >
-                <div className="p-3 border-b border-border/50 flex items-center justify-between text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-4 h-4" />
-                    {t('pattern.pdfPreview')}
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={handleFullscreen}>
-                    <Maximize className="w-4 h-4 mr-1" />
-                    {t('pattern.fullscreen')}
-                  </Button>
-                </div>
-                <iframe src={currentFileUrl} className="w-full h-[calc(100%-44px)]" title="pattern-pdf" loading="lazy" />
-              </div>
+              <PdfPatternViewer
+                pdfUrl={currentFileUrl}
+                annotations={annotationData}
+                onAnnotationChange={setAnnotationData}
+                onSaveAnnotation={saveAnnotations}
+                savingAnnotation={savingAnnotation}
+              />
             )}
           </div>
         ) : (

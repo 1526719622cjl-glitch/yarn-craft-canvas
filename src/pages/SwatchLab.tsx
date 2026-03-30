@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { useYarnCluesStore } from '@/store/useYarnCluesStore';
-import { Ruler, Calculator, TrendingUp, TrendingDown, Target, Undo, Redo, Save, Droplets, Info, Loader2, FileImage, Camera, X } from 'lucide-react';
+import { Ruler, Calculator, TrendingUp, TrendingDown, Target, Undo, Redo, Save, Droplets, Info, Loader2, FileImage, Camera, X, Trash2 } from 'lucide-react';
 import { ImageCropDialog } from '@/components/pixel/ImageCropDialog';
 import { FiberContentSelector } from '@/components/swatch/FiberContentSelector';
 import { Input } from '@/components/ui/input';
@@ -581,7 +581,24 @@ export default function SwatchLab() {
             </div>
           )}
 
-          <div className="flex justify-end mt-6 pt-4 border-t border-border/30">
+          <div className="flex justify-between mt-6 pt-4 border-t border-border/30">
+            <Button variant="outline" onClick={() => {
+              if (!confirm('确定要清空当前所有数据吗？已保存到线材库的数据不受影响。')) return;
+              setSwatchData({
+                preWashWidth: 10, preWashHeight: 10, stitchesPreWash: 20, rowsPreWash: 28,
+                postWashWidth: 10, postWashHeight: 10, stitchesPostWash: 20, rowsPostWash: 28,
+                toolType: null, toolSizeMm: null,
+              });
+              setProjectPlan({ targetWidth: 50, targetHeight: 60, startingStitches: 0, startingRows: 0 });
+              setYarnName(''); setYarnBrand(''); setYarnWeight(''); setFiberContent(''); setProjectName('');
+              setPreWashImage(null); setPostWashImage(null);
+              setCustomToolSize(''); setIsCustomToolSize(false); setSelectedFolderId(null);
+              if (preWashFileRef.current) preWashFileRef.current.value = '';
+              if (postWashFileRef.current) postWashFileRef.current.value = '';
+            }} className="rounded-xl text-destructive hover:text-destructive">
+              <Trash2 className="w-4 h-4 mr-2" />
+              清空当前数据
+            </Button>
             {user ? (
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setShowReportGenerator(true)} className="rounded-xl soft-press">
@@ -610,9 +627,10 @@ export default function SwatchLab() {
         <YarnGaugeVault compact onLoadYarn={(yarn) => {
           setYarnName(yarn.name);
           setYarnBrand(yarn.brand || '');
-          if (yarn.pre_wash_photo_url) setPreWashImage(yarn.pre_wash_photo_url);
-          if (yarn.post_wash_photo_url) setPostWashImage(yarn.post_wash_photo_url);
-        }} preWashImage={preWashImage} postWashImage={postWashImage} />
+          setFiberContent(yarn.fiber_content || '');
+          setPreWashImage(yarn.pre_wash_photo_url || null);
+          setPostWashImage(yarn.post_wash_photo_url || null);
+        }} preWashImage={preWashImage} postWashImage={postWashImage} uploadSwatchPhoto={uploadSwatchPhoto} />
 
         {/* Smart Yarn Calculator */}
         <SmartYarnCalculator />

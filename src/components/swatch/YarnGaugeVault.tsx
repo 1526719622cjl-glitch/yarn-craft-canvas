@@ -52,9 +52,10 @@ interface YarnGaugeVaultProps {
   compact?: boolean;
   preWashImage?: string | null;
   postWashImage?: string | null;
+  uploadSwatchPhoto?: (dataUrl: string, label: string) => Promise<string | null>;
 }
 
-export function YarnGaugeVault({ onLoadYarn, compact = false, preWashImage, postWashImage }: YarnGaugeVaultProps) {
+export function YarnGaugeVault({ onLoadYarn, compact = false, preWashImage, postWashImage, uploadSwatchPhoto }: YarnGaugeVaultProps) {
   const { user } = useAuth();
   const { t } = useI18n();
   const { swatchData, gaugeData, setSwatchData } = useYarnCluesStore();
@@ -93,8 +94,22 @@ export function YarnGaugeVault({ onLoadYarn, compact = false, preWashImage, post
     }
   };
 
-  const handleSaveYarn = () => {
+  const handleSaveYarn = async () => {
     if (!newYarn.name.trim() || !swatchData || !gaugeData) return;
+    
+    // Upload photos if they are data URLs
+    let prePhotoUrl: string | null = preWashImage || null;
+    let postPhotoUrl: string | null = postWashImage || null;
+    
+    if (uploadSwatchPhoto) {
+      if (preWashImage && preWashImage.startsWith('data:')) {
+        prePhotoUrl = await uploadSwatchPhoto(preWashImage, 'pre');
+      }
+      if (postWashImage && postWashImage.startsWith('data:')) {
+        postPhotoUrl = await uploadSwatchPhoto(postWashImage, 'post');
+      }
+    }
+    
     createEntry.mutate({
       name: newYarn.name.trim(),
       brand: newYarn.brand.trim() || null,
@@ -116,7 +131,7 @@ export function YarnGaugeVault({ onLoadYarn, compact = false, preWashImage, post
       tool_type: swatchData.toolType,
       tool_size_mm: swatchData.toolSizeMm,
       meters_per_ball: null, grams_per_ball: null, balls_in_stock: 0,
-      pre_wash_photo_url: preWashImage || null, post_wash_photo_url: postWashImage || null,
+      pre_wash_photo_url: prePhotoUrl, post_wash_photo_url: postPhotoUrl,
       notes: newYarn.notes.trim() || null,
     });
     setNewYarn({ name: '', brand: '', color_code: '', fiber_content: '', weight: '', notes: '' });

@@ -210,6 +210,7 @@ export default function PixelGenerator() {
   const [colorCount, setColorCount] = useState(8);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [baseImageDataUrl, setBaseImageDataUrl] = useState<string | null>(null);
+  const [rotationTurns, setRotationTurns] = useState(0); // 0-3, tracks 90° CW rotations from original
   const [isDragging, setIsDragging] = useState(false);
   const [useDithering, setUseDithering] = useState(true);
   const [showGridLines, setShowGridLines] = useState(true);
@@ -309,22 +310,61 @@ export default function PixelGenerator() {
   }, [customGridWidth, combinedRatio, lockAspectRatio]);
 
   // Re-quantize colors from original base image when colorCount changes — rebuild entire grid from source
+  // Uses rotationTurns to apply current rotation to the original image before quantizing
   useEffect(() => {
     if (!baseImageDataUrl || pixelGrid.length === 0 || !canvasRef.current) return;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Use current grid dimensions (preserves rotation) but re-process from original image
     const targetW = gridWidth;
     const targetH = gridHeight;
 
     const img = new Image();
     img.onload = () => {
+      // First draw original image to a temp canvas
+      const tempCanvas = document.createElement('canvas');
+      const tempCtx = tempCanvas.getContext('2d')!;
+      
+      // Apply rotation: for turns 0/2, use original aspect; for 1/3, swap
+      const turns = rotationTurns % 4;
+      const swapped = turns === 1 || turns === 3;
+      const srcW = swapped ? targetH : targetW;
+      const srcH = swapped ? targetW : targetH;
+      
+      tempCanvas.width = srcW;
+      tempCanvas.height = srcH;
+      tempCtx.drawImage(img, 0, 0, srcW, srcH);
+      const srcData = tempCtx.getImageData(0, 0, srcW, srcH);
+      
+      // Now create rotated image data at targetW x targetH
       canvas.width = targetW;
       canvas.height = targetH;
-      ctx.drawImage(img, 0, 0, targetW, targetH);
-      let imageData = ctx.getImageData(0, 0, targetW, targetH);
+      const rotatedData = ctx.createImageData(targetW, targetH);
+      
+      for (let y = 0; y < targetH; y++) {
+        for (let x = 0; x < targetW; x++) {
+          let sx: number, sy: number;
+          switch (turns) {
+            case 0: sx = x; sy = y; break;
+            case 1: sx = y; sy = srcH - 1 - x; break;
+            case 2: sx = srcW - 1 - x; sy = srcH - 1 - y; break;
+            case 3: sx = srcW - 1 - y; sy = x; break;
+            default: sx = x; sy = y;
+          }
+          sx = Math.min(sx, srcW - 1);
+          sy = Math.min(sy, srcH - 1);
+          const si = (sy * srcW + sx) * 4;
+          const di = (y * targetW + x) * 4;
+          rotatedData.data[di] = srcData.data[si];
+          rotatedData.data[di + 1] = srcData.data[si + 1];
+          rotatedData.data[di + 2] = srcData.data[si + 2];
+          rotatedData.data[di + 3] = srcData.data[si + 3];
+        }
+      }
+      
+      ctx.putImageData(rotatedData, 0, 0);
+      let imageData = rotatedData;
 
       let paletteRgb = kMeansQuantize(imageData, colorCount);
 
@@ -341,7 +381,6 @@ export default function PixelGenerator() {
         imageData = floydSteinbergDither(imageData, targetW, targetH, paletteRgb);
       }
 
-      // Rebuild grid from re-processed image data
       const newGrid: PixelCell[] = [];
       for (let y = 0; y < targetH; y++) {
         for (let x = 0; x < targetW; x++) {
@@ -386,9 +425,9 @@ export default function PixelGenerator() {
       const imageUrl = pendingCroppedImage.url;
       setPendingCroppedImage(null);
       setCustomGridDimensions(canvasWidth, canvasHeight);
-      setBaseImageDataUrl(imageUrl); // Store original base image for color re-quantization
+      setBaseImageDataUrl(imageUrl);
+      setRotationTurns(0); // Reset rotation on new image import
       
-      // Directly process image with confirmed dimensions - bypass state dependency issues
       processImageWithDimensions(imageUrl, canvasWidth, canvasHeight);
     }
   }, [pendingCroppedImage, setCustomGridDimensions]);
@@ -863,6 +902,7 @@ export default function PixelGenerator() {
     setGridDimensions(newW, newH);
     setPixelGrid(correctGrid);
     setUndoableGrid(correctGrid);
+    setRotationTurns(prev => (prev + 1) % 4);
   }, [pixelGrid, gridWidth, gridHeight, setGridDimensions, setPixelGrid, setUndoableGrid]);
 
   // Save design to library
