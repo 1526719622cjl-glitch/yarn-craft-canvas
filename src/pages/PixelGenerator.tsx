@@ -1307,6 +1307,43 @@ export default function PixelGenerator() {
                   <TooltipContent>{t('pixel.addToPalette')}</TooltipContent>
                 </Tooltip>
               </div>
+
+              {/* Eyedropper from image */}
+              <div className="flex gap-2">
+                <input
+                  ref={eyedropperInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                      setEyedropperImage(ev.target?.result as string);
+                      setShowEyedropperDialog(true);
+                    };
+                    reader.readAsDataURL(file);
+                    e.target.value = '';
+                  }}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 rounded-xl text-xs gap-1.5"
+                  onClick={() => eyedropperInputRef.current?.click()}
+                >
+                  <Pipette className="w-3.5 h-3.5" />
+                  从图片吸色
+                </Button>
+              </div>
+
+              {/* Global color replace hint */}
+              {selectedColor && (
+                <p className="text-[10px] text-muted-foreground">
+                  提示：选中调色板中的颜色后，使用替换工具 <Replace className="w-3 h-3 inline" /> 可一键替换画布上所有同色格子
+                </p>
+              )}
             </div>
           )}
 
@@ -1719,6 +1756,54 @@ export default function PixelGenerator() {
         </DialogContent>
       </Dialog>
 
+      {/* Eyedropper Dialog */}
+      <Dialog open={showEyedropperDialog} onOpenChange={setShowEyedropperDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>从图片吸色</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            {eyedropperImage && (
+              <div className="relative cursor-crosshair rounded-xl overflow-hidden border border-border">
+                <canvas
+                  ref={eyedropperCanvasRef}
+                  className="hidden"
+                />
+                <img
+                  src={eyedropperImage}
+                  alt="Eyedropper"
+                  className="w-full max-h-64 object-contain"
+                  onClick={(e) => {
+                    const img = e.currentTarget;
+                    const canvas = eyedropperCanvasRef.current;
+                    if (!canvas) return;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) return;
+                    canvas.width = img.naturalWidth;
+                    canvas.height = img.naturalHeight;
+                    ctx.drawImage(img, 0, 0);
+                    const rect = img.getBoundingClientRect();
+                    const scaleX = img.naturalWidth / rect.width;
+                    const scaleY = img.naturalHeight / rect.height;
+                    const x = Math.round((e.clientX - rect.left) * scaleX);
+                    const y = Math.round((e.clientY - rect.top) * scaleY);
+                    const pixel = ctx.getImageData(x, y, 1, 1).data;
+                    const hex = `#${pixel[0].toString(16).padStart(2,'0')}${pixel[1].toString(16).padStart(2,'0')}${pixel[2].toString(16).padStart(2,'0')}`;
+                    setCustomColor(hex);
+                    addColorToPalette(hex);
+                  }}
+                />
+              </div>
+            )}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg border border-border" style={{ backgroundColor: customColor }} />
+              <span className="text-sm font-mono">{customColor}</span>
+            </div>
+            <p className="text-xs text-muted-foreground">点击图片上任意位置以吸取颜色</p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Knitting Guide Fullscreen */}
       <AnimatePresence>
         {showKnittingGuide && pixelGrid.length > 0 && (
@@ -1727,6 +1812,14 @@ export default function PixelGenerator() {
             gridWidth={gridWidth}
             gridHeight={gridHeight}
             onClose={() => setShowKnittingGuide(false)}
+            designId={activeDesignId || undefined}
+            initialProgress={activeDesignProgress || undefined}
+            onSaveProgress={(progress) => {
+              if (activeDesignId) {
+                updateKnittingProgress.mutate({ id: activeDesignId, progress });
+                toast({ title: '编织进度已保存' });
+              }
+            }}
           />
         )}
       </AnimatePresence>
