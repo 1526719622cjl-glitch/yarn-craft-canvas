@@ -27,6 +27,7 @@ import {
 import { Navigate } from 'react-router-dom';
 import { useI18n } from '@/i18n/useI18n';
 import type { TranslationKey } from '@/i18n/translations';
+import { FiberContentSelector } from '@/components/swatch/FiberContentSelector';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -240,11 +241,9 @@ export default function YarnVault() {
                     </div>
                     <div className="space-y-2">
                       <Label>{t('yarn.vault.fiberContent')}</Label>
-                      <Input
+                      <FiberContentSelector
                         value={newYarn.fiber_content ?? ''}
-                        onChange={(e) => setNewYarn({ ...newYarn, fiber_content: e.target.value })}
-                        placeholder="e.g., 100% Merino Wool"
-                        className="input-glass"
+                        onChange={(v) => setNewYarn({ ...newYarn, fiber_content: v })}
                       />
                     </div>
                     <div className="space-y-2">

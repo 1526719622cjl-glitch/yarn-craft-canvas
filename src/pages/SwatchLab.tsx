@@ -1,6 +1,8 @@
 import { motion } from 'framer-motion';
 import { useYarnCluesStore } from '@/store/useYarnCluesStore';
 import { Ruler, Calculator, TrendingUp, TrendingDown, Target, Undo, Redo, Save, Droplets, Info, Loader2, FileImage, Camera, X } from 'lucide-react';
+import { ImageCropDialog } from '@/components/pixel/ImageCropDialog';
+import { FiberContentSelector } from '@/components/swatch/FiberContentSelector';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -73,11 +75,29 @@ export default function SwatchLab() {
   const [postWashImage, setPostWashImage] = useState<string | null>(null);
   const preWashFileRef = useRef<HTMLInputElement>(null);
   const postWashFileRef = useRef<HTMLInputElement>(null);
+  const [fiberContent, setFiberContent] = useState('');
 
-  const handleImageUpload = (file: File, setter: (url: string | null) => void) => {
+  // Crop dialog state
+  const [cropDialogOpen, setCropDialogOpen] = useState(false);
+  const [pendingImageUrl, setPendingImageUrl] = useState('');
+  const [cropTarget, setCropTarget] = useState<'pre' | 'post'>('pre');
+
+  const handleImageUpload = (file: File, target: 'pre' | 'post') => {
     const reader = new FileReader();
-    reader.onload = (e) => setter(e.target?.result as string);
+    reader.onload = (e) => {
+      setPendingImageUrl(e.target?.result as string);
+      setCropTarget(target);
+      setCropDialogOpen(true);
+    };
     reader.readAsDataURL(file);
+  };
+
+  const handleCropComplete = (croppedUrl: string) => {
+    if (cropTarget === 'pre') {
+      setPreWashImage(croppedUrl);
+    } else {
+      setPostWashImage(croppedUrl);
+    }
   };
 
   // Safe defaults + null/NaN normalization
@@ -171,7 +191,7 @@ export default function SwatchLab() {
       name: yarnName.trim(),
       brand: yarnBrand.trim() || null,
       color_code: null,
-      fiber_content: null,
+      fiber_content: fiberContent || null,
       weight: (yarnWeight || null) as YarnWeight | null,
       status: 'new' as YarnStatus,
       folder_id: selectedFolderId,
@@ -289,7 +309,7 @@ export default function SwatchLab() {
             {/* Pre-wash image upload */}
             <div className="space-y-2">
               <Label className="text-sm text-muted-foreground">{t('swatch.photo')}</Label>
-              <input ref={preWashFileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImageUpload(file, setPreWashImage); }} />
+              <input ref={preWashFileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImageUpload(file, 'pre'); }} />
               {preWashImage ? (
                 <div className="relative group">
                   <img src={preWashImage} alt="Pre-wash swatch" className="w-full h-32 object-cover rounded-xl border border-border/30" />
@@ -351,7 +371,7 @@ export default function SwatchLab() {
             {/* Post-wash image upload */}
             <div className="space-y-2">
               <Label className="text-sm text-muted-foreground">{t('swatch.photo')}</Label>
-              <input ref={postWashFileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImageUpload(file, setPostWashImage); }} />
+              <input ref={postWashFileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImageUpload(file, 'post'); }} />
               {postWashImage ? (
                 <div className="relative group">
                   <img src={postWashImage} alt="Post-wash swatch" className="w-full h-32 object-cover rounded-xl border border-border/30" />
@@ -608,6 +628,11 @@ export default function SwatchLab() {
             </div>
 
             <div className="space-y-2">
+              <Label>{t('fiber.title')}</Label>
+              <FiberContentSelector value={fiberContent} onChange={setFiberContent} />
+            </div>
+
+            <div className="space-y-2">
               <Label>{t('save.folder')}</Label>
               <Select value={selectedFolderId || 'root'} onValueChange={(v) => setSelectedFolderId(v === 'root' ? null : v)}>
                 <SelectTrigger className="rounded-xl">
@@ -653,6 +678,17 @@ export default function SwatchLab() {
         yarnBrand={yarnBrand}
         preWashImage={preWashImage}
         postWashImage={postWashImage}
+        projectPlan={safeProjectPlan.startingStitches > 0 ? safeProjectPlan : undefined}
+        compensatedStitches={compensatedStitches}
+        compensatedRows={compensatedRows}
+      />
+
+      {/* Image Crop Dialog */}
+      <ImageCropDialog
+        imageUrl={pendingImageUrl}
+        open={cropDialogOpen}
+        onOpenChange={setCropDialogOpen}
+        onCropComplete={handleCropComplete}
       />
     </motion.div>
   );

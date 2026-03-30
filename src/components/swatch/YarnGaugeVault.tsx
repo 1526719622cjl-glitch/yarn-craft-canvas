@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { FiberContentSelector } from '@/components/swatch/FiberContentSelector';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FolderOpen, FolderPlus, Search, ChevronRight, Home, Trash2, Plus, Package, ChevronDown, Loader2, AlertCircle
@@ -324,7 +325,7 @@ export function YarnGaugeVault({ onLoadYarn, compact = false }: YarnGaugeVaultPr
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="yarn-fiber">{t('vault.fiberContent')}</Label>
-                    <Input id="yarn-fiber" value={newYarn.fiber_content} onChange={(e) => setNewYarn(p => ({ ...p, fiber_content: e.target.value }))} placeholder="100% Merino" />
+                    <FiberContentSelector value={newYarn.fiber_content} onChange={(v) => setNewYarn(p => ({ ...p, fiber_content: v }))} />
                   </div>
                   <div className="space-y-2">
                     <Label>{t('vault.weight')}</Label>
