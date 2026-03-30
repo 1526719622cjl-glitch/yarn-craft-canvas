@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { SymmetryTools, SymmetryMode, getSymmetricPoints } from '@/components/pixel/SymmetryTools';
@@ -238,6 +239,10 @@ export default function PixelGenerator() {
   const [showLibrary, setShowLibrary] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [designName, setDesignName] = useState('');
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [exportIncludeGrid, setExportIncludeGrid] = useState(true);
+  const [exportIncludeNumbers, setExportIncludeNumbers] = useState(true);
+  const [eraserSize, setEraserSize] = useState(1);
 
   // Undo/Redo state for pixel grid
   const {
