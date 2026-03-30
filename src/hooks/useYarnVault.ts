@@ -42,6 +42,8 @@ export interface YarnEntry {
   grams_per_ball: number | null;
   balls_in_stock: number;
   notes: string | null;
+  pre_wash_photo_url: string | null;
+  post_wash_photo_url: string | null;
   created_at: string;
   updated_at: string;
 }
