@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { toPng } from 'html-to-image';
 import { Download, X, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
