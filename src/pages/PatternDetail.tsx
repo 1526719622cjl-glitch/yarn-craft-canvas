@@ -229,7 +229,7 @@ export default function PatternDetail() {
       </motion.div>
 
       {/* Counter widget */}
-      <StepCounter />
+      <StepCounter patternId={id} />
     </>
   );
 }
