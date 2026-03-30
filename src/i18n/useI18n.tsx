@@ -1,5 +1,5 @@
-import { createContext, useContext, useCallback, ReactNode } from 'react';
-import { TranslationKey, getTranslation } from './translations';
+import { createContext, useContext, useCallback, type ReactNode } from 'react';
+import { type TranslationKey, getTranslation } from './translations';
 
 interface I18nContextType {
   locale: 'zh';
