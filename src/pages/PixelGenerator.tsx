@@ -697,24 +697,114 @@ export default function PixelGenerator() {
     }
   };
 
-  // Download pixel grid as PNG
-  const handleDownloadPNG = useCallback(() => {
+  // Download pixel grid as PNG with options
+  const handleDownloadPNG = useCallback((showGrid: boolean = false, showNumbers: boolean = false) => {
     if (pixelGrid.length === 0) return;
     const scale = 10;
+    const margin = showNumbers ? 30 : 0;
     const canvas = document.createElement('canvas');
-    canvas.width = gridWidth * scale;
-    canvas.height = gridHeight * scale;
+    canvas.width = gridWidth * scale + margin;
+    canvas.height = gridHeight * scale + margin;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    
+    ctx.fillStyle = '#FDFBF7';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw pixels
     for (const cell of pixelGrid) {
       ctx.fillStyle = cell.color;
-      ctx.fillRect(cell.x * scale, cell.y * scale, scale, scale);
+      ctx.fillRect(margin + cell.x * scale, margin + cell.y * scale, scale, scale);
     }
+    
+    // Draw grid lines
+    if (showGrid) {
+      ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+      ctx.lineWidth = 0.5;
+      for (let x = 0; x <= gridWidth; x++) {
+        ctx.beginPath();
+        ctx.moveTo(margin + x * scale, margin);
+        ctx.lineTo(margin + x * scale, margin + gridHeight * scale);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= gridHeight; y++) {
+        ctx.beginPath();
+        ctx.moveTo(margin, margin + y * scale);
+        ctx.lineTo(margin + gridWidth * scale, margin + y * scale);
+        ctx.stroke();
+      }
+      // Major grid lines every 10
+      ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x <= gridWidth; x += 10) {
+        ctx.beginPath();
+        ctx.moveTo(margin + x * scale, margin);
+        ctx.lineTo(margin + x * scale, margin + gridHeight * scale);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= gridHeight; y += 10) {
+        ctx.beginPath();
+        ctx.moveTo(margin, margin + y * scale);
+        ctx.lineTo(margin + gridWidth * scale, margin + y * scale);
+        ctx.stroke();
+      }
+    }
+    
+    // Draw row/column numbers
+    if (showNumbers) {
+      ctx.fillStyle = '#333';
+      ctx.font = '9px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      // Column numbers on top
+      for (let x = 0; x < gridWidth; x += 5) {
+        ctx.fillText(String(x + 1), margin + x * scale + scale / 2, margin / 2);
+      }
+      // Row numbers on left
+      ctx.textAlign = 'right';
+      for (let y = 0; y < gridHeight; y += 5) {
+        ctx.fillText(String(y + 1), margin - 4, margin + y * scale + scale / 2);
+      }
+    }
+    
     const link = document.createElement('a');
     link.download = 'pixel-design.png';
     link.href = canvas.toDataURL('image/png');
     link.click();
   }, [pixelGrid, gridWidth, gridHeight]);
+
+  // Rotate entire canvas 90° clockwise
+  const rotateCanvas90 = useCallback(() => {
+    if (pixelGrid.length === 0) return;
+    const newGrid: PixelCell[] = [];
+    for (let r = 0; r < gridWidth; r++) {
+      for (let c = 0; c < gridHeight; c++) {
+        const srcX = c;
+        const srcY = gridWidth - 1 - r;
+        const srcCell = pixelGrid.find(p => p.x === srcX && p.y === srcY);
+        newGrid.push({ x: r, y: c, color: srcCell?.color || '#FDFBF7' });
+      }
+    }
+    // Swap dimensions: new width = old height, new height = old width
+    // But our grid stores (x, y) where x is col and y is row
+    // After 90° CW rotation: newWidth = gridHeight, newHeight = gridWidth
+    const newW = gridHeight;
+    const newH = gridWidth;
+    // Re-map correctly
+    const correctGrid: PixelCell[] = [];
+    for (let y = 0; y < newH; y++) {
+      for (let x = 0; x < newW; x++) {
+        // Map from old: old_x = y, old_y = (newW - 1 - x)  -- for 90° CW
+        const oldX = y;
+        const oldY = newW - 1 - x;
+        const oldCell = pixelGrid.find(p => p.x === oldX && p.y === oldY);
+        correctGrid.push({ x, y, color: oldCell?.color || '#FDFBF7' });
+      }
+    }
+    setGridDimensions(newW, newH);
+    setPixelGrid(correctGrid);
+    setUndoableGrid(correctGrid);
+  }, [pixelGrid, gridWidth, gridHeight, setGridDimensions, setPixelGrid, setUndoableGrid]);
 
   // Save design to library
   const handleSaveDesign = useCallback(async () => {
