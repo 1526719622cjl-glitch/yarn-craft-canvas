@@ -218,9 +218,10 @@ export function PatternViewer({
                   }}
                 />
 
+                {/* Drawing capture layer - only active when using a drawing tool */}
                 <div
                   className="absolute inset-0"
-                  style={{ touchAction: 'none', pointerEvents: isDrawingTool ? 'auto' : 'none' }}
+                  style={{ touchAction: 'none', pointerEvents: isDrawingTool ? 'auto' : 'none', zIndex: 10 }}
                   onPointerDown={handlePointerDown}
                   onPointerMove={handlePointerMove}
                   onPointerUp={handlePointerUp}
@@ -251,55 +252,58 @@ export function PatternViewer({
                       />
                     ))}
                   </svg>
+                </div>
 
-                  {safeAnnotations.notes.map((note) => (
-                    <textarea
-                      key={note.id}
-                      value={note.text}
-                      onChange={(e) => {
-                        const text = e.target.value;
-                        updateAnnotations((prev) => ({
-                          ...prev,
-                          notes: prev.notes.map((n) => (n.id === note.id ? { ...n, text } : n)),
-                        }));
-                      }}
-                      className="absolute text-xs bg-background/90 border border-border/60 rounded p-1.5 w-28 min-h-14 resize-none"
-                      style={{ left: `${note.x}%`, top: `${note.y}%`, transform: 'translate(-50%, -50%)', pointerEvents: 'auto' }}
-                    />
-                  ))}
+                {/* Existing notes - always interactive (above drawing layer) */}
+                {safeAnnotations.notes.map((note) => (
+                  <textarea
+                    key={note.id}
+                    value={note.text}
+                    onChange={(e) => {
+                      const text = e.target.value;
+                      updateAnnotations((prev) => ({
+                        ...prev,
+                        notes: prev.notes.map((n) => (n.id === note.id ? { ...n, text } : n)),
+                      }));
+                    }}
+                    className="absolute text-xs bg-background/90 border border-border/60 rounded p-1.5 w-28 min-h-14 resize-none"
+                    style={{ left: `${note.x}%`, top: `${note.y}%`, transform: 'translate(-50%, -50%)', pointerEvents: 'auto', zIndex: 20 }}
+                  />
+                ))}
 
-                  {(safeAnnotations.texts || []).map((txt) => (
-                    <div
-                      key={txt.id}
-                      className="absolute"
-                      style={{ left: `${txt.x}%`, top: `${txt.y}%`, transform: 'translate(-50%, -50%)', pointerEvents: 'auto' }}
-                    >
-                      {editingTextId === txt.id ? (
-                        <input
-                          type="text"
-                          autoFocus
-                          value={txt.text}
-                          onChange={(e) => {
-                            const text = e.target.value;
-                            updateAnnotations((prev) => ({
-                              ...prev,
-                              texts: (prev.texts || []).map((t) => (t.id === txt.id ? { ...t, text } : t)),
-                            }));
-                          }}
-                          onBlur={() => setEditingTextId(null)}
-                          onKeyDown={(e) => e.key === 'Enter' && setEditingTextId(null)}
-                          className="text-sm font-medium bg-primary/10 border border-primary/30 rounded px-2 py-0.5 min-w-[60px] outline-none focus:ring-1 focus:ring-primary"
-                        />
-                      ) : (
-                        <span
-                          className="text-sm font-medium text-primary cursor-pointer bg-background/80 rounded px-1.5 py-0.5 border border-primary/20"
-                          onClick={() => setEditingTextId(txt.id)}
-                        >
-                          {txt.text || '点击编辑'}
-                        </span>
-                      )}
-                    </div>
-                  ))}
+                {/* Existing text annotations - always interactive */}
+                {(safeAnnotations.texts || []).map((txt) => (
+                  <div
+                    key={txt.id}
+                    className="absolute"
+                    style={{ left: `${txt.x}%`, top: `${txt.y}%`, transform: 'translate(-50%, -50%)', pointerEvents: 'auto', zIndex: 20 }}
+                  >
+                    {editingTextId === txt.id ? (
+                      <input
+                        type="text"
+                        autoFocus
+                        value={txt.text}
+                        onChange={(e) => {
+                          const text = e.target.value;
+                          updateAnnotations((prev) => ({
+                            ...prev,
+                            texts: (prev.texts || []).map((t) => (t.id === txt.id ? { ...t, text } : t)),
+                          }));
+                        }}
+                        onBlur={() => setEditingTextId(null)}
+                        onKeyDown={(e) => e.key === 'Enter' && setEditingTextId(null)}
+                        className="text-sm font-medium bg-primary/10 border border-primary/30 rounded px-2 py-0.5 min-w-[60px] outline-none focus:ring-1 focus:ring-primary"
+                      />
+                    ) : (
+                      <span
+                        className="text-sm font-medium text-primary cursor-pointer bg-background/80 rounded px-1.5 py-0.5 border border-primary/20"
+                        onClick={() => setEditingTextId(txt.id)}
+                      >
+                        {txt.text || '点击编辑'}
+                      </span>
+                    )}
+                  </div>
+                ))}
                 </div>
 
                 {highlightRegion && (
