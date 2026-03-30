@@ -205,7 +205,7 @@ export default function PixelGenerator() {
 
   const { user } = useAuth();
   const { toast } = useToast();
-  const { designs, saveDesign, deleteDesign } = usePixelDesigns();
+  const { designs, saveDesign, deleteDesign, updateKnittingProgress } = usePixelDesigns();
   
   const [colorCount, setColorCount] = useState(8);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -231,7 +231,8 @@ export default function PixelGenerator() {
   const [manualHeight, setManualHeight] = useState(customGridHeight);
   const [emptyCanvasColor, setEmptyCanvasColor] = useState('#FDFBF7');
   const [customColor, setCustomColor] = useState('#6B8E23');
-  
+  const eyedropperInputRef = useRef<HTMLInputElement>(null);
+  const eyedropperCanvasRef = useRef<HTMLCanvasElement>(null);
   // Canvas scaling state
   const [canvasScale, setCanvasScale] = useState(100);
 
@@ -244,6 +245,11 @@ export default function PixelGenerator() {
   const [exportIncludeGrid, setExportIncludeGrid] = useState(true);
   const [exportIncludeNumbers, setExportIncludeNumbers] = useState(true);
   const [eraserSize, setEraserSize] = useState(1);
+  const [eyedropperImage, setEyedropperImage] = useState<string | null>(null);
+  const [eyedropperPos, setEyedropperPos] = useState<{ x: number; y: number } | null>(null);
+  const [showEyedropperDialog, setShowEyedropperDialog] = useState(false);
+  const [activeDesignId, setActiveDesignId] = useState<string | null>(null);
+  const [activeDesignProgress, setActiveDesignProgress] = useState<any>(null);
 
   // Undo/Redo state for pixel grid
   const {
@@ -302,21 +308,25 @@ export default function PixelGenerator() {
     }
   }, [customGridWidth, combinedRatio, lockAspectRatio]);
 
-  // Re-quantize colors from original base image when colorCount changes, preserving current grid layout
+  // Re-quantize colors from original base image when colorCount changes — rebuild entire grid from source
   useEffect(() => {
     if (!baseImageDataUrl || pixelGrid.length === 0 || !canvasRef.current) return;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    // Use current grid dimensions (preserves rotation) but re-process from original image
+    const targetW = gridWidth;
+    const targetH = gridHeight;
+
     const img = new Image();
     img.onload = () => {
-      // Draw original image to extract palette via K-means
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx.drawImage(img, 0, 0);
-      const originalImageData = ctx.getImageData(0, 0, img.width, img.height);
-      let paletteRgb = kMeansQuantize(originalImageData, colorCount);
+      canvas.width = targetW;
+      canvas.height = targetH;
+      ctx.drawImage(img, 0, 0, targetW, targetH);
+      let imageData = ctx.getImageData(0, 0, targetW, targetH);
+
+      let paletteRgb = kMeansQuantize(imageData, colorCount);
 
       if (limitToPalette && stashColors.length > 0) {
         paletteRgb = stashColors.map(c => {
@@ -327,26 +337,21 @@ export default function PixelGenerator() {
 
       setColorPalette(paletteRgb.map(rgbToString));
 
-      // Map current pixel grid cells to nearest new palette color (preserves rotation/edits)
-      const parseColor = (color: string): [number,number,number] => {
-        const rgbMatch = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-        if (rgbMatch) return [parseInt(rgbMatch[1]), parseInt(rgbMatch[2]), parseInt(rgbMatch[3])];
-        const hex = color.replace('#', '');
-        if (hex.length === 6) return [parseInt(hex.slice(0,2),16), parseInt(hex.slice(2,4),16), parseInt(hex.slice(4,6),16)];
-        return [128,128,128];
-      };
+      if (useDithering) {
+        imageData = floydSteinbergDither(imageData, targetW, targetH, paletteRgb);
+      }
 
-      const newGrid = pixelGrid.map(cell => {
-        const p = parseColor(cell.color);
-        let minDist = Infinity;
-        let best = paletteRgb[0];
-        for (const c of paletteRgb) {
-          const d = (p[0]-c[0])**2 + (p[1]-c[1])**2 + (p[2]-c[2])**2;
-          if (d < minDist) { minDist = d; best = c; }
+      // Rebuild grid from re-processed image data
+      const newGrid: PixelCell[] = [];
+      for (let y = 0; y < targetH; y++) {
+        for (let x = 0; x < targetW; x++) {
+          const i = (y * targetW + x) * 4;
+          const r = imageData.data[i];
+          const g = imageData.data[i + 1];
+          const b = imageData.data[i + 2];
+          newGrid.push({ x, y, color: `rgb(${r}, ${g}, ${b})` });
         }
-        return { ...cell, color: `rgb(${Math.round(best[0])}, ${Math.round(best[1])}, ${Math.round(best[2])})` };
-      });
-
+      }
       setPixelGrid(newGrid);
       resetUndoHistory(newGrid);
     };
@@ -884,6 +889,8 @@ export default function PixelGenerator() {
     setPixelGrid(design.grid_data);
     setColorPalette(design.color_palette);
     resetUndoHistory(design.grid_data);
+    setActiveDesignId(design.id);
+    setActiveDesignProgress(design.knitting_progress || null);
     setShowLibrary(false);
     toast({ title: t('pixel.designLoaded') });
   }, [setGridDimensions, setPixelGrid, setColorPalette, resetUndoHistory, toast, t]);
@@ -1302,6 +1309,43 @@ export default function PixelGenerator() {
                   <TooltipContent>{t('pixel.addToPalette')}</TooltipContent>
                 </Tooltip>
               </div>
+
+              {/* Eyedropper from image */}
+              <div className="flex gap-2">
+                <input
+                  ref={eyedropperInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                      setEyedropperImage(ev.target?.result as string);
+                      setShowEyedropperDialog(true);
+                    };
+                    reader.readAsDataURL(file);
+                    e.target.value = '';
+                  }}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 rounded-xl text-xs gap-1.5"
+                  onClick={() => eyedropperInputRef.current?.click()}
+                >
+                  <Pipette className="w-3.5 h-3.5" />
+                  从图片吸色
+                </Button>
+              </div>
+
+              {/* Global color replace hint */}
+              {selectedColor && (
+                <p className="text-[10px] text-muted-foreground">
+                  提示：选中调色板中的颜色后，使用替换工具 <Replace className="w-3 h-3 inline" /> 可一键替换画布上所有同色格子
+                </p>
+              )}
             </div>
           )}
 
@@ -1714,6 +1758,54 @@ export default function PixelGenerator() {
         </DialogContent>
       </Dialog>
 
+      {/* Eyedropper Dialog */}
+      <Dialog open={showEyedropperDialog} onOpenChange={setShowEyedropperDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>从图片吸色</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            {eyedropperImage && (
+              <div className="relative cursor-crosshair rounded-xl overflow-hidden border border-border">
+                <canvas
+                  ref={eyedropperCanvasRef}
+                  className="hidden"
+                />
+                <img
+                  src={eyedropperImage}
+                  alt="Eyedropper"
+                  className="w-full max-h-64 object-contain"
+                  onClick={(e) => {
+                    const img = e.currentTarget;
+                    const canvas = eyedropperCanvasRef.current;
+                    if (!canvas) return;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) return;
+                    canvas.width = img.naturalWidth;
+                    canvas.height = img.naturalHeight;
+                    ctx.drawImage(img, 0, 0);
+                    const rect = img.getBoundingClientRect();
+                    const scaleX = img.naturalWidth / rect.width;
+                    const scaleY = img.naturalHeight / rect.height;
+                    const x = Math.round((e.clientX - rect.left) * scaleX);
+                    const y = Math.round((e.clientY - rect.top) * scaleY);
+                    const pixel = ctx.getImageData(x, y, 1, 1).data;
+                    const hex = `#${pixel[0].toString(16).padStart(2,'0')}${pixel[1].toString(16).padStart(2,'0')}${pixel[2].toString(16).padStart(2,'0')}`;
+                    setCustomColor(hex);
+                    addColorToPalette(hex);
+                  }}
+                />
+              </div>
+            )}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg border border-border" style={{ backgroundColor: customColor }} />
+              <span className="text-sm font-mono">{customColor}</span>
+            </div>
+            <p className="text-xs text-muted-foreground">点击图片上任意位置以吸取颜色</p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Knitting Guide Fullscreen */}
       <AnimatePresence>
         {showKnittingGuide && pixelGrid.length > 0 && (
@@ -1722,6 +1814,14 @@ export default function PixelGenerator() {
             gridWidth={gridWidth}
             gridHeight={gridHeight}
             onClose={() => setShowKnittingGuide(false)}
+            designId={activeDesignId || undefined}
+            initialProgress={activeDesignProgress || undefined}
+            onSaveProgress={(progress) => {
+              if (activeDesignId) {
+                updateKnittingProgress.mutate({ id: activeDesignId, progress });
+                toast({ title: '编织进度已保存' });
+              }
+            }}
           />
         )}
       </AnimatePresence>

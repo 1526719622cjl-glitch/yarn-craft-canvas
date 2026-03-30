@@ -1,7 +1,7 @@
-import { Pencil, Highlighter, StickyNote, Eraser, Save } from 'lucide-react';
+import { Pencil, Highlighter, StickyNote, Eraser, Save, Type } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-export type AnnotationTool = 'none' | 'pen' | 'highlight' | 'note';
+export type AnnotationTool = 'none' | 'pen' | 'highlight' | 'note' | 'text';
 
 interface AnnotationToolbarProps {
   activeTool: AnnotationTool;
@@ -22,6 +22,9 @@ export function AnnotationToolbar({ activeTool, onToolChange, onClear, onSave, s
       </Button>
       <Button variant={activeTool === 'note' ? 'secondary' : 'ghost'} size="icon" onClick={() => onToolChange('note')}>
         <StickyNote className="w-4 h-4" />
+      </Button>
+      <Button variant={activeTool === 'text' ? 'secondary' : 'ghost'} size="icon" onClick={() => onToolChange('text')}>
+        <Type className="w-4 h-4" />
       </Button>
       <Button variant="ghost" size="icon" onClick={onClear}>
         <Eraser className="w-4 h-4" />

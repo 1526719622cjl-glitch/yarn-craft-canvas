@@ -229,6 +229,7 @@ export type Database = {
           grid_data: Json
           height: number
           id: string
+          knitting_progress: Json | null
           name: string
           updated_at: string
           user_id: string
@@ -240,6 +241,7 @@ export type Database = {
           grid_data?: Json
           height: number
           id?: string
+          knitting_progress?: Json | null
           name: string
           updated_at?: string
           user_id: string
@@ -251,6 +253,7 @@ export type Database = {
           grid_data?: Json
           height?: number
           id?: string
+          knitting_progress?: Json | null
           name?: string
           updated_at?: string
           user_id?: string

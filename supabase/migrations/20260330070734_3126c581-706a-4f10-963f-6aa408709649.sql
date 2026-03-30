@@ -1,0 +1,1 @@
+ALTER TABLE public.pixel_designs ADD COLUMN IF NOT EXISTS knitting_progress jsonb DEFAULT '{}'::jsonb;

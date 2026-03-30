@@ -1,21 +1,33 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { useI18n } from '@/i18n/useI18n';
 import type { PixelCell } from '@/store/useYarnCluesStore';
+import type { KnittingProgress } from '@/hooks/usePixelDesigns';
 
 interface PixelKnittingGuideProps {
   pixelGrid: PixelCell[];
   gridWidth: number;
   gridHeight: number;
   onClose: () => void;
+  designId?: string;
+  initialProgress?: KnittingProgress;
+  onSaveProgress?: (progress: KnittingProgress) => void;
 }
 
-export function PixelKnittingGuide({ pixelGrid, gridWidth, gridHeight, onClose }: PixelKnittingGuideProps) {
+export function PixelKnittingGuide({ pixelGrid, gridWidth, gridHeight, onClose, designId, initialProgress, onSaveProgress }: PixelKnittingGuideProps) {
   const { t } = useI18n();
-  // Start from the bottom row (knitting goes bottom-up typically)
-  const [currentRow, setCurrentRow] = useState(gridHeight - 1);
+  const [currentRow, setCurrentRow] = useState(
+    initialProgress?.currentRow != null && initialProgress.currentRow >= 0
+      ? initialProgress.currentRow
+      : gridHeight - 1
+  );
+  const [highlightedCells, setHighlightedCells] = useState<Set<string>>(
+    new Set(initialProgress?.highlightedCells || [])
+  );
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const rows = useMemo(() => {
     const result: PixelCell[][] = [];
@@ -25,7 +37,6 @@ export function PixelKnittingGuide({ pixelGrid, gridWidth, gridHeight, onClose }
     return result;
   }, [pixelGrid, gridHeight]);
 
-  // Build actual color sequence for current row (consecutive same-color groups)
   const currentRowSequence = useMemo(() => {
     const row = rows[currentRow] || [];
     if (row.length === 0) return [];
@@ -47,6 +58,57 @@ export function PixelKnittingGuide({ pixelGrid, gridWidth, gridHeight, onClose }
     return sequence;
   }, [rows, currentRow]);
 
+  const progressPercent = useMemo(() => {
+    const completedRows = gridHeight - currentRow;
+    return Math.round((completedRows / gridHeight) * 100);
+  }, [currentRow, gridHeight]);
+
+  const handleCellClick = useCallback((x: number, y: number) => {
+    const key = `${x},${y}`;
+    setHighlightedCells(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleCellLongPressStart = useCallback((x: number, y: number) => {
+    longPressTimer.current = setTimeout(() => {
+      const key = `${x},${y}`;
+      setHighlightedCells(prev => {
+        const next = new Set(prev);
+        next.add(key);
+        return next;
+      });
+    }, 400);
+  }, []);
+
+  const handleCellLongPressEnd = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
+
+  const handleSave = useCallback(() => {
+    if (onSaveProgress) {
+      onSaveProgress({
+        currentRow,
+        highlightedCells: Array.from(highlightedCells),
+      });
+    }
+  }, [currentRow, highlightedCells, onSaveProgress]);
+
+  // Auto-save on close
+  const handleClose = useCallback(() => {
+    handleSave();
+    onClose();
+  }, [handleSave, onClose]);
+
   const cellSize = Math.min(Math.floor((window.innerWidth - 80) / gridWidth), 24);
 
   return (
@@ -59,9 +121,26 @@ export function PixelKnittingGuide({ pixelGrid, gridWidth, gridHeight, onClose }
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <h2 className="text-lg font-semibold">{t('pixel.knittingGuide')}</h2>
-        <Button variant="ghost" size="icon" onClick={onClose}>
-          <X className="w-5 h-5" />
-        </Button>
+        <div className="flex items-center gap-2">
+          {onSaveProgress && (
+            <Button variant="outline" size="sm" onClick={handleSave} className="rounded-xl gap-1.5">
+              <Save className="w-4 h-4" />
+              保存进度
+            </Button>
+          )}
+          <Button variant="ghost" size="icon" onClick={handleClose}>
+            <X className="w-5 h-5" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      <div className="px-4 py-2 border-b border-border/50">
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">编织进度</span>
+          <Progress value={progressPercent} className="flex-1 h-2" />
+          <span className="text-xs font-medium text-primary">{progressPercent}%</span>
+        </div>
       </div>
 
       {/* Grid */}
@@ -82,24 +161,40 @@ export function PixelKnittingGuide({ pixelGrid, gridWidth, gridHeight, onClose }
               <div className="flex items-center justify-end pr-1 text-[10px] text-muted-foreground" style={{ width: 28 }}>
                 {gridHeight - y}
               </div>
-              {row.map((cell, x) => (
-                <div
-                  key={x}
-                  style={{
-                    width: cellSize,
-                    height: cellSize,
-                    backgroundColor: cell.color,
-                    borderRight: '1px solid rgba(0,0,0,0.05)',
-                    borderBottom: '1px solid rgba(0,0,0,0.05)',
-                  }}
-                />
-              ))}
+              {row.map((cell, x) => {
+                const cellKey = `${cell.x},${cell.y}`;
+                const isHighlighted = highlightedCells.has(cellKey);
+                return (
+                  <div
+                    key={x}
+                    style={{
+                      width: cellSize,
+                      height: cellSize,
+                      backgroundColor: cell.color,
+                      borderRight: '1px solid rgba(0,0,0,0.05)',
+                      borderBottom: '1px solid rgba(0,0,0,0.05)',
+                      outline: isHighlighted ? '2px solid hsl(var(--primary))' : 'none',
+                      outlineOffset: '-1px',
+                      cursor: y === currentRow ? 'pointer' : 'default',
+                      position: 'relative',
+                    }}
+                    onClick={() => y === currentRow && handleCellClick(cell.x, cell.y)}
+                    onPointerDown={() => y === currentRow && handleCellLongPressStart(cell.x, cell.y)}
+                    onPointerUp={handleCellLongPressEnd}
+                    onPointerLeave={handleCellLongPressEnd}
+                  >
+                    {isHighlighted && (
+                      <div className="absolute inset-0 bg-primary/20" />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ))}
         </div>
       </div>
 
-      {/* Row color sequence (actual order, not totals) */}
+      {/* Row color sequence */}
       <div className="px-4 py-2 border-t border-border/50 overflow-x-auto">
         <div className="flex items-center gap-1 justify-center flex-wrap">
           <span className="text-xs text-muted-foreground font-medium mr-1">{t('pixel.rowColors')}:</span>
