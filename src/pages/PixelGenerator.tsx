@@ -1227,6 +1227,29 @@ export default function PixelGenerator() {
             </div>
           </div>
 
+          {/* Eraser Size (shown when eraser selected) */}
+          {currentTool === 'eraser' && (
+            <div className="space-y-2 border-t border-border/30 pt-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground">{t('pixel.eraserSize')}</span>
+                <span className="text-xs text-primary font-semibold">{eraserSize}×{eraserSize}</span>
+              </div>
+              <div className="flex gap-1">
+                {[1, 3, 5, 7].map(size => (
+                  <Button
+                    key={size}
+                    variant={eraserSize === size ? 'default' : 'outline'}
+                    size="sm"
+                    className="flex-1 h-8 rounded-lg text-xs"
+                    onClick={() => setEraserSize(size)}
+                  >
+                    {size}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Symmetry Tools */}
           <div className="space-y-2 border-t border-border/30 pt-4">
             <div className="flex items-center gap-2">
@@ -1469,6 +1492,43 @@ export default function PixelGenerator() {
           )}
         </motion.div>
       </div>
+
+      {/* Export Options Dialog */}
+      <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('pixel.exportOptions')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <Checkbox
+                id="export-grid"
+                checked={exportIncludeGrid}
+                onCheckedChange={(checked) => setExportIncludeGrid(checked === true)}
+              />
+              <Label htmlFor="export-grid" className="text-sm cursor-pointer">{t('pixel.includeGrid')}</Label>
+            </div>
+            <div className="flex items-center gap-3">
+              <Checkbox
+                id="export-numbers"
+                checked={exportIncludeNumbers}
+                onCheckedChange={(checked) => setExportIncludeNumbers(checked === true)}
+              />
+              <Label htmlFor="export-numbers" className="text-sm cursor-pointer">{t('pixel.includeNumbers')}</Label>
+            </div>
+            <Button
+              onClick={() => {
+                handleDownloadPNG(exportIncludeGrid, exportIncludeNumbers);
+                setShowExportDialog(false);
+              }}
+              className="w-full rounded-xl"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              {t('pixel.export')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Save Design Dialog */}
       <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
