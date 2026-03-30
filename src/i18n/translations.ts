@@ -499,6 +499,12 @@ const translations = {
   'pattern.uploadFinishedPhoto': '上传实物图片',
   'pattern.finishedPhoto': '实物图片',
   'pattern.annotationOnly': '图解标注',
+  'pixel.eyedropperFromImage': '从图片吸色',
+  'pixel.eyedropperHint': '点击图片上任意位置以吸取颜色',
+  'pixel.knittingProgress': '编织进度',
+  'pixel.saveProgress': '保存进度',
+  'pixel.progressSaved': '编织进度已保存',
+  'pattern.textTool': '文本标注',
 } as const;
 
 export type TranslationKey = keyof typeof translations;
