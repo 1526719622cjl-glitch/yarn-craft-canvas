@@ -425,9 +425,9 @@ export default function PixelGenerator() {
       const imageUrl = pendingCroppedImage.url;
       setPendingCroppedImage(null);
       setCustomGridDimensions(canvasWidth, canvasHeight);
-      setBaseImageDataUrl(imageUrl); // Store original base image for color re-quantization
+      setBaseImageDataUrl(imageUrl);
+      setRotationTurns(0); // Reset rotation on new image import
       
-      // Directly process image with confirmed dimensions - bypass state dependency issues
       processImageWithDimensions(imageUrl, canvasWidth, canvasHeight);
     }
   }, [pendingCroppedImage, setCustomGridDimensions]);
@@ -902,6 +902,7 @@ export default function PixelGenerator() {
     setGridDimensions(newW, newH);
     setPixelGrid(correctGrid);
     setUndoableGrid(correctGrid);
+    setRotationTurns(prev => (prev + 1) % 4);
   }, [pixelGrid, gridWidth, gridHeight, setGridDimensions, setPixelGrid, setUndoableGrid]);
 
   // Save design to library
