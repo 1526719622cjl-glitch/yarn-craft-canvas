@@ -166,25 +166,41 @@ export function PatternViewer({
             </div>
 
             <TransformComponent wrapperClass="!w-full !h-full" contentClass="!w-full !h-full flex items-center justify-center">
-              <div className="relative select-none">
-                <img src={imageUrl} alt="Pattern" className="max-w-full max-h-[70vh] object-contain block" draggable={false} />
+              <div className="relative inline-block select-none" style={{ touchAction: tool !== 'none' ? 'none' : 'auto' }}>
+                <img
+                  src={imageUrl}
+                  alt="Pattern"
+                  className="block max-w-full max-h-[70vh]"
+                  draggable={false}
+                  onLoad={(e) => {
+                    // Force layout recalc so overlay matches image size
+                    const img = e.currentTarget;
+                    const parent = img.parentElement;
+                    if (parent) {
+                      parent.style.width = `${img.offsetWidth}px`;
+                      parent.style.height = `${img.offsetHeight}px`;
+                    }
+                  }}
+                />
 
                 <div
                   className="absolute inset-0"
+                  style={{ touchAction: 'none' }}
                   onPointerDown={handlePointerDown}
                   onPointerMove={handlePointerMove}
                   onPointerUp={handlePointerUp}
                   onPointerLeave={handlePointerUp}
                 >
-                  <svg className="w-full h-full">
+                  <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
                     {allHighlights.map((h, idx) => (
                       <rect
                         key={`h-${idx}`}
-                        x={`${h.x}%`}
-                        y={`${h.y}%`}
-                        width={`${h.width}%`}
-                        height={`${h.height}%`}
+                        x={h.x}
+                        y={h.y}
+                        width={h.width}
+                        height={h.height}
                         className="fill-primary/20 stroke-primary/60"
+                        strokeWidth="0.3"
                       />
                     ))}
 
@@ -194,10 +210,9 @@ export function PatternViewer({
                         points={stroke.points.map((p) => `${p.x},${p.y}`).join(' ')}
                         fill="none"
                         stroke="hsl(var(--primary))"
-                        strokeWidth="0.35"
+                        strokeWidth="0.5"
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        vectorEffect="non-scaling-stroke"
                       />
                     ))}
                   </svg>
