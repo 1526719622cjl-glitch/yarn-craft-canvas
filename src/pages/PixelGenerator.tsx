@@ -1,11 +1,12 @@
-// PixelGenerator - Updated 2026-02-04
-import { motion } from 'framer-motion';
+// PixelGenerator - Updated 2026-03-30
+import { motion, AnimatePresence } from 'framer-motion';
 import { useI18n } from '@/i18n/useI18n';
 import { useYarnCluesStore, PixelTool, PixelCell } from '@/store/useYarnCluesStore';
 import { 
   Grid3X3, Upload, Palette, Pencil, Eraser, PaintBucket, Pipette, 
   Square, RotateCw, Copy, Move, Grid, Eye, EyeOff, Layers, Replace,
-  FlipHorizontal, Sliders, Lock, Unlock, Plus, Undo, Redo
+  FlipHorizontal, Sliders, Lock, Unlock, Plus, Undo, Redo,
+  RefreshCw, Download, Save, FolderOpen, Navigation, Trash2
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,7 +22,12 @@ import { StashColor } from '@/components/pixel/YarnStashPalette';
 import { ImageCropDialog } from '@/components/pixel/ImageCropDialog';
 import { CanvasSizeDialog } from '@/components/pixel/CanvasSizeDialog';
 import { ColorLibrary } from '@/components/pixel/ColorLibrary';
+import { PixelKnittingGuide } from '@/components/pixel/PixelKnittingGuide';
 import { useUndoRedo, useUndoRedoKeyboard } from '@/hooks/useUndoRedo';
+import { usePixelDesigns } from '@/hooks/usePixelDesigns';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const containerVariants = {
   hidden: { opacity: 0 },
