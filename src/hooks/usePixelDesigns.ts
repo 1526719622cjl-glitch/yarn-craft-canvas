@@ -4,6 +4,11 @@ import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
 import type { PixelCell } from '@/store/useYarnCluesStore';
 
+export interface KnittingProgress {
+  currentRow: number;
+  highlightedCells: string[]; // "x,y" keys
+}
+
 export interface PixelDesign {
   id: string;
   user_id: string;
@@ -12,9 +17,12 @@ export interface PixelDesign {
   width: number;
   height: number;
   color_palette: string[];
+  knitting_progress: KnittingProgress;
   created_at: string;
   updated_at: string;
 }
+
+const EMPTY_PROGRESS: KnittingProgress = { currentRow: -1, highlightedCells: [] };
 
 export function usePixelDesigns() {
   const { user } = useAuth();
@@ -34,6 +42,7 @@ export function usePixelDesigns() {
         ...d,
         grid_data: d.grid_data as PixelCell[],
         color_palette: d.color_palette as string[],
+        knitting_progress: (d.knitting_progress as KnittingProgress) || EMPTY_PROGRESS,
       })) as PixelDesign[];
     },
     enabled: !!user,
@@ -62,6 +71,19 @@ export function usePixelDesigns() {
     },
   });
 
+  const updateKnittingProgress = useMutation({
+    mutationFn: async ({ id, progress }: { id: string; progress: KnittingProgress }) => {
+      const { error } = await supabase
+        .from('pixel_designs' as any)
+        .update({ knitting_progress: progress as any })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pixel-designs'] });
+    },
+  });
+
   const deleteDesign = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
@@ -80,5 +102,6 @@ export function usePixelDesigns() {
     isLoading: designsQuery.isLoading,
     saveDesign,
     deleteDesign,
+    updateKnittingProgress,
   };
 }
