@@ -312,7 +312,7 @@ export default function SwatchLab() {
               <input ref={preWashFileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImageUpload(file, 'pre'); }} />
               {preWashImage ? (
                 <div className="relative group">
-                  <img src={preWashImage} alt="Pre-wash swatch" className="w-full h-32 object-cover rounded-xl border border-border/30" />
+                  <img src={preWashImage} alt="Pre-wash swatch" className="w-full max-h-48 object-contain rounded-xl border border-border/30" />
                   <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => { setPreWashImage(null); if (preWashFileRef.current) preWashFileRef.current.value = ''; }}>
                     <X className="w-3 h-3" />
                   </Button>
@@ -374,7 +374,7 @@ export default function SwatchLab() {
               <input ref={postWashFileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImageUpload(file, 'post'); }} />
               {postWashImage ? (
                 <div className="relative group">
-                  <img src={postWashImage} alt="Post-wash swatch" className="w-full h-32 object-cover rounded-xl border border-border/30" />
+                  <img src={postWashImage} alt="Post-wash swatch" className="w-full max-h-48 object-contain rounded-xl border border-border/30" />
                   <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => { setPostWashImage(null); if (postWashFileRef.current) postWashFileRef.current.value = ''; }}>
                     <X className="w-3 h-3" />
                   </Button>

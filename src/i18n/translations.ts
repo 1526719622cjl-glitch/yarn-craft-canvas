@@ -485,6 +485,15 @@ const translations = {
   'pixel.designSaved': { zh: '像素图已保存', en: 'Design saved' },
   'pixel.designDeleted': { zh: '像素图已删除', en: 'Design deleted' },
   'pixel.designLoaded': { zh: '像素图已加载', en: 'Design loaded' },
+
+  // Pixel Generator enhancements v2
+  'pixel.exportOptions': { zh: '导出选项', en: 'Export Options' },
+  'pixel.includeGrid': { zh: '包含网格线', en: 'Include grid lines' },
+  'pixel.includeNumbers': { zh: '包含行列定位数字', en: 'Include row/column numbers' },
+  'pixel.export': { zh: '导出', en: 'Export' },
+  'pixel.rotateCanvas': { zh: '旋转画布90°', en: 'Rotate Canvas 90°' },
+  'pixel.eraserSize': { zh: '橡皮擦大小', en: 'Eraser Size' },
+  'pixel.library': { zh: '图库', en: 'Library' },
 } as const;
 
 export type TranslationKey = keyof typeof translations;
