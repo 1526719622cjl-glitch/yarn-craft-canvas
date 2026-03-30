@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, CheckCircle, Loader2, MoreVertical, Trash2 } from 'lucide-react';
+import { Clock, CheckCircle, Loader2, MoreVertical, Trash2, Heart } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useI18n } from '@/i18n/useI18n';
 import type { PatternEntry } from '@/hooks/usePatternLibrary';
@@ -19,12 +19,14 @@ interface PatternCardProps {
   onClick: () => void;
   onDelete: () => void;
   onStatusChange: (status: 'preparing' | 'in_progress' | 'completed') => void;
+  onToggleFavorite?: () => void;
 }
 
-export function PatternCard({ pattern, onClick, onDelete, onStatusChange }: PatternCardProps) {
+export function PatternCard({ pattern, onClick, onDelete, onStatusChange, onToggleFavorite }: PatternCardProps) {
   const { t } = useI18n();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const StatusIcon = statusConfig[pattern.status]?.icon || Clock;
+  const isFavorite = (pattern as any).is_favorite === true;
 
   return (
     <motion.div
@@ -34,12 +36,18 @@ export function PatternCard({ pattern, onClick, onDelete, onStatusChange }: Patt
       onClick={onClick}
     >
       {/* Cover Image */}
-      <div className="aspect-[4/3] overflow-hidden rounded-t-3xl bg-muted/30">
+      <div className="aspect-[4/3] overflow-hidden rounded-t-3xl bg-muted/30 relative">
         {pattern.cover_image_url ? (
           <img src={pattern.cover_image_url} alt={pattern.title} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-muted-foreground text-4xl">
             🧶
+          </div>
+        )}
+        {/* Favorite heart on thumbnail */}
+        {isFavorite && (
+          <div className="absolute bottom-2 left-2">
+            <Heart className="w-5 h-5 fill-red-500 text-red-500 drop-shadow" />
           </div>
         )}
       </div>
@@ -58,6 +66,12 @@ export function PatternCard({ pattern, onClick, onDelete, onStatusChange }: Patt
               <DropdownMenuItem onClick={() => onStatusChange('preparing')}>{t('pattern.status.preparing')}</DropdownMenuItem>
               <DropdownMenuItem onClick={() => onStatusChange('in_progress')}>{t('pattern.status.inProgress')}</DropdownMenuItem>
               <DropdownMenuItem onClick={() => onStatusChange('completed')}>{t('pattern.status.completed')}</DropdownMenuItem>
+              {onToggleFavorite && (
+                <DropdownMenuItem onClick={onToggleFavorite}>
+                  <Heart className={`w-3 h-3 mr-2 ${isFavorite ? 'fill-red-500 text-red-500' : ''}`} />
+                  {isFavorite ? t('pattern.unfavorite') : t('pattern.favorite')}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem className="text-destructive" onClick={() => setDeleteOpen(true)}>
                 <Trash2 className="w-3 h-3 mr-2" />{t('common.delete')}
               </DropdownMenuItem>

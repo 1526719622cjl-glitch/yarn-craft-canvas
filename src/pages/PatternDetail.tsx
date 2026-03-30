@@ -1,30 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Image as ImageIcon, FileText, Maximize } from 'lucide-react';
+import { ArrowLeft, Image as ImageIcon, FileText, Maximize, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/i18n/useI18n';
 import { useAuth } from '@/hooks/useAuth';
-import { usePatternProgress } from '@/hooks/usePatternProgress';
 import { supabase } from '@/integrations/supabase/client';
 import { PatternViewer, type PatternAnnotationData } from '@/components/pattern/PatternViewer';
-import { AIParsePanel, type ParsedStep } from '@/components/pattern/AIParsePanel';
-import { ImmersiveCompanion } from '@/components/pattern/ImmersiveCompanion';
-import { GaugeInputDialog, type GaugeData } from '@/components/pattern/GaugeInputDialog';
-import type { RowPixelData } from '@/components/pattern/PixelRowPreview';
+import { StepCounter } from '@/components/pattern/StepCounter';
 import type { PatternEntry, PatternFile } from '@/hooks/usePatternLibrary';
 import { toast } from '@/hooks/use-toast';
 
 const EMPTY_ANNOTATION: PatternAnnotationData = { strokes: [], highlights: [], notes: [] };
-
-const buildPixelRows = (steps: ParsedStep[]): RowPixelData[] =>
-  steps
-    .filter((s) => s.colors && s.colors.length > 0)
-    .map((s) => ({
-      row: s.row,
-      pixels: s.colors!.map((c) => ({ color: c.color, count: c.count })),
-      totalStitches: s.colors!.reduce((sum, c) => sum + c.count, 0),
-    }));
 
 export default function PatternDetail() {
   const { id } = useParams<{ id: string }>();
@@ -35,21 +22,15 @@ export default function PatternDetail() {
   const [pattern, setPattern] = useState<PatternEntry | null>(null);
   const [files, setFiles] = useState<PatternFile[]>([]);
   const [selectedFileIndex, setSelectedFileIndex] = useState(0);
-  const [steps, setSteps] = useState<ParsedStep[]>([]);
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [immersiveMode, setImmersiveMode] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [showGaugeDialog, setShowGaugeDialog] = useState(false);
-  const [gauge, setGauge] = useState<GaugeData | null>(null);
-  const [pixelRows, setPixelRows] = useState<RowPixelData[]>([]);
   const [annotationData, setAnnotationData] = useState<PatternAnnotationData>(EMPTY_ANNOTATION);
   const [annotationRowId, setAnnotationRowId] = useState<string | null>(null);
   const [savingAnnotation, setSavingAnnotation] = useState(false);
-  const [stepsConfirmed, setStepsConfirmed] = useState(false);
+  const [finishedPhoto, setFinishedPhoto] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const finishedPhotoRef = useRef<HTMLInputElement>(null);
 
   const pdfContainerRef = useRef<HTMLDivElement>(null);
-
-  const { progress, percentage, estimatedTimeLeft, initProgress, advanceStep, goBack, addCorrection } = usePatternProgress(id || null);
 
   const fetchPatternData = useCallback(async () => {
     if (!id || !user) return;
@@ -57,37 +38,10 @@ export default function PatternDetail() {
     if (p) {
       const patternData = p as unknown as PatternEntry;
       setPattern(patternData);
-      if ((patternData as any).linked_yarn_id) {
-        const { data: yarn } = await supabase
-          .from('yarn_entries')
-          .select('id, name, brand, stitches_per_10cm, rows_per_10cm')
-          .eq('id', (patternData as any).linked_yarn_id)
-          .maybeSingle();
-        if (yarn?.stitches_per_10cm && yarn?.rows_per_10cm) {
-          setGauge({
-            stitchesPer10cm: Number(yarn.stitches_per_10cm),
-            rowsPer10cm: Number(yarn.rows_per_10cm),
-            yarnEntryId: yarn.id,
-            yarnName: yarn.brand ? `${yarn.brand} ${yarn.name}` : yarn.name,
-          });
-        }
-      }
+      setFinishedPhoto((p as any).finished_photo_url || null);
     }
     const { data: f } = await supabase.from('pattern_files').select('*').eq('pattern_id', id).order('sort_order');
     if (f) setFiles(f as unknown as PatternFile[]);
-
-    const { data: parses } = await supabase
-      .from('pattern_ai_parses')
-      .select('*')
-      .eq('pattern_id', id)
-      .order('created_at', { ascending: false })
-      .limit(1);
-    if (parses && parses.length > 0) {
-      const parsedSteps = ((parses[0] as any).parsed_steps || []) as ParsedStep[];
-      setSteps(parsedSteps);
-      setPixelRows(buildPixelRows(parsedSteps));
-      if (parsedSteps.length > 0) setStepsConfirmed(true);
-    }
     setLoading(false);
   }, [id, user]);
 
@@ -97,7 +51,7 @@ export default function PatternDetail() {
     fetchPatternData();
   }, [id, user, fetchPatternData]);
 
-  // Poll for files if none found yet (handles background upload race condition)
+  // Poll for files if none found yet
   useEffect(() => {
     if (!id || !user || loading || files.length > 0) return;
     let attempts = 0;
@@ -117,8 +71,6 @@ export default function PatternDetail() {
   const currentFile = files[selectedFileIndex];
   const currentFileUrl = currentFile?.file_url;
   const isImageFile = !!currentFileUrl && (currentFile?.file_type === 'image' || /\.(png|jpe?g|webp|gif)(\?.*)?$/i.test(currentFileUrl));
-  // Allow parsing for both images and PDFs
-  const canParse = !!currentFileUrl;
 
   useEffect(() => {
     if (!currentFile?.id || !user) {
@@ -155,41 +107,28 @@ export default function PatternDetail() {
     toast({ title: t('pattern.annotationSaved') });
   };
 
-  const handleStepsLoaded = (newSteps: ParsedStep[]) => {
-    setSteps(newSteps);
-    setCurrentStepIndex(0);
-    setStepsConfirmed(false);
-    initProgress(newSteps.length);
-    setPixelRows(buildPixelRows(newSteps));
-  };
-
-  const handleConfirmSteps = useCallback(() => {
-    setStepsConfirmed(true);
-  }, []);
-
-  const handleStartCompanion = useCallback(() => {
-    if (steps.length === 0) {
-      toast({ title: t('pattern.parseFirst'), variant: 'destructive' });
-      return;
-    }
-    setShowGaugeDialog(true);
-  }, [steps, t]);
-
-  const handleGaugeConfirm = (gaugeData: GaugeData) => {
-    setGauge(gaugeData);
-    setShowGaugeDialog(false);
-    if (!progress) initProgress(steps.length);
-    setImmersiveMode(true);
-  };
-
-  const handleSkipGauge = () => {
-    setShowGaugeDialog(false);
-    if (!progress) initProgress(steps.length);
-    setImmersiveMode(true);
-  };
-
   const handleFullscreen = () => {
     pdfContainerRef.current?.requestFullscreen?.();
+  };
+
+  const handleUploadFinishedPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user || !id) return;
+    setUploadingPhoto(true);
+    const ext = file.name.split('.').pop();
+    const path = `${user.id}/${id}/finished_${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from('pattern-files').upload(path, file);
+    if (error) {
+      toast({ title: 'Upload error', description: error.message, variant: 'destructive' });
+      setUploadingPhoto(false);
+      return;
+    }
+    const { data: urlData } = supabase.storage.from('pattern-files').getPublicUrl(path);
+    const url = urlData.publicUrl;
+    await supabase.from('pattern_library').update({ finished_photo_url: url } as any).eq('id', id);
+    setFinishedPhoto(url);
+    setUploadingPhoto(false);
+    toast({ title: t('pattern.finishedPhoto') });
   };
 
   const category = pattern?.category || 'crochet';
@@ -222,9 +161,30 @@ export default function PatternDetail() {
               {pattern.description && <p className="text-sm text-muted-foreground line-clamp-1">{pattern.description}</p>}
             </div>
           </div>
+          <div className="flex items-center gap-2">
+            <input ref={finishedPhotoRef} type="file" accept="image/*" className="hidden" onChange={handleUploadFinishedPhoto} />
+            <Button variant="outline" size="sm" className="rounded-xl" onClick={() => finishedPhotoRef.current?.click()} disabled={uploadingPhoto}>
+              <Upload className="w-4 h-4 mr-1" />
+              {t('pattern.uploadFinishedPhoto')}
+            </Button>
+          </div>
         </div>
 
-        {steps.length === 0 && <p className="text-xs text-muted-foreground">{t('pattern.parseHint')}</p>}
+        {/* Finished photo display */}
+        {finishedPhoto && (
+          <div className="glass-card p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium">{t('pattern.finishedPhoto')}</h3>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={async () => {
+                await supabase.from('pattern_library').update({ finished_photo_url: null } as any).eq('id', id);
+                setFinishedPhoto(null);
+              }}>
+                <X className="w-3 h-3" />
+              </Button>
+            </div>
+            <img src={finishedPhoto} alt="Finished" className="max-h-64 rounded-xl object-contain" />
+          </div>
+        )}
 
         {files.length > 1 && (
           <div className="flex gap-2 overflow-x-auto pb-2">
@@ -238,53 +198,34 @@ export default function PatternDetail() {
         )}
 
         {currentFileUrl ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" style={{ minHeight: '60vh' }}>
-            <div className="lg:col-span-2">
-              {isImageFile ? (
-                <PatternViewer
-                  imageUrl={currentFileUrl}
-                  highlightRegion={steps[currentStepIndex]?.anchorRegion}
-                  annotations={annotationData}
-                  onAnnotationChange={setAnnotationData}
-                  onSaveAnnotation={saveAnnotations}
-                  savingAnnotation={savingAnnotation}
-                />
-              ) : (
-                <div
-                  ref={pdfContainerRef}
-                  className="w-full bg-muted/20 rounded-2xl overflow-hidden border border-border/50"
-                  style={{ resize: 'vertical', overflow: 'auto', minHeight: '400px', height: '80vh' }}
-                >
-                  <div className="p-3 border-b border-border/50 flex items-center justify-between text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4" />
-                      {t('pattern.pdfPreview')}
-                    </div>
-                    <Button variant="ghost" size="sm" onClick={handleFullscreen}>
-                      <Maximize className="w-4 h-4 mr-1" />
-                      {t('pattern.fullscreen')}
-                    </Button>
-                  </div>
-                  <iframe src={currentFileUrl} className="w-full h-[calc(100%-44px)]" title="pattern-pdf" loading="lazy" />
-                </div>
-              )}
-            </div>
-
-            <div className="glass-card overflow-hidden flex flex-col">
-              <AIParsePanel
+          <div className="relative">
+            {isImageFile ? (
+              <PatternViewer
                 imageUrl={currentFileUrl}
-                category={category}
-                patternId={id!}
-                onStepsLoaded={handleStepsLoaded}
-                steps={steps}
-                currentStep={currentStepIndex}
-                onStepClick={setCurrentStepIndex}
-                canParse={canParse}
-                onConfirmSteps={handleConfirmSteps}
-                onStartCompanion={handleStartCompanion}
-                stepsConfirmed={stepsConfirmed}
+                annotations={annotationData}
+                onAnnotationChange={setAnnotationData}
+                onSaveAnnotation={saveAnnotations}
+                savingAnnotation={savingAnnotation}
               />
-            </div>
+            ) : (
+              <div
+                ref={pdfContainerRef}
+                className="w-full bg-muted/20 rounded-2xl overflow-hidden border border-border/50"
+                style={{ resize: 'vertical', overflow: 'auto', minHeight: '400px', height: '80vh' }}
+              >
+                <div className="p-3 border-b border-border/50 flex items-center justify-between text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    {t('pattern.pdfPreview')}
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={handleFullscreen}>
+                    <Maximize className="w-4 h-4 mr-1" />
+                    {t('pattern.fullscreen')}
+                  </Button>
+                </div>
+                <iframe src={currentFileUrl} className="w-full h-[calc(100%-44px)]" title="pattern-pdf" loading="lazy" />
+              </div>
+            )}
           </div>
         ) : (
           <div className="glass-card p-12 text-center">
@@ -294,28 +235,8 @@ export default function PatternDetail() {
         )}
       </motion.div>
 
-      <GaugeInputDialog
-        open={showGaugeDialog}
-        onOpenChange={(open) => { if (!open) handleSkipGauge(); }}
-        onConfirm={handleGaugeConfirm}
-        initialGauge={gauge}
-      />
-
-      {immersiveMode && currentFileUrl && (
-        <ImmersiveCompanion
-          steps={steps}
-          imageUrl={currentFileUrl}
-          progress={progress}
-          percentage={percentage}
-          estimatedTimeLeft={estimatedTimeLeft}
-          onAdvance={advanceStep}
-          onGoBack={goBack}
-          onCorrection={addCorrection}
-          onClose={() => setImmersiveMode(false)}
-          gauge={gauge}
-          pixelRows={pixelRows}
-        />
-      )}
+      {/* Counter widget */}
+      <StepCounter />
     </>
   );
 }
