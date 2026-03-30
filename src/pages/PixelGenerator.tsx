@@ -302,21 +302,25 @@ export default function PixelGenerator() {
     }
   }, [customGridWidth, combinedRatio, lockAspectRatio]);
 
-  // Re-quantize colors from original base image when colorCount changes, preserving current grid layout
+  // Re-quantize colors from original base image when colorCount changes — rebuild entire grid from source
   useEffect(() => {
     if (!baseImageDataUrl || pixelGrid.length === 0 || !canvasRef.current) return;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    // Use current grid dimensions (preserves rotation) but re-process from original image
+    const targetW = gridWidth;
+    const targetH = gridHeight;
+
     const img = new Image();
     img.onload = () => {
-      // Draw original image to extract palette via K-means
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx.drawImage(img, 0, 0);
-      const originalImageData = ctx.getImageData(0, 0, img.width, img.height);
-      let paletteRgb = kMeansQuantize(originalImageData, colorCount);
+      canvas.width = targetW;
+      canvas.height = targetH;
+      ctx.drawImage(img, 0, 0, targetW, targetH);
+      let imageData = ctx.getImageData(0, 0, targetW, targetH);
+
+      let paletteRgb = kMeansQuantize(imageData, colorCount);
 
       if (limitToPalette && stashColors.length > 0) {
         paletteRgb = stashColors.map(c => {
@@ -327,26 +331,21 @@ export default function PixelGenerator() {
 
       setColorPalette(paletteRgb.map(rgbToString));
 
-      // Map current pixel grid cells to nearest new palette color (preserves rotation/edits)
-      const parseColor = (color: string): [number,number,number] => {
-        const rgbMatch = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-        if (rgbMatch) return [parseInt(rgbMatch[1]), parseInt(rgbMatch[2]), parseInt(rgbMatch[3])];
-        const hex = color.replace('#', '');
-        if (hex.length === 6) return [parseInt(hex.slice(0,2),16), parseInt(hex.slice(2,4),16), parseInt(hex.slice(4,6),16)];
-        return [128,128,128];
-      };
+      if (useDithering) {
+        imageData = floydSteinbergDither(imageData, targetW, targetH, paletteRgb);
+      }
 
-      const newGrid = pixelGrid.map(cell => {
-        const p = parseColor(cell.color);
-        let minDist = Infinity;
-        let best = paletteRgb[0];
-        for (const c of paletteRgb) {
-          const d = (p[0]-c[0])**2 + (p[1]-c[1])**2 + (p[2]-c[2])**2;
-          if (d < minDist) { minDist = d; best = c; }
+      // Rebuild grid from re-processed image data
+      const newGrid: PixelCell[] = [];
+      for (let y = 0; y < targetH; y++) {
+        for (let x = 0; x < targetW; x++) {
+          const i = (y * targetW + x) * 4;
+          const r = imageData.data[i];
+          const g = imageData.data[i + 1];
+          const b = imageData.data[i + 2];
+          newGrid.push({ x, y, color: `rgb(${r}, ${g}, ${b})` });
         }
-        return { ...cell, color: `rgb(${Math.round(best[0])}, ${Math.round(best[1])}, ${Math.round(best[2])})` };
-      });
-
+      }
       setPixelGrid(newGrid);
       resetUndoHistory(newGrid);
     };
