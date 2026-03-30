@@ -1,27 +1,51 @@
 
 
-# 样片报告图片 + 定位编织UI + 图库缩略图优化
+# 修复：样片线材同步图片 + 像素旋转重置 + 图解库增强
 
-## 修改内容
+## 问题分析
 
-### 1. 样片报告图片尺寸同步 — `SwatchReportGenerator.tsx`
-第153、157行的图片仍为 `h-32 object-cover`，与 SwatchLab 已改的 `max-h-48 object-contain` 不一致。改为 `max-h-48 object-contain` 保持一致，完整显示裁剪后的图片。
+### 1. 样片线材同步缺少图片
+`yarn_entries` 数据库表没有照片字段。`preWashImage`/`postWashImage` 只是 SwatchLab 的本地 React state。需要在 `yarn_entries` 表中添加 `pre_wash_photo_url` 和 `post_wash_photo_url` 列，保存到线材库时上传图片到 storage，加载时同步图片。
 
-### 2. 定位编织按钮更醒目 — `PixelGenerator.tsx`
-当前第1401行是一个小图标按钮（`size="icon" h-8 w-8`），不易注意。改为带文字的醒目按钮，使用 `variant="default"` 主色调突出显示，类似 `开始定位编织 / Start Knitting`。
+### 2. 像素旋转后调整颜色重置
+当前同步按钮调用 `processImageWithDimensions(uploadedImage, gridWidth, gridHeight)`，从原始上传图片重新处理，这会丢失旋转和手动编辑。需要改为从当前 `pixelGrid` 提取颜色并重新量化，而非从原始图片重新处理。
 
-### 3. 图库缩略图放大 — `PixelGenerator.tsx`
-当前第1570行缩略图只有 `w-12 h-12`（48px），太小。改为类似线材库的卡片式网格布局：
-- 从列表布局改为 `grid grid-cols-2 gap-4` 网格布局
-- 缩略图放大到 `w-full h-32`（与线材库风格一致）
-- 名称和操作按钮在缩略图下方
-- Dialog 宽度改为 `max-w-2xl`
+### 3. 定位编织颜色显示
+上一次编辑已将 `PixelKnittingGuide` 改为按实际排列顺序显示。已修复。
+
+### 4. 图解库功能
+上一次编辑已完成：移除 AI 解析/跟织、添加收藏红心、实物图片上传。已修复。
+
+---
+
+## 修改方案
+
+### 步骤 1：数据库迁移
+为 `yarn_entries` 添加两个照片字段：
+```sql
+ALTER TABLE public.yarn_entries ADD COLUMN IF NOT EXISTS pre_wash_photo_url text;
+ALTER TABLE public.yarn_entries ADD COLUMN IF NOT EXISTS post_wash_photo_url text;
+```
+
+### 步骤 2：保存线材时上传图片 — `SwatchLab.tsx`
+在 `handleCloudSave` 中，如果有 `preWashImage`/`postWashImage`（dataURL），先上传到 `pattern-files` storage bucket，获取 public URL 后一并存入 `yarn_entries`。
+
+### 步骤 3：加载线材时同步图片 — `YarnGaugeVault.tsx`
+`handleLoadYarn` 回调已传入完整 `YarnEntry`。在 SwatchLab 中通过 `onLoadYarn` 回调接收 yarn 数据，读取 `pre_wash_photo_url`/`post_wash_photo_url` 并设置到 `preWashImage`/`postWashImage`。
+
+### 步骤 4：像素颜色同步不重置旋转 — `PixelGenerator.tsx`
+替换同步按钮逻辑：从当前 `pixelGrid` 提取所有颜色 → 用 K-means 重新量化为 `colorCount` 种颜色 → 将每个像素映射到最近的新颜色 → 更新 grid，不改变尺寸和排列。
+
+### 步骤 5：翻译补充
+
+---
 
 ## 实现顺序
 
-| 步骤 | 文件 |
-|------|------|
-| 1 | SwatchReportGenerator.tsx — 图片 `object-contain` + `max-h-48` |
-| 2 | PixelGenerator.tsx — 定位编织按钮放大+带文字 |
-| 3 | PixelGenerator.tsx — 图库改为网格卡片布局+大缩略图 |
+| 步骤 | 任务 | 文件 |
+|------|------|------|
+| 1 | 添加照片字段到 yarn_entries | 数据库迁移 |
+| 2 | 保存线材时上传图片 | SwatchLab.tsx |
+| 3 | 加载线材时同步图片 | SwatchLab.tsx |
+| 4 | 像素颜色同步从 grid 重新量化 | PixelGenerator.tsx |
 
