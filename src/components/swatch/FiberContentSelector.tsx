@@ -1,0 +1,122 @@
+import { useState, useEffect } from 'react';
+import { Plus, X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useI18n } from '@/i18n/useI18n';
+import type { TranslationKey } from '@/i18n/translations';
+
+interface FiberRow {
+  id: string;
+  percentage: string;
+  material: string;
+}
+
+const FIBER_PRESETS: { value: string; labelKey: TranslationKey }[] = [
+  { value: 'Merino', labelKey: 'fiber.merino' },
+  { value: 'Alpaca', labelKey: 'fiber.alpaca' },
+  { value: 'Cashmere', labelKey: 'fiber.cashmere' },
+  { value: 'Cotton', labelKey: 'fiber.cotton' },
+  { value: 'Silk', labelKey: 'fiber.silk' },
+  { value: 'Linen', labelKey: 'fiber.linen' },
+  { value: 'Mohair', labelKey: 'fiber.mohair' },
+  { value: 'Nylon', labelKey: 'fiber.nylon' },
+  { value: 'Acrylic', labelKey: 'fiber.acrylic' },
+  { value: 'Bamboo', labelKey: 'fiber.bamboo' },
+  { value: 'Wool', labelKey: 'fiber.wool' },
+  { value: 'Polyester', labelKey: 'fiber.polyester' },
+];
+
+function parseFiberContent(value: string): FiberRow[] {
+  if (!value.trim()) return [{ id: crypto.randomUUID(), percentage: '', material: '' }];
+  const parts = value.split(',').map(s => s.trim()).filter(Boolean);
+  const rows = parts.map(part => {
+    const match = part.match(/^(\d+)%?\s*(.+)$/);
+    if (match) {
+      return { id: crypto.randomUUID(), percentage: match[1], material: match[2].trim() };
+    }
+    return { id: crypto.randomUUID(), percentage: '', material: part };
+  });
+  return rows.length > 0 ? rows : [{ id: crypto.randomUUID(), percentage: '', material: '' }];
+}
+
+function assembleFiberContent(rows: FiberRow[]): string {
+  return rows
+    .filter(r => r.material)
+    .map(r => r.percentage ? `${r.percentage}% ${r.material}` : r.material)
+    .join(', ');
+}
+
+interface FiberContentSelectorProps {
+  value: string;
+  onChange: (value: string) => void;
+}
+
+export function FiberContentSelector({ value, onChange }: FiberContentSelectorProps) {
+  const { t } = useI18n();
+  const [rows, setRows] = useState<FiberRow[]>(() => parseFiberContent(value));
+
+  useEffect(() => {
+    const assembled = assembleFiberContent(rows);
+    if (assembled !== value) {
+      onChange(assembled);
+    }
+  }, [rows]);
+
+  // Sync from external value changes
+  useEffect(() => {
+    const currentAssembled = assembleFiberContent(rows);
+    if (value !== currentAssembled) {
+      setRows(parseFiberContent(value));
+    }
+  }, [value]);
+
+  const updateRow = (id: string, field: 'percentage' | 'material', val: string) => {
+    setRows(prev => prev.map(r => r.id === id ? { ...r, [field]: val } : r));
+  };
+
+  const addRow = () => {
+    setRows(prev => [...prev, { id: crypto.randomUUID(), percentage: '', material: '' }]);
+  };
+
+  const removeRow = (id: string) => {
+    setRows(prev => prev.length > 1 ? prev.filter(r => r.id !== id) : prev);
+  };
+
+  return (
+    <div className="space-y-2">
+      {rows.map((row) => (
+        <div key={row.id} className="flex items-center gap-2">
+          <Input
+            type="number"
+            min={0}
+            max={100}
+            value={row.percentage}
+            onChange={(e) => updateRow(row.id, 'percentage', e.target.value)}
+            placeholder="%"
+            className="w-16 h-9 text-sm"
+          />
+          <Select value={row.material} onValueChange={(v) => updateRow(row.id, 'material', v)}>
+            <SelectTrigger className="flex-1 h-9">
+              <SelectValue placeholder={t('fiber.selectMaterial')} />
+            </SelectTrigger>
+            <SelectContent>
+              {FIBER_PRESETS.map((f) => (
+                <SelectItem key={f.value} value={f.value}>{t(f.labelKey)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {rows.length > 1 && (
+            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => removeRow(row.id)}>
+              <X className="w-3 h-3" />
+            </Button>
+          )}
+        </div>
+      ))}
+      <Button variant="outline" size="sm" onClick={addRow} className="w-full rounded-xl text-xs">
+        <Plus className="w-3 h-3 mr-1" />
+        {t('fiber.addFiber')}
+      </Button>
+    </div>
+  );
+}

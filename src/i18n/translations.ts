@@ -442,6 +442,31 @@ const translations = {
   'pattern.fullscreen': { zh: '全屏', en: 'Fullscreen' },
   'pattern.editOriginal': { zh: '原文', en: 'Original' },
   'pattern.editTranslation': { zh: '中文翻译', en: 'Chinese Translation' },
+
+  // Fiber Content Selector
+  'fiber.title': { zh: '纤维成分', en: 'Fiber Content' },
+  'fiber.addFiber': { zh: '添加材质', en: 'Add Fiber' },
+  'fiber.percentage': { zh: '%', en: '%' },
+  'fiber.material': { zh: '材质', en: 'Material' },
+  'fiber.selectMaterial': { zh: '选择材质...', en: 'Select material...' },
+  'fiber.merino': { zh: '美利奴羊毛', en: 'Merino' },
+  'fiber.alpaca': { zh: '羊驼毛', en: 'Alpaca' },
+  'fiber.cashmere': { zh: '羊绒', en: 'Cashmere' },
+  'fiber.cotton': { zh: '棉', en: 'Cotton' },
+  'fiber.silk': { zh: '蚕丝', en: 'Silk' },
+  'fiber.linen': { zh: '亚麻', en: 'Linen' },
+  'fiber.mohair': { zh: '马海毛', en: 'Mohair' },
+  'fiber.nylon': { zh: '尼龙', en: 'Nylon' },
+  'fiber.acrylic': { zh: '腈纶', en: 'Acrylic' },
+  'fiber.bamboo': { zh: '竹纤维', en: 'Bamboo' },
+  'fiber.wool': { zh: '羊毛', en: 'Wool' },
+  'fiber.polyester': { zh: '涤纶', en: 'Polyester' },
+
+  // Report project plan
+  'report.projectPlan': { zh: '📐 项目规划', en: '📐 Project Plan' },
+  'report.targetSize': { zh: '目标尺寸', en: 'Target Size' },
+  'report.castOn': { zh: '起针数', en: 'Cast-on' },
+  'report.compensated': { zh: '补偿后', en: 'Compensated' },
 } as const;
 
 export type TranslationKey = keyof typeof translations;
