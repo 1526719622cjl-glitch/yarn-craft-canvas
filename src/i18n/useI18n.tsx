@@ -1,31 +1,20 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { Locale, TranslationKey, getTranslation } from './translations';
+import { createContext, useContext, useCallback, ReactNode } from 'react';
+import { TranslationKey, getTranslation } from './translations';
 
 interface I18nContextType {
-  locale: Locale;
-  setLocale: (locale: Locale) => void;
+  locale: 'zh';
   t: (key: TranslationKey) => string;
 }
 
 const I18nContext = createContext<I18nContextType | null>(null);
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(() => {
-    const saved = localStorage.getItem('yarn-clues-locale');
-    return (saved === 'en' || saved === 'zh') ? saved : 'zh';
-  });
-
-  const setLocale = useCallback((newLocale: Locale) => {
-    setLocaleState(newLocale);
-    localStorage.setItem('yarn-clues-locale', newLocale);
+  const t = useCallback((key: TranslationKey) => {
+    return getTranslation(key);
   }, []);
 
-  const t = useCallback((key: TranslationKey) => {
-    return getTranslation(key, locale);
-  }, [locale]);
-
   return (
-    <I18nContext.Provider value={{ locale, setLocale, t }}>
+    <I18nContext.Provider value={{ locale: 'zh', t }}>
       {children}
     </I18nContext.Provider>
   );
