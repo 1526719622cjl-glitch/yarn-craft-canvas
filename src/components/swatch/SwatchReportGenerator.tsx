@@ -150,11 +150,11 @@ export function SwatchReportGenerator({
                   <div className="grid grid-cols-2 gap-3">
                     <div className="text-center">
                       <p className="text-xs text-[#8B7355] mb-1">{t('report.preWash')}</p>
-                      {preWashImage ? <img src={preWashImage} alt="Pre-wash" className="w-full h-32 object-cover rounded-lg" /> : <div className="w-full h-32 rounded-lg bg-[#F5F0E8] flex items-center justify-center text-xs text-[#8B7355]">{t('report.notUploaded')}</div>}
+                      {preWashImage ? <img src={preWashImage} alt="Pre-wash" className="w-full max-h-48 object-contain rounded-lg bg-[#F5F0E8]" /> : <div className="w-full h-32 rounded-lg bg-[#F5F0E8] flex items-center justify-center text-xs text-[#8B7355]">{t('report.notUploaded')}</div>}
                     </div>
                     <div className="text-center">
                       <p className="text-xs text-[#8B7355] mb-1">{t('report.postWash')}</p>
-                      {postWashImage ? <img src={postWashImage} alt="Post-wash" className="w-full h-32 object-cover rounded-lg" /> : <div className="w-full h-32 rounded-lg bg-[#F5F0E8] flex items-center justify-center text-xs text-[#8B7355]">{t('report.notUploaded')}</div>}
+                      {postWashImage ? <img src={postWashImage} alt="Post-wash" className="w-full max-h-48 object-contain rounded-lg bg-[#F5F0E8]" /> : <div className="w-full h-32 rounded-lg bg-[#F5F0E8] flex items-center justify-center text-xs text-[#8B7355]">{t('report.notUploaded')}</div>}
                     </div>
                   </div>
                 </div>
