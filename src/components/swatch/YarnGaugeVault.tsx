@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { FiberContentSelector } from '@/components/swatch/FiberContentSelector';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FolderOpen, FolderPlus, Search, ChevronRight, Home, Trash2, Plus, Package, ChevronDown, Loader2, AlertCircle

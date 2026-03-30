@@ -235,6 +235,7 @@ export function SwatchReportGenerator({
                 </div>
               )}
 
+              {notes && (
                 <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 shadow-sm">
                   <h3 className="font-medium text-[#5D4E37] mb-2">{t('report.notesSection')}</h3>
                   <p className="text-sm text-[#5D4E37] whitespace-pre-wrap">{notes}</p>
