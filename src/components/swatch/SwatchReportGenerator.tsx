@@ -5,6 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -40,6 +43,14 @@ interface SwatchReportGeneratorProps {
   yarnBrand?: string;
   preWashImage?: string | null;
   postWashImage?: string | null;
+  projectPlan?: {
+    targetWidth: number;
+    targetHeight: number;
+    startingStitches: number;
+    startingRows: number;
+  };
+  compensatedStitches?: number;
+  compensatedRows?: number;
 }
 
 export function SwatchReportGenerator({
@@ -51,6 +62,9 @@ export function SwatchReportGenerator({
   yarnBrand: initialYarnBrand = '',
   preWashImage,
   postWashImage,
+  projectPlan,
+  compensatedStitches,
+  compensatedRows,
 }: SwatchReportGeneratorProps) {
   const reportRef = useRef<HTMLDivElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
