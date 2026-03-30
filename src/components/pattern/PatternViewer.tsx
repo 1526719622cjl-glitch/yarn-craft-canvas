@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { ZoomIn, ZoomOut, Maximize } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -28,10 +28,18 @@ export interface AnnotationNote {
   text: string;
 }
 
+export interface AnnotationText {
+  id: string;
+  x: number;
+  y: number;
+  text: string;
+}
+
 export interface PatternAnnotationData {
   strokes: AnnotationStroke[];
   highlights: AnnotationHighlight[];
   notes: AnnotationNote[];
+  texts?: AnnotationText[];
 }
 
 interface PatternViewerProps {
@@ -47,6 +55,7 @@ const EMPTY_ANNOTATION: PatternAnnotationData = {
   strokes: [],
   highlights: [],
   notes: [],
+  texts: [],
 };
 
 export function PatternViewer({
@@ -62,6 +71,8 @@ export function PatternViewer({
   const [drawingStroke, setDrawingStroke] = useState<AnnotationPoint[] | null>(null);
   const [drawingHighlight, setDrawingHighlight] = useState<AnnotationHighlight | null>(null);
   const [highlightStart, setHighlightStart] = useState<AnnotationPoint | null>(null);
+  const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const getRelativePoint = (e: React.PointerEvent<HTMLDivElement>): AnnotationPoint => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -71,9 +82,11 @@ export function PatternViewer({
     };
   };
 
+  const safeAnnotations = annotations || EMPTY_ANNOTATION;
+
   const updateAnnotations = (updater: (prev: PatternAnnotationData) => PatternAnnotationData) => {
     if (!onAnnotationChange) return;
-    onAnnotationChange(updater(annotations));
+    onAnnotationChange(updater(safeAnnotations));
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -102,6 +115,23 @@ export function PatternViewer({
           },
         ],
       }));
+    }
+
+    if (tool === 'text') {
+      const newId = crypto.randomUUID();
+      updateAnnotations((prev) => ({
+        ...prev,
+        texts: [
+          ...(prev.texts || []),
+          {
+            id: newId,
+            x: point.x,
+            y: point.y,
+            text: '',
+          },
+        ],
+      }));
+      setEditingTextId(newId);
     }
   };
 
@@ -138,12 +168,14 @@ export function PatternViewer({
     onAnnotationChange?.(EMPTY_ANNOTATION);
   };
 
-  const allStrokes = drawingStroke ? [...annotations.strokes, { points: drawingStroke }] : annotations.strokes;
-  const allHighlights = drawingHighlight ? [...annotations.highlights, drawingHighlight] : annotations.highlights;
+  const allStrokes = drawingStroke ? [...safeAnnotations.strokes, { points: drawingStroke }] : safeAnnotations.strokes;
+  const allHighlights = drawingHighlight ? [...safeAnnotations.highlights, drawingHighlight] : safeAnnotations.highlights;
+
+  const isDrawingTool = tool !== 'none';
 
   return (
     <div className="relative w-full h-full min-h-[400px] bg-muted/20 rounded-2xl overflow-hidden">
-      <TransformWrapper initialScale={1} minScale={0.5} maxScale={5} centerOnInit disabled={tool !== 'none'}>
+      <TransformWrapper initialScale={1} minScale={0.5} maxScale={5} centerOnInit disabled={isDrawingTool}>
         {({ zoomIn, zoomOut, resetTransform }) => (
           <>
             <AnnotationToolbar
@@ -166,14 +198,17 @@ export function PatternViewer({
             </div>
 
             <TransformComponent wrapperClass="!w-full !h-full" contentClass="!w-full !h-full flex items-center justify-center">
-              <div className="relative inline-block select-none" style={{ touchAction: tool !== 'none' ? 'none' : 'auto' }}>
+              <div
+                ref={containerRef}
+                className="relative inline-block select-none"
+                style={{ touchAction: isDrawingTool ? 'none' : 'auto' }}
+              >
                 <img
                   src={imageUrl}
                   alt="Pattern"
                   className="block max-w-full max-h-[70vh]"
                   draggable={false}
                   onLoad={(e) => {
-                    // Force layout recalc so overlay matches image size
                     const img = e.currentTarget;
                     const parent = img.parentElement;
                     if (parent) {
@@ -185,7 +220,7 @@ export function PatternViewer({
 
                 <div
                   className="absolute inset-0"
-                  style={{ touchAction: 'none' }}
+                  style={{ touchAction: 'none', pointerEvents: isDrawingTool ? 'auto' : 'none' }}
                   onPointerDown={handlePointerDown}
                   onPointerMove={handlePointerMove}
                   onPointerUp={handlePointerUp}
@@ -217,7 +252,7 @@ export function PatternViewer({
                     ))}
                   </svg>
 
-                  {annotations.notes.map((note) => (
+                  {safeAnnotations.notes.map((note) => (
                     <textarea
                       key={note.id}
                       value={note.text}
@@ -229,8 +264,41 @@ export function PatternViewer({
                         }));
                       }}
                       className="absolute text-xs bg-background/90 border border-border/60 rounded p-1.5 w-28 min-h-14 resize-none"
-                      style={{ left: `${note.x}%`, top: `${note.y}%`, transform: 'translate(-50%, -50%)' }}
+                      style={{ left: `${note.x}%`, top: `${note.y}%`, transform: 'translate(-50%, -50%)', pointerEvents: 'auto' }}
                     />
+                  ))}
+
+                  {(safeAnnotations.texts || []).map((txt) => (
+                    <div
+                      key={txt.id}
+                      className="absolute"
+                      style={{ left: `${txt.x}%`, top: `${txt.y}%`, transform: 'translate(-50%, -50%)', pointerEvents: 'auto' }}
+                    >
+                      {editingTextId === txt.id ? (
+                        <input
+                          type="text"
+                          autoFocus
+                          value={txt.text}
+                          onChange={(e) => {
+                            const text = e.target.value;
+                            updateAnnotations((prev) => ({
+                              ...prev,
+                              texts: (prev.texts || []).map((t) => (t.id === txt.id ? { ...t, text } : t)),
+                            }));
+                          }}
+                          onBlur={() => setEditingTextId(null)}
+                          onKeyDown={(e) => e.key === 'Enter' && setEditingTextId(null)}
+                          className="text-sm font-medium bg-primary/10 border border-primary/30 rounded px-2 py-0.5 min-w-[60px] outline-none focus:ring-1 focus:ring-primary"
+                        />
+                      ) : (
+                        <span
+                          className="text-sm font-medium text-primary cursor-pointer bg-background/80 rounded px-1.5 py-0.5 border border-primary/20"
+                          onClick={() => setEditingTextId(txt.id)}
+                        >
+                          {txt.text || '点击编辑'}
+                        </span>
+                      )}
+                    </div>
                   ))}
                 </div>
 
