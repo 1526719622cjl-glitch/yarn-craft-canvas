@@ -1583,7 +1583,13 @@ export default function PixelGenerator() {
                     </Tooltip>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="default" size="sm" className="rounded-xl h-8 gap-1.5" onClick={() => setShowKnittingGuide(true)}>
+                        <Button variant="default" size="sm" className="rounded-xl h-8 gap-1.5" onClick={() => {
+                          if (!activeDesignId) {
+                            toast({ title: '请先保存设计', description: '请先保存设计到图库，以便保存编织进度', variant: 'destructive' });
+                            return;
+                          }
+                          setShowKnittingGuide(true);
+                        }}>
                           <Navigation className="w-4 h-4" />
                           <span className="text-xs">{t('pixel.startKnitting')}</span>
                         </Button>

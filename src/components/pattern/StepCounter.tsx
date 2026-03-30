@@ -1,12 +1,40 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Minus, Plus, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/i18n/useI18n';
 
-export function StepCounter() {
+interface StepCounterProps {
+  patternId?: string;
+}
+
+const STORAGE_KEY_PREFIX = 'yarn-clues-counter-';
+
+export function StepCounter({ patternId }: StepCounterProps) {
   const { t } = useI18n();
-  const [count, setCount] = useState(0);
+  const storageKey = patternId ? `${STORAGE_KEY_PREFIX}${patternId}` : null;
+
+  const [count, setCount] = useState(() => {
+    if (storageKey) {
+      const saved = localStorage.getItem(storageKey);
+      return saved ? parseInt(saved, 10) || 0 : 0;
+    }
+    return 0;
+  });
+
+  useEffect(() => {
+    if (storageKey) {
+      localStorage.setItem(storageKey, String(count));
+    }
+  }, [count, storageKey]);
+
+  // Reload when patternId changes
+  useEffect(() => {
+    if (storageKey) {
+      const saved = localStorage.getItem(storageKey);
+      setCount(saved ? parseInt(saved, 10) || 0 : 0);
+    }
+  }, [storageKey]);
 
   return (
     <motion.div
