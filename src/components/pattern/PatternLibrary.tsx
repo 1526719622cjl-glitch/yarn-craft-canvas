@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Library } from 'lucide-react';
+import { Plus, Search, Library, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -26,11 +26,16 @@ export function PatternLibrary({ category, icon }: PatternLibraryProps) {
     deletePattern, uploadFile,
   } = usePatternLibrary(category);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
   const containerVariants = {
     hidden: { opacity: 0 },
     show: { opacity: 1, transition: { staggerChildren: 0.05 } },
   };
+
+  const filteredPatterns = showFavoritesOnly
+    ? patterns.filter(p => (p as any).is_favorite === true)
+    : patterns;
 
   return (
     <motion.div variants={containerVariants} initial="hidden" animate="show" className="max-w-6xl mx-auto space-y-6">
@@ -66,14 +71,24 @@ export function PatternLibrary({ category, icon }: PatternLibraryProps) {
             className="pl-9"
           />
         </div>
-        <Tabs value={statusFilter} onValueChange={setStatusFilter}>
-          <TabsList>
-            <TabsTrigger value="all">{t('pattern.filter.all')}</TabsTrigger>
-            <TabsTrigger value="preparing">{t('pattern.status.preparing')}</TabsTrigger>
-            <TabsTrigger value="in_progress">{t('pattern.status.inProgress')}</TabsTrigger>
-            <TabsTrigger value="completed">{t('pattern.status.completed')}</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="flex gap-2">
+          <Tabs value={statusFilter} onValueChange={setStatusFilter}>
+            <TabsList>
+              <TabsTrigger value="all">{t('pattern.filter.all')}</TabsTrigger>
+              <TabsTrigger value="preparing">{t('pattern.status.preparing')}</TabsTrigger>
+              <TabsTrigger value="in_progress">{t('pattern.status.inProgress')}</TabsTrigger>
+              <TabsTrigger value="completed">{t('pattern.status.completed')}</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <Button
+            variant={showFavoritesOnly ? 'default' : 'outline'}
+            size="icon"
+            className="rounded-xl h-9 w-9 shrink-0"
+            onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+          >
+            <Heart className={`w-4 h-4 ${showFavoritesOnly ? 'fill-current' : ''}`} />
+          </Button>
+        </div>
       </div>
 
       {/* Grid */}
@@ -91,23 +106,26 @@ export function PatternLibrary({ category, icon }: PatternLibraryProps) {
             <div key={i} className="glass-card aspect-[3/4] animate-pulse bg-muted/30" />
           ))}
         </div>
-      ) : patterns.length === 0 ? (
+      ) : filteredPatterns.length === 0 ? (
         <div className="glass-card p-12 text-center">
-          <p className="text-4xl mb-4">📂</p>
-          <p className="text-muted-foreground">{t('pattern.empty')}</p>
-          <Button variant="outline" className="mt-4" onClick={() => setUploadOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />{t('pattern.addFirst')}
-          </Button>
+          <p className="text-4xl mb-4">{showFavoritesOnly ? '❤️' : '📂'}</p>
+          <p className="text-muted-foreground">{showFavoritesOnly ? t('pattern.favorites') : t('pattern.empty')}</p>
+          {!showFavoritesOnly && (
+            <Button variant="outline" className="mt-4" onClick={() => setUploadOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />{t('pattern.addFirst')}
+            </Button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {patterns.map(p => (
+          {filteredPatterns.map(p => (
             <PatternCard
               key={p.id}
               pattern={p}
               onClick={() => navigate(`/${category}/${p.id}`)}
               onDelete={() => deletePattern(p.id)}
               onStatusChange={(status) => updatePattern(p.id, { status })}
+              onToggleFavorite={() => updatePattern(p.id, { is_favorite: !(p as any).is_favorite } as any)}
             />
           ))}
         </div>
