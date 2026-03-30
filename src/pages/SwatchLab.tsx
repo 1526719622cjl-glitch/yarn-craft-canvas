@@ -184,9 +184,28 @@ export default function SwatchLab() {
     }
   };
 
+  // Helper: upload dataURL to storage, return public URL
+  const uploadSwatchPhoto = useCallback(async (dataUrl: string, label: string): Promise<string | null> => {
+    if (!user) return null;
+    try {
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const ext = blob.type.includes('png') ? 'png' : 'jpg';
+      const path = `swatch-photos/${user.id}/${Date.now()}_${label}.${ext}`;
+      const { error } = await supabase.storage.from('pattern-files').upload(path, blob, { upsert: true });
+      if (error) return null;
+      const { data } = supabase.storage.from('pattern-files').getPublicUrl(path);
+      return data.publicUrl;
+    } catch { return null; }
+  }, [user]);
+
   // Cloud save handler
-  const handleSaveToCloud = () => {
+  const handleSaveToCloud = async () => {
     if (!yarnName.trim()) return;
+    
+    // Upload photos if present
+    const prePhotoUrl = preWashImage ? await uploadSwatchPhoto(preWashImage, 'pre') : null;
+    const postPhotoUrl = postWashImage ? await uploadSwatchPhoto(postWashImage, 'post') : null;
     
     createEntry.mutate({
       name: yarnName.trim(),
@@ -212,6 +231,8 @@ export default function SwatchLab() {
       grams_per_ball: null,
       balls_in_stock: 0,
       notes: null,
+      pre_wash_photo_url: prePhotoUrl,
+      post_wash_photo_url: postPhotoUrl,
     });
     
     // Reset form
@@ -579,8 +600,10 @@ export default function SwatchLab() {
           </div>
         </motion.div>
 
-        {/* Integrated Yarn & Gauge Vault */}
-        <YarnGaugeVault compact />
+        <YarnGaugeVault compact onLoadYarn={(yarn) => {
+          if (yarn.pre_wash_photo_url) setPreWashImage(yarn.pre_wash_photo_url);
+          if (yarn.post_wash_photo_url) setPostWashImage(yarn.post_wash_photo_url);
+        }} />
 
         {/* Smart Yarn Calculator */}
         <SmartYarnCalculator />
