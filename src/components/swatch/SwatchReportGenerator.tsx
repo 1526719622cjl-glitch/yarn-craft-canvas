@@ -72,6 +72,15 @@ export function SwatchReportGenerator({
   const [notes, setNotes] = useState('');
   const { t } = useI18n();
 
+  // Sync local state when props change (e.g., dialog re-opens with new data)
+  useEffect(() => {
+    setYarnName(initialYarnName);
+  }, [initialYarnName]);
+
+  useEffect(() => {
+    setYarnBrand(initialYarnBrand);
+  }, [initialYarnBrand]);
+
   const handleDownload = async () => {
     if (!reportRef.current) return;
     setIsGenerating(true);
