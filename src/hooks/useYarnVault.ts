@@ -154,7 +154,9 @@ export function useYarnEntries(folderId?: string | null, searchQuery?: string) {
         .select('*')
         .order('updated_at', { ascending: false });
       
-      if (folderId !== undefined) {
+      if (folderId === null) {
+        query = query.is('folder_id', null);
+      } else if (folderId !== undefined) {
         query = query.eq('folder_id', folderId);
       }
       

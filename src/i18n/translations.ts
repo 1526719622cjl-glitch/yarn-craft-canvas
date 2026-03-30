@@ -467,6 +467,24 @@ const translations = {
   'report.targetSize': { zh: '目标尺寸', en: 'Target Size' },
   'report.castOn': { zh: '起针数', en: 'Cast-on' },
   'report.compensated': { zh: '补偿后', en: 'Compensated' },
+
+  // Pixel Generator enhancements
+  'pixel.syncColors': { zh: '同步', en: 'Sync' },
+  'pixel.download': { zh: '下载图片', en: 'Download Image' },
+  'pixel.saveToLibrary': { zh: '保存到图库', en: 'Save to Library' },
+  'pixel.designLibrary': { zh: '像素图库', en: 'Design Library' },
+  'pixel.loadDesign': { zh: '加载', en: 'Load' },
+  'pixel.deleteDesign': { zh: '删除', en: 'Delete' },
+  'pixel.noDesigns': { zh: '还没有保存的像素图', en: 'No saved designs yet' },
+  'pixel.saveDesignName': { zh: '设计名称', en: 'Design Name' },
+  'pixel.startKnitting': { zh: '开始定位编织', en: 'Start Knitting Guide' },
+  'pixel.knittingGuide': { zh: '定位编织', en: 'Knitting Guide' },
+  'pixel.currentRow': { zh: '当前行', en: 'Current Row' },
+  'pixel.rowColors': { zh: '本行颜色', en: 'Row Colors' },
+  'pixel.exitGuide': { zh: '退出', en: 'Exit' },
+  'pixel.designSaved': { zh: '像素图已保存', en: 'Design saved' },
+  'pixel.designDeleted': { zh: '像素图已删除', en: 'Design deleted' },
+  'pixel.designLoaded': { zh: '像素图已加载', en: 'Design loaded' },
 } as const;
 
 export type TranslationKey = keyof typeof translations;

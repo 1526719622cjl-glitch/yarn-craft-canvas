@@ -216,6 +216,42 @@ export type Database = {
           },
         ]
       }
+      pixel_designs: {
+        Row: {
+          color_palette: Json
+          created_at: string
+          grid_data: Json
+          height: number
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+          width: number
+        }
+        Insert: {
+          color_palette?: Json
+          created_at?: string
+          grid_data?: Json
+          height: number
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+          width: number
+        }
+        Update: {
+          color_palette?: Json
+          created_at?: string
+          grid_data?: Json
+          height?: number
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+          width?: number
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null

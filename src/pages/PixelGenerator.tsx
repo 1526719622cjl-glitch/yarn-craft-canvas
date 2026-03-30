@@ -1,11 +1,12 @@
-// PixelGenerator - Updated 2026-02-04
-import { motion } from 'framer-motion';
+// PixelGenerator - Updated 2026-03-30
+import { motion, AnimatePresence } from 'framer-motion';
 import { useI18n } from '@/i18n/useI18n';
 import { useYarnCluesStore, PixelTool, PixelCell } from '@/store/useYarnCluesStore';
 import { 
   Grid3X3, Upload, Palette, Pencil, Eraser, PaintBucket, Pipette, 
   Square, RotateCw, Copy, Move, Grid, Eye, EyeOff, Layers, Replace,
-  FlipHorizontal, Sliders, Lock, Unlock, Plus, Undo, Redo
+  FlipHorizontal, Sliders, Lock, Unlock, Plus, Undo, Redo,
+  RefreshCw, Download, Save, FolderOpen, Navigation, Trash2
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,7 +22,12 @@ import { StashColor } from '@/components/pixel/YarnStashPalette';
 import { ImageCropDialog } from '@/components/pixel/ImageCropDialog';
 import { CanvasSizeDialog } from '@/components/pixel/CanvasSizeDialog';
 import { ColorLibrary } from '@/components/pixel/ColorLibrary';
+import { PixelKnittingGuide } from '@/components/pixel/PixelKnittingGuide';
 import { useUndoRedo, useUndoRedoKeyboard } from '@/hooks/useUndoRedo';
+import { usePixelDesigns } from '@/hooks/usePixelDesigns';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -195,6 +201,10 @@ export default function PixelGenerator() {
     erasePixel,
     bucketFill
   } = useYarnCluesStore();
+
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const { designs, saveDesign, deleteDesign } = usePixelDesigns();
   
   const [colorCount, setColorCount] = useState(8);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -222,7 +232,13 @@ export default function PixelGenerator() {
   
   // Canvas scaling state
   const [canvasScale, setCanvasScale] = useState(100);
-  
+
+  // New features state
+  const [showKnittingGuide, setShowKnittingGuide] = useState(false);
+  const [showLibrary, setShowLibrary] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [designName, setDesignName] = useState('');
+
   // Undo/Redo state for pixel grid
   const {
     state: undoablePixelGrid,
@@ -668,7 +684,54 @@ export default function PixelGenerator() {
     }
   };
 
-  const toggleIgnoreBackground = () => {
+  // Download pixel grid as PNG
+  const handleDownloadPNG = useCallback(() => {
+    if (pixelGrid.length === 0) return;
+    const scale = 10;
+    const canvas = document.createElement('canvas');
+    canvas.width = gridWidth * scale;
+    canvas.height = gridHeight * scale;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    for (const cell of pixelGrid) {
+      ctx.fillStyle = cell.color;
+      ctx.fillRect(cell.x * scale, cell.y * scale, scale, scale);
+    }
+    const link = document.createElement('a');
+    link.download = 'pixel-design.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }, [pixelGrid, gridWidth, gridHeight]);
+
+  // Save design to library
+  const handleSaveDesign = useCallback(async () => {
+    if (!designName.trim()) return;
+    try {
+      await saveDesign.mutateAsync({
+        name: designName.trim(),
+        grid_data: pixelGrid,
+        width: gridWidth,
+        height: gridHeight,
+        color_palette: colorPalette,
+      });
+      toast({ title: t('pixel.designSaved') });
+      setShowSaveDialog(false);
+    } catch (e: any) {
+      toast({ title: e.message, variant: 'destructive' });
+    }
+  }, [designName, pixelGrid, gridWidth, gridHeight, colorPalette, saveDesign, toast, t]);
+
+  // Load design from library
+  const handleLoadDesign = useCallback((design: any) => {
+    setGridDimensions(design.width, design.height);
+    setPixelGrid(design.grid_data);
+    setColorPalette(design.color_palette);
+    resetUndoHistory(design.grid_data);
+    setShowLibrary(false);
+    toast({ title: t('pixel.designLoaded') });
+  }, [setGridDimensions, setPixelGrid, setColorPalette, resetUndoHistory, toast, t]);
+
+
     if (ignoredColor) {
       setIgnoredColor(null);
     } else if (colorPalette.length > 0) {
@@ -941,7 +1004,25 @@ export default function PixelGenerator() {
                 <Sliders className="w-4 h-4 text-primary" />
                 <h3 className="font-medium text-sm">{t('pixel.maxColors')}</h3>
               </div>
-              <span className="text-sm font-semibold text-primary">{colorCount}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-primary">{colorCount}</span>
+                {uploadedImage && pixelGrid.length > 0 && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 rounded-lg text-xs"
+                        onClick={() => processImageWithDimensions(uploadedImage, gridWidth, gridHeight)}
+                      >
+                        <RefreshCw className="w-3 h-3 mr-1" />
+                        {t('pixel.syncColors')}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('pixel.syncColors')}</TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
             </div>
             <Slider
               value={[colorCount]}
@@ -1158,6 +1239,47 @@ export default function PixelGenerator() {
                 <span className="text-sm text-muted-foreground">
                   {gridWidth} × {gridHeight} {t('swatch.stitches')}
                 </span>
+                {pixelGrid.length > 0 && (
+                  <>
+                    <div className="w-px h-6 bg-border mx-1" />
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="outline" size="icon" className="rounded-xl h-8 w-8" onClick={handleDownloadPNG}>
+                          <Download className="w-4 h-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('pixel.download')}</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="outline" size="icon" className="rounded-xl h-8 w-8" onClick={() => {
+                          if (!user) { toast({ title: t('common.signIn'), variant: 'destructive' }); return; }
+                          setDesignName('');
+                          setShowSaveDialog(true);
+                        }}>
+                          <Save className="w-4 h-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('pixel.saveToLibrary')}</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="outline" size="icon" className="rounded-xl h-8 w-8" onClick={() => setShowKnittingGuide(true)}>
+                          <Navigation className="w-4 h-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('pixel.startKnitting')}</TooltipContent>
+                    </Tooltip>
+                  </>
+                )}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="icon" className="rounded-xl h-8 w-8" onClick={() => setShowLibrary(true)}>
+                      <FolderOpen className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('pixel.designLibrary')}</TooltipContent>
+                </Tooltip>
               </div>
             </div>
 
@@ -1240,6 +1362,99 @@ export default function PixelGenerator() {
           )}
         </motion.div>
       </div>
+
+      {/* Save Design Dialog */}
+      <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('pixel.saveToLibrary')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>{t('pixel.saveDesignName')}</Label>
+              <Input
+                value={designName}
+                onChange={(e) => setDesignName(e.target.value)}
+                placeholder={t('pixel.saveDesignName')}
+                onKeyDown={(e) => e.key === 'Enter' && handleSaveDesign()}
+              />
+            </div>
+            <Button onClick={handleSaveDesign} disabled={!designName.trim() || saveDesign.isPending} className="w-full rounded-xl">
+              <Save className="w-4 h-4 mr-2" />
+              {t('common.save')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Design Library Dialog */}
+      <Dialog open={showLibrary} onOpenChange={setShowLibrary}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t('pixel.designLibrary')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+            {designs.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">{t('pixel.noDesigns')}</p>
+            ) : (
+              designs.map((design) => (
+                <div key={design.id} className="flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-muted/30 transition-colors">
+                  {/* Mini preview */}
+                  <div className="w-12 h-12 rounded-lg overflow-hidden border border-border bg-muted/20 shrink-0">
+                    <canvas
+                      ref={(canvas) => {
+                        if (!canvas) return;
+                        const ctx = canvas.getContext('2d');
+                        if (!ctx) return;
+                        canvas.width = design.width;
+                        canvas.height = design.height;
+                        for (const cell of design.grid_data) {
+                          ctx.fillStyle = cell.color;
+                          ctx.fillRect(cell.x, cell.y, 1, 1);
+                        }
+                      }}
+                      className="w-full h-full"
+                      style={{ imageRendering: 'pixelated' }}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{design.name}</p>
+                    <p className="text-xs text-muted-foreground">{design.width}×{design.height}</p>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button variant="outline" size="sm" className="rounded-lg" onClick={() => handleLoadDesign(design)}>
+                      {t('pixel.loadDesign')}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive"
+                      onClick={async () => {
+                        await deleteDesign.mutateAsync(design.id);
+                        toast({ title: t('pixel.designDeleted') });
+                      }}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Knitting Guide Fullscreen */}
+      <AnimatePresence>
+        {showKnittingGuide && pixelGrid.length > 0 && (
+          <PixelKnittingGuide
+            pixelGrid={pixelGrid}
+            gridWidth={gridWidth}
+            gridHeight={gridHeight}
+            onClose={() => setShowKnittingGuide(false)}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
