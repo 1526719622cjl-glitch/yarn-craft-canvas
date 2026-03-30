@@ -205,8 +205,12 @@ export default function SwatchLab() {
     if (!yarnName.trim()) return;
     
     // Upload photos if present
-    const prePhotoUrl = preWashImage ? await uploadSwatchPhoto(preWashImage, 'pre') : null;
-    const postPhotoUrl = postWashImage ? await uploadSwatchPhoto(postWashImage, 'post') : null;
+    const prePhotoUrl = preWashImage
+      ? (preWashImage.startsWith('data:') ? await uploadSwatchPhoto(preWashImage, 'pre') : preWashImage)
+      : null;
+    const postPhotoUrl = postWashImage
+      ? (postWashImage.startsWith('data:') ? await uploadSwatchPhoto(postWashImage, 'post') : postWashImage)
+      : null;
     
     createEntry.mutate({
       name: yarnName.trim(),
