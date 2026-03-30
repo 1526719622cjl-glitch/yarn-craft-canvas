@@ -231,7 +231,8 @@ export default function PixelGenerator() {
   const [manualHeight, setManualHeight] = useState(customGridHeight);
   const [emptyCanvasColor, setEmptyCanvasColor] = useState('#FDFBF7');
   const [customColor, setCustomColor] = useState('#6B8E23');
-  
+  const eyedropperInputRef = useRef<HTMLInputElement>(null);
+  const eyedropperCanvasRef = useRef<HTMLCanvasElement>(null);
   // Canvas scaling state
   const [canvasScale, setCanvasScale] = useState(100);
 
@@ -244,6 +245,11 @@ export default function PixelGenerator() {
   const [exportIncludeGrid, setExportIncludeGrid] = useState(true);
   const [exportIncludeNumbers, setExportIncludeNumbers] = useState(true);
   const [eraserSize, setEraserSize] = useState(1);
+  const [eyedropperImage, setEyedropperImage] = useState<string | null>(null);
+  const [eyedropperPos, setEyedropperPos] = useState<{ x: number; y: number } | null>(null);
+  const [showEyedropperDialog, setShowEyedropperDialog] = useState(false);
+  const [activeDesignId, setActiveDesignId] = useState<string | null>(null);
+  const [activeDesignProgress, setActiveDesignProgress] = useState<any>(null);
 
   // Undo/Redo state for pixel grid
   const {
