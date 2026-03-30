@@ -29,8 +29,8 @@ const translations = {
   'common.updated': '更新于',
 
   // Sidebar
-  'sidebar.subtitle': '线·索 · 编织设计套件',
-  'sidebar.footer': '全栈编织设计套件',
+  'sidebar.subtitle': '线·索 · All for yarn',
+  'sidebar.footer': 'All for yarn',
   'nav.swatchLab': '样片实验室',
   'nav.swatchLab.desc': '密度计算器',
   'nav.pixelGenerator': '像素生成器',
@@ -44,7 +44,7 @@ const translations = {
 
   // Auth
   'auth.title': 'Yarn Clues',
-  'auth.subtitle': '线·索 设计套件',
+  'auth.subtitle': '线·索 · All for yarn',
   'auth.signInTab': '登录',
   'auth.signUpTab': '注册',
   'auth.email': '邮箱',

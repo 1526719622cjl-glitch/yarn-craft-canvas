@@ -164,7 +164,7 @@ export function PatternUploadDialog({ open, onOpenChange, category, onCreate, on
                 <SelectItem value="none">{t('pattern.noLinkedYarn')}</SelectItem>
                 {yarnOptions.map((yarn) => (
                   <SelectItem key={yarn.id} value={yarn.id}>
-                    {yarn.brand ? `${yarn.brand} - ${yarn.name}` : yarn.name}
+                    {yarn.name}{yarn.brand ? ` · ${yarn.brand}` : ''}
                   </SelectItem>
                 ))}
               </SelectContent>

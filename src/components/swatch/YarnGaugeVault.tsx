@@ -212,18 +212,18 @@ export function YarnGaugeVault({ onLoadYarn, compact = false }: YarnGaugeVaultPr
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 min-w-0">
                         <Package className="w-4 h-4 text-primary shrink-0" />
-                        <h3 className="font-medium text-foreground truncate">{yarn.name}</h3>
+                        <h3 className="font-semibold text-foreground truncate text-base">{yarn.name}</h3>
                       </div>
                       <div className="flex items-center gap-1">
                         {yarn.weight && <Badge variant="secondary" className="text-xs">{t(WEIGHT_KEYS[yarn.weight] as any)}</Badge>}
                         {yarn.status && <Badge className={`text-xs ${STATUS_COLORS[yarn.status]}`}>{yarn.status.replace('_', ' ')}</Badge>}
                       </div>
                     </div>
-                    <div className="text-sm text-muted-foreground space-y-1">
-                      {yarn.brand && <p className="truncate">{t('vault.brandLabel')} {yarn.brand}</p>}
-                      {yarn.fiber_content && <p className="truncate">{t('vault.fiberLabel')} {yarn.fiber_content}</p>}
+                    <div className="text-sm text-muted-foreground space-y-0.5">
+                      {yarn.brand && <p className="truncate text-xs">{t('vault.brandLabel')} {yarn.brand}</p>}
+                      {yarn.fiber_content && <p className="truncate text-xs">{t('vault.fiberLabel')} {yarn.fiber_content}</p>}
                       {(yarn.stitches_per_10cm || yarn.rows_per_10cm) && (
-                        <p>{t('vault.gaugeLabel')} {yarn.stitches_per_10cm ?? '-'} st × {yarn.rows_per_10cm ?? '-'} rows / 10cm</p>
+                        <p className="text-xs">{t('vault.gaugeLabel')} {yarn.stitches_per_10cm ?? '-'} st × {yarn.rows_per_10cm ?? '-'} rows / 10cm</p>
                       )}
                     </div>
                     <div className="flex gap-2 pt-2">

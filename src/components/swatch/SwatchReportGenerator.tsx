@@ -69,6 +69,7 @@ export function SwatchReportGenerator({
   const [isGenerating, setIsGenerating] = useState(false);
   const [yarnName, setYarnName] = useState(initialYarnName);
   const [yarnBrand, setYarnBrand] = useState(initialYarnBrand);
+  const [localProjectName, setLocalProjectName] = useState(projectName || '');
   const [notes, setNotes] = useState('');
   const { t } = useI18n();
 
@@ -80,6 +81,10 @@ export function SwatchReportGenerator({
   useEffect(() => {
     setYarnBrand(initialYarnBrand);
   }, [initialYarnBrand]);
+
+  useEffect(() => {
+    setLocalProjectName(projectName || '');
+  }, [projectName]);
 
   const handleDownload = async () => {
     if (!reportRef.current) return;
@@ -124,6 +129,10 @@ export function SwatchReportGenerator({
         </DialogHeader>
 
         <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>项目名称</Label>
+            <Input value={localProjectName} onChange={(e) => setLocalProjectName(e.target.value)} placeholder="如：毛衣前片" />
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>{t('report.yarnName')}</Label>
@@ -144,7 +153,7 @@ export function SwatchReportGenerator({
             <div ref={reportRef} className="p-6 bg-gradient-to-br from-[#FDFBF7] to-[#F5F0E8]" style={{ width: '100%', minHeight: '400px' }}>
               <div className="text-center mb-6">
                 <h2 className="text-2xl font-display font-semibold text-[#5D4E37]">{t('report.header')}</h2>
-                {projectName && <p className="text-base font-medium text-[#5D4E37] mt-1">{projectName}</p>}
+                {localProjectName && <p className="text-base font-medium text-[#5D4E37] mt-1">项目：{localProjectName}</p>}
               </div>
 
               <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 mb-4 shadow-sm">
