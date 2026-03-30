@@ -118,11 +118,11 @@ export function SwatchReportGenerator({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>{t('report.yarnName')}</Label>
-              <Input value={yarnName} onChange={(e) => setYarnName(e.target.value)} placeholder="e.g., Malabrigo Rios" />
+              <Input value={yarnName} onChange={(e) => setYarnName(e.target.value)} placeholder="如：美丽诺羊毛" />
             </div>
             <div className="space-y-2">
               <Label>{t('report.brand')}</Label>
-              <Input value={yarnBrand} onChange={(e) => setYarnBrand(e.target.value)} placeholder="e.g., Malabrigo" />
+              <Input value={yarnBrand} onChange={(e) => setYarnBrand(e.target.value)} placeholder="如：编织人生" />
             </div>
           </div>
           <div className="space-y-2">
