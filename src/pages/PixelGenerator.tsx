@@ -209,6 +209,7 @@ export default function PixelGenerator() {
   
   const [colorCount, setColorCount] = useState(8);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [baseImageDataUrl, setBaseImageDataUrl] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [useDithering, setUseDithering] = useState(true);
   const [showGridLines, setShowGridLines] = useState(true);
@@ -301,11 +302,55 @@ export default function PixelGenerator() {
     }
   }, [customGridWidth, combinedRatio, lockAspectRatio]);
 
-  // Re-process from original image when colorCount changes
+  // Re-quantize colors from original base image when colorCount changes, preserving current grid layout
   useEffect(() => {
-    if (uploadedImage && pixelGrid.length > 0) {
-      processImageWithDimensions(uploadedImage, gridWidth, gridHeight);
-    }
+    if (!baseImageDataUrl || pixelGrid.length === 0 || !canvasRef.current) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const img = new Image();
+    img.onload = () => {
+      // Draw original image to extract palette via K-means
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+      const originalImageData = ctx.getImageData(0, 0, img.width, img.height);
+      let paletteRgb = kMeansQuantize(originalImageData, colorCount);
+
+      if (limitToPalette && stashColors.length > 0) {
+        paletteRgb = stashColors.map(c => {
+          const m = c.hex.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
+          return m ? [parseInt(m[1],16), parseInt(m[2],16), parseInt(m[3],16)] as [number,number,number] : [128,128,128] as [number,number,number];
+        });
+      }
+
+      setColorPalette(paletteRgb.map(rgbToString));
+
+      // Map current pixel grid cells to nearest new palette color (preserves rotation/edits)
+      const parseColor = (color: string): [number,number,number] => {
+        const rgbMatch = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+        if (rgbMatch) return [parseInt(rgbMatch[1]), parseInt(rgbMatch[2]), parseInt(rgbMatch[3])];
+        const hex = color.replace('#', '');
+        if (hex.length === 6) return [parseInt(hex.slice(0,2),16), parseInt(hex.slice(2,4),16), parseInt(hex.slice(4,6),16)];
+        return [128,128,128];
+      };
+
+      const newGrid = pixelGrid.map(cell => {
+        const p = parseColor(cell.color);
+        let minDist = Infinity;
+        let best = paletteRgb[0];
+        for (const c of paletteRgb) {
+          const d = (p[0]-c[0])**2 + (p[1]-c[1])**2 + (p[2]-c[2])**2;
+          if (d < minDist) { minDist = d; best = c; }
+        }
+        return { ...cell, color: `rgb(${Math.round(best[0])}, ${Math.round(best[1])}, ${Math.round(best[2])})` };
+      });
+
+      setPixelGrid(newGrid);
+      resetUndoHistory(newGrid);
+    };
+    img.src = baseImageDataUrl;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [colorCount]);
 
