@@ -1,60 +1,91 @@
+# 综合修复计划：线材库同步 + 材质编辑 + 像素生成器增强
 
+## 问题分析
 
-# 织片裁剪 + 报告含项目规划 + 材质选择器
+### 1. 线材库不同步
 
-## 三个需求
+`useYarnVault.ts` 第157-158行：当 `folderId` 为 `null` 时，使用 `.eq('folder_id', null)` 生成 `folder_id=eq.null`，PostgREST 将其解析为字符串 `"null"` 而非 SQL NULL，导致 400 错误。需要改为 `.is('folder_id', null)`。
 
-1. **织片照片自主裁剪**：当前上传大图后直接 `readAsDataURL` 显示，会被 `object-cover` 截取。改为上传后弹出裁剪对话框（复用已有的 `ImageCropDialog`），用户自主选择区域。
+### 2. 裁剪照片尺寸不统一
 
-2. **样片报告包含项目规划器**：`SwatchReportGenerator` 当前不接收项目规划数据。改为传入 `projectPlan` 数据，如果用户填写了（`startingStitches > 0`），则在报告中显示目标尺寸、起针数、补偿后针数等。
+`SwatchLab.tsx` 裁剪后只保存 dataURL 用于显示，但样片报告的尺寸数据来自 `swatchData`（用户手动输入的针数/宽高），与裁剪后的图片实际尺寸无关。这不是 bug — 图片只是参考照片，尺寸数据是独立填写的。但需要确认裁剪后的图片在报告中正确显示（不被再次截取）。
 
-3. **材质选择器**：在"保存进线材库"对话框中（`SwatchLab.tsx` 和 `YarnGaugeVault.tsx`），把 `fiber_content` 从自由文本框改为可选材质列表 + 百分比输入。数据库 `fiber_content` 字段仍存储文本（如 "80% Merino, 20% Nylon"），前端负责组装/解析。
+### 3. 材质选择器只能从预设选
 
-## 修改计划
+`FiberContentSelector.tsx` 使用 `<Select>` 下拉，不允许自定义输入。改为在下拉列表中添加"自定义"选项，放在选项最上面，或改用 Combobox 模式允许用户输入自定义材质名。
 
-### 1. 织片照片裁剪 — SwatchLab.tsx
+### 4. 像素生成器：颜色数量不同步
 
-- 导入 `ImageCropDialog`
-- 添加状态：`cropDialogOpen`, `pendingImageFile`, `cropTarget`（pre/post）
-- `handleImageUpload` 改为：先 `readAsDataURL` → 设置 `pendingImageUrl` → 打开 `ImageCropDialog`
-- `onCropComplete` 回调将裁剪后的 dataURL 设置到对应的 `preWashImage` / `postWashImage`
+调整 `colorCount` 滑块后不会自动重新处理图片。需要在滑块旁加一个"同步"按钮，点击后用当前 `colorCount` 重新量化。
 
-### 2. 报告含项目规划 — SwatchReportGenerator.tsx
+### 5. 像素生成器：保存/下载
 
-- Props 新增 `projectPlan?: { targetWidth, targetHeight, startingStitches, startingRows }` 和 `compensatedStitches?: number`, `compensatedRows?: number`
-- 在报告中，若 `projectPlan.startingStitches > 0`，渲染"项目规划"区块：目标尺寸、起针数/行数、补偿值
-- `SwatchLab.tsx` 传入 `projectPlan={safeProjectPlan}` 和补偿值
+在画布右侧添加保存按钮，支持下载为 PNG 图片。
 
-### 3. 材质选择器组件 — 新建 `FiberContentSelector.tsx`
+### 6. 像素图库
 
-**预设材质列表**（可选，不强制）：
-- Merino / Alpaca / Cashmere / Cotton / Silk / Linen / Mohair / Nylon / Acrylic / Bamboo / Wool
+创建数据库表 `pixel_designs` 存储像素图数据，在像素生成器中添加保存/加载库功能。在图库中打开对应像素图加载进像素图编辑页面。
 
-**UI**：每行 = `[百分比输入框(可选)] + [材质下拉选择]`，可添加多行，底部"添加材质"按钮。
-- 百分比输入为 `<Input type="number" min={0} max={100}` placeholder="%" />`
-- 材质为 `<Select>` 包含预设选项
-- 输出：组装为字符串如 `"80% Merino, 20% Nylon"` 或 `"Merino, Cotton"`（无百分比时）
-- 输入：解析已有 `fiber_content` 字符串还原到行
+### 7. 定位编织模式
 
-**集成位置**：
-- `SwatchLab.tsx` 保存对话框：替换原 `fiber_content: null` 为选择器输出
-- `YarnGaugeVault.tsx` 保存对话框：替换原 `fiber_content` 文本输入
-- `YarnVault.tsx` 新建/编辑线材：替换原文本输入
+全屏模式显示像素图，底部中间显示当前行号，左右箭头切换行，高亮当前行。
 
-### 4. 翻译补充
+## 修改方案
 
-新增中英文翻译键：
-- `fiber.addFiber` / `fiber.percentage` / `fiber.material`
-- `report.projectPlan` / `report.targetSize` / `report.castOn` / `report.compensated`
-- 各材质名称翻译
+### 步骤 1: 修复线材库查询 — `useYarnVault.ts`
+
+```typescript
+// 第157-158行改为：
+if (folderId === null) {
+  query = query.is('folder_id', null);
+} else if (folderId !== undefined) {
+  query = query.eq('folder_id', folderId);
+}
+```
+
+### 步骤 2: 材质选择器支持自定义输入 — `FiberContentSelector.tsx`
+
+- 将 `<Select>` 替换为 `<Input>` + datalist 模式，或在 Select 中添加"自定义/Custom"选项，选中后显示文本输入框
+- 方案：每行改为 `<Input>` 搭配 `<datalist>` 提供预设建议，用户可自由输入
+
+### 步骤 3: 像素生成器颜色同步按钮 — `PixelGenerator.tsx`
+
+- 在 `colorCount` 滑块旁添加"同步"按钮
+- 点击后调用 `processImageWithDimensions(uploadedImage, gridWidth, gridHeight)` 重新量化
+
+### 步骤 4: 保存/下载按钮 — `PixelGenerator.tsx`
+
+- 在预览区右上角或右侧添加保存按钮
+- 下载为 PNG：将像素网格渲染到 Canvas 并导出
+
+### 步骤 5: 像素图库 — 数据库 + UI
+
+- 创建 `pixel_designs` 表：`id, user_id, name, grid_data (jsonb), width, height, color_palette (jsonb), created_at`
+- RLS 策略：用户只能 CRUD 自己的数据
+- 在像素生成器页面添加库面板，可保存当前作品、加载已保存作品
+
+### 步骤 6: 定位编织模式 — 新组件 `PixelKnittingGuide.tsx`
+
+- 全屏覆盖层显示像素图
+- 当前行高亮（黄色半透明覆盖）
+- 底部中间：行号数字（大字体）
+- 左右箭头按钮切换上一行/下一行
+- 显示当前行的颜色数据统计
+- 关闭按钮退出全屏
+
+### 步骤 7: 翻译补充
+
+新增像素生成器相关翻译键
 
 ## 实现顺序
 
-| 步骤 | 任务 | 文件 |
-|------|------|------|
-| 1 | 新增翻译键 | translations.ts |
-| 2 | 创建 FiberContentSelector 组件 | FiberContentSelector.tsx |
-| 3 | 织片照片裁剪集成 | SwatchLab.tsx |
-| 4 | 报告增加项目规划 | SwatchReportGenerator.tsx, SwatchLab.tsx |
-| 5 | 材质选择器集成到保存对话框 | SwatchLab.tsx, YarnGaugeVault.tsx, YarnVault.tsx |
 
+| 步骤  | 任务                           | 文件                                         |
+| --- | ---------------------------- | ------------------------------------------ |
+| 1   | 修复 `.eq(null)` → `.is(null)` | useYarnVault.ts                            |
+| 2   | 材质选择器支持自定义输入                 | FiberContentSelector.tsx                   |
+| 3   | 新增翻译键                        | translations.ts                            |
+| 4   | 颜色同步按钮 + 保存/下载               | PixelGenerator.tsx                         |
+| 5   | 创建 pixel_designs 表           | 数据库迁移                                      |
+| 6   | 像素图库 UI                      | PixelGenerator.tsx                         |
+| 7   | 定位编织模式组件                     | PixelKnittingGuide.tsx, PixelGenerator.tsx |
