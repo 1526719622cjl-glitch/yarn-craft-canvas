@@ -50,9 +50,11 @@ const STATUS_COLORS: Record<YarnStatus, string> = {
 interface YarnGaugeVaultProps {
   onLoadYarn?: (yarn: YarnEntry) => void;
   compact?: boolean;
+  preWashImage?: string | null;
+  postWashImage?: string | null;
 }
 
-export function YarnGaugeVault({ onLoadYarn, compact = false }: YarnGaugeVaultProps) {
+export function YarnGaugeVault({ onLoadYarn, compact = false, preWashImage, postWashImage }: YarnGaugeVaultProps) {
   const { user } = useAuth();
   const { t } = useI18n();
   const { swatchData, gaugeData, setSwatchData } = useYarnCluesStore();
