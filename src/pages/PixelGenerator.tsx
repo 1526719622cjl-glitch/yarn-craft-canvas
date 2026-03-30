@@ -381,6 +381,7 @@ export default function PixelGenerator() {
       const imageUrl = pendingCroppedImage.url;
       setPendingCroppedImage(null);
       setCustomGridDimensions(canvasWidth, canvasHeight);
+      setBaseImageDataUrl(imageUrl); // Store original base image for color re-quantization
       
       // Directly process image with confirmed dimensions - bypass state dependency issues
       processImageWithDimensions(imageUrl, canvasWidth, canvasHeight);
