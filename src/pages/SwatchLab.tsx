@@ -763,8 +763,8 @@ function ProMode() {
             </div>
 
             {smartCalc.mode === 'simple' && (
-              <div className="p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
-                <p className="text-xs text-yellow-700 dark:text-yellow-400 flex items-start gap-1.5">
+              <div className="p-3 rounded-xl bg-yarn-honey/20 border border-yarn-honey/30">
+                <p className="text-xs text-foreground/70 flex items-start gap-1.5">
                   <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                   测量提醒：请在编织过程中以当前样片密度为准，此计算未包含缩水补偿
                 </p>
