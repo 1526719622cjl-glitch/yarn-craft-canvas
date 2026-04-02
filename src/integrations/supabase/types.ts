@@ -356,6 +356,48 @@ export type Database = {
           },
         ]
       }
+      quick_calc_history: {
+        Row: {
+          created_at: string
+          id: string
+          result_rows: number
+          result_stitches: number
+          rows: number
+          stitches: number
+          swatch_height: number
+          swatch_width: number
+          target_height: number
+          target_width: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          result_rows: number
+          result_stitches: number
+          rows: number
+          stitches: number
+          swatch_height: number
+          swatch_width: number
+          target_height: number
+          target_width: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          result_rows?: number
+          result_stitches?: number
+          rows?: number
+          stitches?: number
+          swatch_height?: number
+          swatch_width?: number
+          target_height?: number
+          target_width?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       yarn_entries: {
         Row: {
           balls_in_stock: number | null
