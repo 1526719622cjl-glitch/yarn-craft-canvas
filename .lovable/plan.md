@@ -1,35 +1,142 @@
+# 样片实验室双模式重构：简易记录 / 专业分析 Pro
 
+## 概览
 
-# 修复线材库图片保存与加载同步
+将当前的样片实验室页面拆分为两种模式，通过 iOS 风格的滑动切换开关切换：
 
-## 问题根因
+- **简易记录**：极简界面，只需输入洗前小样数据 + 目标尺寸，一键计算，自动保存历史
+- **专业分析 Pro**：在当前基础上增强，包含线材信息、可折叠洗后数据、缩水分析、智能项目规划器、备注
 
-`SwatchLab.tsx` 第208-209行的 `handleSaveToCloud` 和 `YarnGaugeVault.tsx` 第104-110行的 `handleSaveYarn` 都调用 `uploadSwatchPhoto`。但 `uploadSwatchPhoto`（第189-201行）内部用 `fetch(dataUrl)` 将图片转 blob 再上传。
+---
 
-两个问题：
-1. **`handleSaveToCloud` 没有区分 data URL 和已有公共 URL** — 如果图片是从线材库加载的（已经是 `https://` URL），`fetch()` 可能因 CORS 失败，静默返回 `null`，导致保存时图片 URL 被覆盖为 null
-2. **`YarnGaugeVault` 的 `handleSaveYarn`** 虽然检查了 `startsWith('data:')` 才上传，但对非 data URL 直接用 `preWashImage` 原值——如果 props 里传的是 null 或空值，也会丢图
+## 修改清单
 
-## 修复方案
+### 1. 模式切换 UI + 状态管理
 
-### 文件：`src/pages/SwatchLab.tsx`
+**文件**: `src/pages/SwatchLab.tsx`
 
-修改 `handleSaveToCloud`（第207-209行）：
-- 如果 `preWashImage` 已经是 `https://` URL，直接使用，不再重新上传
-- 只有 `data:` 开头的才调用 `uploadSwatchPhoto`
-- `postWashImage` 同理
+- 在页面最顶部（标题下方）添加 iOS 风格双段切换：`[ 简易记录 ] | [ 专业分析 Pro ]`
+- 用 `useState<'quick' | 'pro'>('quick')` 管理当前模式
+- 根据模式条件渲染不同内容区块
+- 整体UI简化，使得页面在移动端查看时一目了然
 
-```typescript
-const prePhotoUrl = preWashImage
-  ? (preWashImage.startsWith('data:') ? await uploadSwatchPhoto(preWashImage, 'pre') : preWashImage)
-  : null;
-const postPhotoUrl = postWashImage
-  ? (postWashImage.startsWith('data:') ? await uploadSwatchPhoto(postWashImage, 'post') : postWashImage)
-  : null;
+### 2. 简易记录模式
+
+**文件**: `src/pages/SwatchLab.tsx`（新增区块）
+
+UI 结构：
+
+```text
+┌─────────────────────────────┐
+│  小样信息                    │
+│  宽度(cm) [10]  针数 [__]    │
+│  高度(cm) [10]  行数 [__]    │
+├─────────────────────────────┤
+│  目标尺寸                    │
+│  宽度(cm) [__]  高度(cm) [__]│
+├─────────────────────────────┤
+│  [计算]            [重置]    │
+├─────────────────────────────┤
+│  结果: 起100针 / 196行       │
+├─────────────────────────────┤
+│  历史记录 (最近5-10条)        │
+│  2026-04-02 14:00            │
+│  10×10cm: 20针×28行          │
+│  目标: 50×70cm → 100针/196行  │
+└─────────────────────────────┘
 ```
 
-这是唯一需要修改的地方。`YarnGaugeVault` 的 `handleSaveYarn` 已经有 `startsWith('data:')` 检查，逻辑正确。
+- 输入：小样宽度(默认10)、高度(默认10)、针数、行数、目标宽度、目标高度
+- 计算逻辑：`起针数 = targetWidth / swatchWidth * stitches`，`行数 = targetHeight / swatchHeight * rows`
+- 点击"计算"后自动将记录跟随登录账户
+- 历史记录存储：时间戳、密度、目标、结果；最多保留 15 条，超出自动覆盖最旧的
+- 提供"一键清空历史"按钮
+- 无需输入名称，系统自动抓取
+
+### 3. 专业分析 Pro 模式
+
+**文件**: `src/pages/SwatchLab.tsx`
+
+在当前页面基础上做以下调整：
+
+#### 3a. 新增可折叠线材信息区（放在洗前数据之前）
+
+- 包含：线材名称、品牌、粗细、纤维成分、工具类型/尺寸（与当前保存弹窗中的字段同步）
+- 可折叠，非必填，默认收起
+- 增加"从线材库导入"按钮，点击弹出线材库列表，选择后一键填充所有字段（包括小样数据）
+- 这些信息在最终保存时不再需要重复填写
+
+#### 3b. 洗后数据变为可折叠选填
+
+- 默认收起，旁边标注浅色提示文字："填写后可自动计算缩水补偿，防缩水变小"
+- 展开后显示当前的洗后输入区块
+
+#### 3c. 密度显示格式修改
+
+- 当前：`1.90 st/cm × 2.90 行/cm`
+- 改为：`10×10cm：19针 × 29行`（即 density * 10 取整）
+
+#### 3d. 图片框缩小
+
+- 洗前/洗后图片上传区域：空状态高度从 `h-24` 改为 `h-16`，已有图片的 `max-h-48` 改为 `max-h-32`
+
+#### 3e. 缩水分析始终可见
+
+- 移除 `hasShrinkage` 条件判断，改为始终显示缩水分析区块
+- 无洗后数据时显示"暂无洗后数据，无法分析缩水"提示
+
+#### 3f. 项目规划器智能逻辑
+
+**仅有洗前数据时**（洗后数据为空或与洗前相同）：
+
+- 基于洗前密度计算：起针数 = targetWidth / preWashWidth * stitchesPreWash
+- 显示提醒：⚠️ 测量提醒：请在编织过程中以当前样片密度为准，此计算未包含缩水补偿
+
+**洗前洗后数据都有时**：
+
+- 目标尺寸默认为洗后成品尺寸
+- 显示提示："检测到洗后数据，当前目标尺寸 50×70 已默认为下水定型后的成品尺寸"
+- 输出：建议起针 110 针 / 建议行数 160 行（基于洗前密度 × 补偿系数）
+- 额外说明："在此针数下，你手里的未下水织片尺寸应为：55cm × 66cm"
+- 结合样片数据说明："结合样片 +10% 横向缩水 / -6% 纵向拉伸率，尺寸将回归为：50cm × 70cm"
+
+#### 3g. 备注功能
+
+- 在项目规划器底部增加一个文本域，用于记录备注
+- 备注内容随项目一起保存
+
+#### 3h. 保存弹窗简化
+
+- 因为线材信息已在页面上填写，保存弹窗只需显示文件夹选择和确认
+- 线材名称等字段从页面状态自动带入
+
+### 4. 存储逻辑调整
+
+**简易记录**：
+
+- 数据结构：`{ timestamp, swatchWidth, swatchHeight, stitches, rows, targetWidth, targetHeight, resultStitches, resultRows }[]`
+- 最多 15 条，FIFO
+
+**专业分析 Pro**：
+
+- 保持当前 Supabase `yarn_entries` 表存储逻辑不变
+- 每条记录是独立 ID，关联到线材库
+
+---
 
 ## 涉及文件
-- `src/pages/SwatchLab.tsx`（2行修改）
 
+
+| 文件                                         | 改动                            |
+| ------------------------------------------ | ----------------------------- |
+| `src/pages/SwatchLab.tsx`                  | 主要重构：模式切换、简易记录区块、Pro 模式调整     |
+| `src/store/useYarnCluesStore.ts`           | 可能添加 `notes` 到 ProjectPlan 接口 |
+| `src/components/swatch/YarnGaugeVault.tsx` | 可能微调导入接口                      |
+
+
+## 实现顺序
+
+1. 添加模式切换 UI 和状态
+2. 实现简易记录模式（含历史记录）
+3. 重构 Pro 模式（线材折叠区、洗后折叠、密度格式、图片缩小、缩水分析、智能规划器、备注）
+4. 简化保存弹窗
