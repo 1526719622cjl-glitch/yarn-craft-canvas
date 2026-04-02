@@ -49,6 +49,7 @@ const STATUS_COLORS: Record<YarnStatus, string> = {
 
 interface YarnGaugeVaultProps {
   onLoadYarn?: (yarn: YarnEntry) => void;
+  onStartProject?: (yarn: YarnEntry) => void;
   compact?: boolean;
   preWashImage?: string | null;
   postWashImage?: string | null;
