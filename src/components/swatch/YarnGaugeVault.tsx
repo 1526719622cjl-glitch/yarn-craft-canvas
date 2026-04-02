@@ -1,8 +1,8 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { FiberContentSelector } from '@/components/swatch/FiberContentSelector';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  FolderOpen, FolderPlus, Search, ChevronRight, Home, Trash2, Plus, Package, ChevronDown, Loader2, AlertCircle
+  FolderOpen, FolderPlus, Search, ChevronRight, Home, Trash2, Plus, Package, ChevronDown, Loader2, AlertCircle, ChevronUp
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useYarnFolders, useYarnEntries, YarnEntry, YarnWeight, YarnStatus } from '@/hooks/useYarnVault';
 import { useYarnCluesStore } from '@/store/useYarnCluesStore';
 import { useI18n } from '@/i18n/useI18n';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
@@ -56,6 +58,24 @@ interface YarnGaugeVaultProps {
   uploadSwatchPhoto?: (dataUrl: string, label: string) => Promise<string | null>;
 }
 
+// Hook to fetch all gauge records for a yarn (same name+brand)
+function useYarnGaugeHistory(name: string, brand: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: ['yarn-gauge-history', name, brand],
+    queryFn: async () => {
+      let query = supabase
+        .from('yarn_entries')
+        .select('id, tool_size_mm, tool_type, stitches_per_10cm, rows_per_10cm, created_at')
+        .eq('name', name);
+      if (brand) query = query.eq('brand', brand);
+      const { data, error } = await query.order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled,
+  });
+}
+
 export function YarnGaugeVault({ onLoadYarn, onStartProject, compact = false, preWashImage, postWashImage, uploadSwatchPhoto }: YarnGaugeVaultProps) {
   const { user } = useAuth();
   const { t } = useI18n();
@@ -70,6 +90,7 @@ export function YarnGaugeVault({ onLoadYarn, onStartProject, compact = false, pr
   const [yarnDialogOpen, setYarnDialogOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [isVaultOpen, setIsVaultOpen] = useState(!compact);
+  const [expandedYarnId, setExpandedYarnId] = useState<string | null>(null);
   
   const [newYarn, setNewYarn] = useState({
     name: '', brand: '', color_code: '', fiber_content: '', weight: '' as YarnWeight | '', notes: '',
@@ -98,7 +119,6 @@ export function YarnGaugeVault({ onLoadYarn, onStartProject, compact = false, pr
   const handleSaveYarn = async () => {
     if (!newYarn.name.trim() || !swatchData || !gaugeData) return;
     
-    // Upload photos if they are data URLs
     let prePhotoUrl: string | null = preWashImage || null;
     let postPhotoUrl: string | null = postWashImage || null;
     
@@ -214,7 +234,7 @@ export function YarnGaugeVault({ onLoadYarn, onStartProject, compact = false, pr
                 <motion.button key={folder.id} onClick={() => handleNavigateToFolder(folder.id)} className="frosted-panel flex items-center gap-2 p-3 text-left group hover:bg-muted/30 transition-colors" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                   <FolderOpen className="w-5 h-5 text-primary" />
                   <span className="font-medium text-sm truncate">{folder.name}</span>
-                  <button onClick={(e) => { e.stopPropagation(); deleteFolder.mutate(folder.id); }} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive">
+                  <button onClick={(e) => { e.stopPropagation(); if (!confirm('确定要删除此文件夹吗？')) return; deleteFolder.mutate(folder.id); }} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </motion.button>
@@ -223,39 +243,18 @@ export function YarnGaugeVault({ onLoadYarn, onStartProject, compact = false, pr
           )}
 
           {entries.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <AnimatePresence>
                 {entries.map((yarn) => (
-                  <motion.div key={yarn.id} layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="frosted-panel space-y-2 group">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Package className="w-4 h-4 text-primary shrink-0" />
-                        <h3 className="font-semibold text-foreground truncate text-base">{yarn.name}</h3>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {yarn.weight && <Badge variant="secondary" className="text-xs">{t(WEIGHT_KEYS[yarn.weight] as any)}</Badge>}
-                        {yarn.status && <Badge className={`text-xs ${STATUS_COLORS[yarn.status]}`}>{yarn.status.replace('_', ' ')}</Badge>}
-                      </div>
-                    </div>
-                    <div className="text-sm text-muted-foreground space-y-0.5">
-                      {yarn.brand && <p className="truncate text-xs">{t('vault.brandLabel')} {yarn.brand}</p>}
-                      {yarn.fiber_content && <p className="truncate text-xs">{t('vault.fiberLabel')} {yarn.fiber_content}</p>}
-                      {(yarn.stitches_per_10cm || yarn.rows_per_10cm) && (
-                        <p className="text-xs">{t('vault.gaugeLabel')} {yarn.stitches_per_10cm ?? '-'} 针 × {yarn.rows_per_10cm ?? '-'} 行 / 10cm</p>
-                      )}
-                    </div>
-                    <div className="flex gap-2 pt-2">
-                      <Button variant="outline" size="sm" onClick={() => handleLoadYarn(yarn)} className="flex-1 rounded-xl">{t('vault.load')}</Button>
-                      {onStartProject && (
-                        <Button size="sm" onClick={() => onStartProject(yarn)} className="flex-1 rounded-xl">
-                          🧶 以此开坑
-                        </Button>
-                      )}
-                      <Button variant="ghost" size="icon" onClick={() => deleteEntry.mutate(yarn.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </motion.div>
+                  <YarnCard
+                    key={yarn.id}
+                    yarn={yarn}
+                    expanded={expandedYarnId === yarn.id}
+                    onToggleExpand={() => setExpandedYarnId(expandedYarnId === yarn.id ? null : yarn.id)}
+                    onConfirmLoad={() => { handleLoadYarn(yarn); setExpandedYarnId(null); }}
+                    onStartProject={onStartProject ? () => { handleLoadYarn(yarn); onStartProject(yarn); } : undefined}
+                    onDelete={() => { if (!confirm('确定要删除此线材记录吗？')) return; deleteEntry.mutate(yarn.id); }}
+                  />
                 ))}
               </AnimatePresence>
             </div>
@@ -272,7 +271,7 @@ export function YarnGaugeVault({ onLoadYarn, onStartProject, compact = false, pr
   );
 
   return (
-    <motion.div variants={itemVariants} className="glass-card p-6 space-y-4">
+    <motion.div variants={itemVariants} className="glass-card p-4 sm:p-6 space-y-4">
       <div className="flex items-center justify-between">
         <Collapsible open={isVaultOpen} onOpenChange={setIsVaultOpen}>
           <CollapsibleTrigger asChild>
@@ -372,7 +371,7 @@ export function YarnGaugeVault({ onLoadYarn, onStartProject, compact = false, pr
                 <div className="frosted-panel">
                   <p className="text-xs text-muted-foreground mb-2">{t('vault.currentGauge')}</p>
                   <p className="text-sm font-medium">
-                    {gaugeData?.postWashStitchDensity?.toFixed(1) ?? '0'} st/cm × {gaugeData?.postWashRowDensity?.toFixed(1) ?? '0'} rows/cm
+                    {gaugeData?.postWashStitchDensity?.toFixed(1) ?? '0'} st/cm × {gaugeData?.postWashRowDensity?.toFixed(1) ?? '0'} 行/cm
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {t('vault.swatchSize')} {swatchData?.postWashWidth ?? 10} × {swatchData?.postWashHeight ?? 10} cm
@@ -395,6 +394,115 @@ export function YarnGaugeVault({ onLoadYarn, onStartProject, compact = false, pr
       </div>
 
       {!compact && !isVaultOpen && null}
+    </motion.div>
+  );
+}
+
+// ─── Yarn Card with expandable details ───
+interface YarnCardProps {
+  yarn: YarnEntry;
+  expanded: boolean;
+  onToggleExpand: () => void;
+  onConfirmLoad: () => void;
+  onStartProject?: () => void;
+  onDelete: () => void;
+}
+
+function YarnCard({ yarn, expanded, onToggleExpand, onConfirmLoad, onStartProject, onDelete }: YarnCardProps) {
+  const { t } = useI18n();
+  const { data: gaugeHistory = [] } = useYarnGaugeHistory(yarn.name, yarn.brand, expanded);
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className="frosted-panel overflow-hidden"
+    >
+      {/* Header */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <Package className="w-3.5 h-3.5 text-primary shrink-0" />
+            <h3 className="font-semibold text-foreground truncate text-sm">{yarn.name}</h3>
+          </div>
+          <div className="flex items-center gap-1 mt-1 flex-wrap">
+            {yarn.weight && <Badge variant="secondary" className="text-[10px] h-5">{t(WEIGHT_KEYS[yarn.weight] as any)}</Badge>}
+            {yarn.status && <Badge className={`text-[10px] h-5 ${STATUS_COLORS[yarn.status]}`}>{yarn.status.replace('_', ' ')}</Badge>}
+          </div>
+        </div>
+        <Button variant="ghost" size="icon" onClick={onDelete} className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive">
+          <Trash2 className="w-3.5 h-3.5" />
+        </Button>
+      </div>
+
+      {/* Brief info */}
+      <div className="text-xs text-muted-foreground mt-2 space-y-0.5">
+        {yarn.brand && <p className="truncate">品牌: {yarn.brand}</p>}
+        {yarn.color_code && <p className="truncate">色号: {yarn.color_code}</p>}
+        {yarn.fiber_content && <p className="truncate">成分: {yarn.fiber_content}</p>}
+        {(yarn.stitches_per_10cm || yarn.rows_per_10cm) && (
+          <p>密度: {yarn.stitches_per_10cm ?? '-'}针 × {yarn.rows_per_10cm ?? '-'}行 / 10cm</p>
+        )}
+      </div>
+
+      {/* Expand/Collapse details */}
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="pt-3 mt-3 border-t border-border/30 space-y-2">
+              {yarn.tool_type && (
+                <p className="text-xs text-muted-foreground">工具: {yarn.tool_type === 'hook' ? '钩针' : '棒针'} {yarn.tool_size_mm ? `${yarn.tool_size_mm}mm` : ''}</p>
+              )}
+
+              {gaugeHistory.length > 1 && (
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">历史密度记录:</p>
+                  {gaugeHistory.map((record) => (
+                    <p key={record.id} className="text-xs text-muted-foreground pl-2">
+                      {record.tool_size_mm ? `${record.tool_size_mm}mm` : '—'} → {record.stitches_per_10cm ?? '-'}针 × {record.rows_per_10cm ?? '-'}行/10cm
+                    </p>
+                  ))}
+                </div>
+              )}
+
+              {/* Photos preview */}
+              <div className="flex gap-2">
+                {yarn.pre_wash_photo_url && (
+                  <img src={yarn.pre_wash_photo_url} alt="洗前" className="w-16 h-16 object-cover rounded-lg border border-border/30" />
+                )}
+                {yarn.post_wash_photo_url && (
+                  <img src={yarn.post_wash_photo_url} alt="洗后" className="w-16 h-16 object-cover rounded-lg border border-border/30" />
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Action buttons - always inside card */}
+      <div className="flex gap-2 mt-3 pt-2 border-t border-border/20">
+        <Button variant="outline" size="sm" onClick={onToggleExpand} className="flex-1 rounded-xl h-8 text-xs">
+          {expanded ? <ChevronUp className="w-3 h-3 mr-1" /> : <ChevronDown className="w-3 h-3 mr-1" />}
+          {expanded ? '收起' : '查看详情'}
+        </Button>
+        {expanded && (
+          <Button size="sm" onClick={onConfirmLoad} className="flex-1 rounded-xl h-8 text-xs">
+            确认导入
+          </Button>
+        )}
+        {onStartProject && (
+          <Button size="sm" variant="secondary" onClick={onStartProject} className="flex-1 rounded-xl h-8 text-xs">
+            🧶 以此开坑
+          </Button>
+        )}
+      </div>
     </motion.div>
   );
 }

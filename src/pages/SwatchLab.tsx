@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { useYarnCluesStore } from '@/store/useYarnCluesStore';
-import { Ruler, Calculator, TrendingUp, Target, Undo, Redo, Save, Droplets, Info, Loader2, FileImage, Camera, X, Trash2, Clock, ChevronDown, Import, AlertTriangle, Package } from 'lucide-react';
+import { Ruler, Calculator, TrendingUp, Target, Undo, Redo, Save, Droplets, Info, Loader2, FileImage, Camera, X, Trash2, Clock, ChevronDown, Import, AlertTriangle, Package, Search } from 'lucide-react';
 import { ImageCropDialog } from '@/components/pixel/ImageCropDialog';
 import { FiberContentSelector } from '@/components/swatch/FiberContentSelector';
 import { Input } from '@/components/ui/input';
@@ -26,6 +26,7 @@ import {
 import { SwatchReportGenerator } from '@/components/swatch/SwatchReportGenerator';
 import { useI18n } from '@/i18n/useI18n';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 // Tool size presets
 const TOOL_SIZES = [2.0, 2.25, 2.5, 2.75, 3.0, 3.25, 3.5, 3.75, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 8.0, 9.0, 10.0];
@@ -199,7 +200,10 @@ function QuickCalcMode() {
             <Clock className="w-4 h-4 text-muted-foreground" /> 历史记录
           </h3>
           {history.length > 0 && (
-            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground h-7" onClick={() => clearAll.mutate()}>
+            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground h-7" onClick={() => {
+              if (!confirm('确定要清空所有历史记录吗？')) return;
+              clearAll.mutate();
+            }}>
               一键清空
             </Button>
           )}
@@ -243,13 +247,14 @@ function ProMode({ pendingYarn, onPendingYarnConsumed }: ProModeProps) {
 
   const { user } = useAuth();
   const { folders } = useYarnFolders();
-  const { createEntry } = useYarnEntries();
+  const { entries: allYarnEntries, createEntry } = useYarnEntries();
   const { t } = useI18n();
   
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [yarnName, setYarnName] = useState('');
   const [yarnBrand, setYarnBrand] = useState('');
+  const [yarnColorCode, setYarnColorCode] = useState('');
   const [yarnWeight, setYarnWeight] = useState<YarnWeight | ''>('');
   const [showReportGenerator, setShowReportGenerator] = useState(false);
   const [customToolSize, setCustomToolSize] = useState('');
@@ -267,6 +272,11 @@ function ProMode({ pendingYarn, onPendingYarnConsumed }: ProModeProps) {
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [pendingImageUrl, setPendingImageUrl] = useState('');
   const [cropTarget, setCropTarget] = useState<'pre' | 'post'>('pre');
+
+  // Import from library dialog
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importSearchQuery, setImportSearchQuery] = useState('');
+  const { entries: importEntries, isLoading: importLoading } = useYarnEntries(null, importSearchQuery);
 
   const handleImageUpload = (file: File, target: 'pre' | 'post') => {
     const reader = new FileReader();
@@ -359,6 +369,7 @@ function ProMode({ pendingYarn, onPendingYarnConsumed }: ProModeProps) {
     if (!pendingYarn) return;
     setYarnName(pendingYarn.name);
     setYarnBrand(pendingYarn.brand || '');
+    setYarnColorCode(pendingYarn.color_code || '');
     setFiberContent(pendingYarn.fiber_content || '');
     setPreWashImage(pendingYarn.pre_wash_photo_url || null);
     setPostWashImage(pendingYarn.post_wash_photo_url || null);
@@ -406,6 +417,19 @@ function ProMode({ pendingYarn, onPendingYarnConsumed }: ProModeProps) {
 
   const handleSaveToCloud = async () => {
     if (!yarnName.trim()) return;
+
+    // Duplicate detection: check if same name + brand + density already exists
+    const existingDuplicate = allYarnEntries.find(entry =>
+      entry.name === yarnName.trim() &&
+      (entry.brand || '') === yarnBrand.trim() &&
+      entry.stitches_per_10cm === Math.round(safeGaugeData.postWashStitchDensity * 10) &&
+      entry.rows_per_10cm === Math.round(safeGaugeData.postWashRowDensity * 10)
+    );
+    if (existingDuplicate) {
+      toast.error('线材库已存在相同记录（同名称、品牌、密度）');
+      return;
+    }
+
     const prePhotoUrl = preWashImage
       ? (preWashImage.startsWith('data:') ? await uploadSwatchPhoto(preWashImage, 'pre') : preWashImage)
       : null;
@@ -416,7 +440,7 @@ function ProMode({ pendingYarn, onPendingYarnConsumed }: ProModeProps) {
     createEntry.mutate({
       name: yarnName.trim(),
       brand: yarnBrand.trim() || null,
-      color_code: null,
+      color_code: yarnColorCode.trim() || null,
       fiber_content: fiberContent || null,
       weight: (yarnWeight || null) as YarnWeight | null,
       status: 'new' as YarnStatus,
@@ -438,6 +462,39 @@ function ProMode({ pendingYarn, onPendingYarnConsumed }: ProModeProps) {
       pre_wash_photo_url: prePhotoUrl, post_wash_photo_url: postPhotoUrl,
     });
     setSaveModalOpen(false);
+  };
+
+  // Import yarn from library
+  const handleImportYarn = (yarn: YarnEntry) => {
+    setYarnName(yarn.name);
+    setYarnBrand(yarn.brand || '');
+    setYarnColorCode(yarn.color_code || '');
+    setFiberContent(yarn.fiber_content || '');
+    if (yarn.weight) setYarnWeight(yarn.weight as YarnWeight);
+    if (yarn.tool_type) handleSwatchChange({ toolType: yarn.tool_type as 'hook' | 'needle' });
+    if (yarn.tool_size_mm) handleSwatchChange({ toolSizeMm: yarn.tool_size_mm });
+    setPreWashImage(yarn.pre_wash_photo_url || null);
+    setPostWashImage(yarn.post_wash_photo_url || null);
+    // Also load swatch data
+    const postWidth = yarn.post_wash_width_cm ?? 10;
+    const postHeight = yarn.post_wash_height_cm ?? 10;
+    const preWidth = yarn.pre_wash_width_cm ?? postWidth;
+    const preHeight = yarn.pre_wash_height_cm ?? postHeight;
+    const stitchDensity = yarn.stitches_per_10cm ? yarn.stitches_per_10cm / 10 : 2;
+    const rowDensity = yarn.rows_per_10cm ? yarn.rows_per_10cm / 10 : 2.8;
+    setUndoableSwatch({
+      preWashWidth: preWidth, preWashHeight: preHeight,
+      stitchesPreWash: yarn.stitches_pre_wash ?? Math.round(stitchDensity * preWidth),
+      rowsPreWash: yarn.rows_pre_wash ?? Math.round(rowDensity * preHeight),
+      postWashWidth: postWidth, postWashHeight: postHeight,
+      stitchesPostWash: yarn.stitches_post_wash ?? Math.round(stitchDensity * postWidth),
+      rowsPostWash: yarn.rows_post_wash ?? Math.round(rowDensity * postHeight),
+      toolType: yarn.tool_type ?? null,
+      toolSizeMm: yarn.tool_size_mm ?? null,
+    });
+    setYarnInfoOpen(true);
+    setImportDialogOpen(false);
+    toast.success(`已导入线材：${yarn.name}`);
   };
 
   // Determine if post-wash data differs from pre-wash
@@ -512,12 +569,12 @@ function ProMode({ pendingYarn, onPendingYarnConsumed }: ProModeProps) {
             <Button variant="outline" size="icon" className="rounded-xl soft-press text-destructive hover:text-destructive h-8 w-8" onClick={() => {
               if (!confirm('确定要清空当前所有数据吗？已保存到线材库的数据不受影响。')) return;
               setSwatchData({
-                preWashWidth: 0, preWashHeight: 0, stitchesPreWash: 0, rowsPreWash: 0,
+                preWashWidth: 10, preWashHeight: 10, stitchesPreWash: 0, rowsPreWash: 0,
                 postWashWidth: 0, postWashHeight: 0, stitchesPostWash: 0, rowsPostWash: 0,
                 toolType: null, toolSizeMm: null,
               });
               setProjectPlan({ targetWidth: 0, targetHeight: 0, startingStitches: 0, startingRows: 0 });
-              setYarnName(''); setYarnBrand(''); setYarnWeight(''); setFiberContent(''); setProjectName('');
+              setYarnName(''); setYarnBrand(''); setYarnColorCode(''); setYarnWeight(''); setFiberContent(''); setProjectName('');
               setPreWashImage(null); setPostWashImage(null);
               setCustomToolSize(''); setIsCustomToolSize(false); setSelectedFolderId(null);
             }}>
@@ -542,6 +599,12 @@ function ProMode({ pendingYarn, onPendingYarnConsumed }: ProModeProps) {
             </button>
           </CollapsibleTrigger>
           <CollapsibleContent className="space-y-3 pt-4">
+            {/* Import from library button */}
+            {user && (
+              <Button variant="outline" size="sm" className="w-full rounded-xl text-xs" onClick={() => setImportDialogOpen(true)}>
+                <Import className="w-3.5 h-3.5 mr-1" /> 从线材库导入
+              </Button>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">线材名称</Label>
@@ -552,7 +615,11 @@ function ProMode({ pendingYarn, onPendingYarnConsumed }: ProModeProps) {
                 <Input value={yarnBrand} onChange={e => setYarnBrand(e.target.value)} placeholder="如：编织人生" className="h-9" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">色号</Label>
+                <Input value={yarnColorCode} onChange={e => setYarnColorCode(e.target.value)} placeholder="如：026" className="h-9" />
+              </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">粗细</Label>
                 <Select value={yarnWeight} onValueChange={(v) => setYarnWeight(v as YarnWeight)}>
@@ -637,13 +704,13 @@ function ProMode({ pendingYarn, onPendingYarnConsumed }: ProModeProps) {
           <input ref={preWashFileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImageUpload(file, 'pre'); }} />
           {preWashImage ? (
             <div className="relative group">
-              <img src={preWashImage} alt="Pre-wash" className="w-full max-h-32 object-contain rounded-xl border border-border/30" />
+              <img src={preWashImage} alt="Pre-wash" className="w-full max-h-24 object-contain rounded-xl border border-border/30" />
               <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => { setPreWashImage(null); if (preWashFileRef.current) preWashFileRef.current.value = ''; }}>
                 <X className="w-3 h-3" />
               </Button>
             </div>
           ) : (
-            <button onClick={() => preWashFileRef.current?.click()} className="w-full h-16 border-2 border-dashed border-border/40 rounded-xl flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors">
+            <button onClick={() => preWashFileRef.current?.click()} className="w-full h-14 border-2 border-dashed border-border/40 rounded-xl flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors">
               <Camera className="w-4 h-4" />
               <span className="text-xs">上传照片</span>
             </button>
@@ -699,13 +766,13 @@ function ProMode({ pendingYarn, onPendingYarnConsumed }: ProModeProps) {
               <input ref={postWashFileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImageUpload(file, 'post'); }} />
               {postWashImage ? (
                 <div className="relative group">
-                  <img src={postWashImage} alt="Post-wash" className="w-full max-h-32 object-contain rounded-xl border border-border/30" />
+                  <img src={postWashImage} alt="Post-wash" className="w-full max-h-24 object-contain rounded-xl border border-border/30" />
                   <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => { setPostWashImage(null); if (postWashFileRef.current) postWashFileRef.current.value = ''; }}>
                     <X className="w-3 h-3" />
                   </Button>
                 </div>
               ) : (
-                <button onClick={() => postWashFileRef.current?.click()} className="w-full h-16 border-2 border-dashed border-border/40 rounded-xl flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors">
+                <button onClick={() => postWashFileRef.current?.click()} className="w-full h-14 border-2 border-dashed border-border/40 rounded-xl flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors">
                   <Camera className="w-4 h-4" />
                   <span className="text-xs">上传照片</span>
                 </button>
@@ -720,7 +787,7 @@ function ProMode({ pendingYarn, onPendingYarnConsumed }: ProModeProps) {
         </Collapsible>
       </motion.div>
 
-      {/* Shrinkage Analysis - always visible, only 2 columns (no compensation factors) */}
+      {/* Shrinkage Analysis */}
       <motion.div variants={itemVariants} className="p-4 rounded-2xl bg-yarn-honey/20 border border-yarn-honey/30">
         <h3 className="text-sm font-medium mb-3">缩水/拉伸分析</h3>
         {hasPostWashData ? (
@@ -743,8 +810,8 @@ function ProMode({ pendingYarn, onPendingYarnConsumed }: ProModeProps) {
         )}
       </motion.div>
 
-      {/* Save to Library - moved above project planner */}
-      <motion.div variants={itemVariants} className="flex justify-end">
+      {/* Save to Library + Report - below shrinkage analysis, above project planner */}
+      <motion.div variants={itemVariants} className="flex items-center justify-between">
         {user ? (
           <Button onClick={() => setSaveModalOpen(true)} className="rounded-xl soft-press" size="sm">
             <Save className="w-4 h-4 mr-1" /> 保存到线材库
@@ -758,6 +825,11 @@ function ProMode({ pendingYarn, onPendingYarnConsumed }: ProModeProps) {
             </TooltipTrigger>
             <TooltipContent>登录后可保存</TooltipContent>
           </Tooltip>
+        )}
+        {user && (
+          <Button variant="outline" onClick={() => setShowReportGenerator(true)} className="rounded-xl soft-press" size="sm">
+            <FileImage className="w-4 h-4 mr-1" /> 生成报告
+          </Button>
         )}
       </motion.div>
 
@@ -826,15 +898,6 @@ function ProMode({ pendingYarn, onPendingYarnConsumed }: ProModeProps) {
             )}
           </div>
         )}
-
-        {/* Report button - only show when projectName is filled */}
-        {projectName.trim() && user && (
-          <div className="flex justify-end pt-3 border-t border-border/30">
-            <Button variant="outline" onClick={() => setShowReportGenerator(true)} className="rounded-xl soft-press" size="sm">
-              <FileImage className="w-4 h-4 mr-1" /> 生成报告
-            </Button>
-          </div>
-        )}
       </motion.div>
 
       {/* Save Modal */}
@@ -859,6 +922,7 @@ function ProMode({ pendingYarn, onPendingYarnConsumed }: ProModeProps) {
               <div className="frosted-panel space-y-1">
                 <p className="text-sm font-medium">{yarnName}</p>
                 {yarnBrand && <p className="text-xs text-muted-foreground">品牌：{yarnBrand}</p>}
+                {yarnColorCode && <p className="text-xs text-muted-foreground">色号：{yarnColorCode}</p>}
                 {yarnWeight && <p className="text-xs text-muted-foreground">粗细：{yarnWeight}</p>}
                 {fiberContent && <p className="text-xs text-muted-foreground">成分：{fiberContent}</p>}
               </div>
@@ -893,6 +957,46 @@ function ProMode({ pendingYarn, onPendingYarnConsumed }: ProModeProps) {
         </DialogContent>
       </Dialog>
 
+      {/* Import from Library Dialog */}
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent className="rounded-3xl max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Import className="w-5 h-5 text-primary" /> 从线材库导入
+            </DialogTitle>
+            <DialogDescription>搜索并选择线材，自动填入所有信息和样片数据</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input value={importSearchQuery} onChange={e => setImportSearchQuery(e.target.value)} placeholder="搜索线材名称或品牌..." className="pl-10" />
+            </div>
+            <div className="max-h-60 overflow-y-auto space-y-2">
+              {importLoading ? (
+                <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+              ) : importEntries.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-6">暂无线材记录</p>
+              ) : (
+                importEntries.map((yarn) => (
+                  <button
+                    key={yarn.id}
+                    onClick={() => handleImportYarn(yarn)}
+                    className="w-full text-left frosted-panel hover:bg-muted/30 transition-colors space-y-0.5"
+                  >
+                    <p className="text-sm font-medium truncate">{yarn.name}</p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      {yarn.brand && <span>{yarn.brand}</span>}
+                      {yarn.color_code && <span>色号: {yarn.color_code}</span>}
+                      {yarn.stitches_per_10cm && <span>{yarn.stitches_per_10cm}针/10cm</span>}
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Report Generator */}
       <SwatchReportGenerator
         open={showReportGenerator}
@@ -903,10 +1007,10 @@ function ProMode({ pendingYarn, onPendingYarnConsumed }: ProModeProps) {
         yarnBrand={yarnBrand}
         preWashImage={preWashImage}
         postWashImage={postWashImage}
-        projectPlan={safeProjectPlan.startingStitches > 0 ? safeProjectPlan : undefined}
-        compensatedStitches={smartCalc?.mode === 'compensated' ? smartCalc.stitches : 0}
-        compensatedRows={smartCalc?.mode === 'compensated' ? smartCalc.rows : 0}
-        projectName={projectName}
+        projectPlan={undefined}
+        compensatedStitches={0}
+        compensatedRows={0}
+        projectName={projectName || '样片报告'}
       />
 
       {/* Crop Dialog */}
