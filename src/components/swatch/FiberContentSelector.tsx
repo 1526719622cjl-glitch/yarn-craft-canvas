@@ -91,7 +91,7 @@ export function FiberContentSelector({ value, onChange }: FiberContentSelectorPr
           <option key={f.value} value={f.value}>{t(f.labelKey)}</option>
         ))}
       </datalist>
-      {rows.map((row) => (
+      {rows.map((row, index) => (
         <div key={row.id} className="flex items-center gap-2">
           <Input
             type="number"
@@ -109,17 +109,19 @@ export function FiberContentSelector({ value, onChange }: FiberContentSelectorPr
             placeholder={t('fiber.selectMaterial')}
             className="flex-1 h-9 text-sm"
           />
+          {/* Show add button inline after first row only */}
+          {index === 0 && (
+            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground hover:text-primary" onClick={addRow}>
+              <Plus className="w-3 h-3" />
+            </Button>
+          )}
           {rows.length > 1 && (
-            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => removeRow(row.id)}>
+            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeRow(row.id)}>
               <X className="w-3 h-3" />
             </Button>
           )}
         </div>
       ))}
-      <Button variant="outline" size="sm" onClick={addRow} className="w-full rounded-xl text-xs">
-        <Plus className="w-3 h-3 mr-1" />
-        {t('fiber.addFiber')}
-      </Button>
     </div>
   );
 }
