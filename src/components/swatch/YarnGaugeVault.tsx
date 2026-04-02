@@ -246,6 +246,11 @@ export function YarnGaugeVault({ onLoadYarn, onStartProject, compact = false, pr
                     </div>
                     <div className="flex gap-2 pt-2">
                       <Button variant="outline" size="sm" onClick={() => handleLoadYarn(yarn)} className="flex-1 rounded-xl">{t('vault.load')}</Button>
+                      {onStartProject && (
+                        <Button size="sm" onClick={() => onStartProject(yarn)} className="flex-1 rounded-xl">
+                          🧶 以此开坑
+                        </Button>
+                      )}
                       <Button variant="ghost" size="icon" onClick={() => deleteEntry.mutate(yarn.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
                         <Trash2 className="w-4 h-4" />
                       </Button>
