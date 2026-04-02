@@ -56,7 +56,7 @@ interface YarnGaugeVaultProps {
   uploadSwatchPhoto?: (dataUrl: string, label: string) => Promise<string | null>;
 }
 
-export function YarnGaugeVault({ onLoadYarn, compact = false, preWashImage, postWashImage, uploadSwatchPhoto }: YarnGaugeVaultProps) {
+export function YarnGaugeVault({ onLoadYarn, onStartProject, compact = false, preWashImage, postWashImage, uploadSwatchPhoto }: YarnGaugeVaultProps) {
   const { user } = useAuth();
   const { t } = useI18n();
   const { swatchData, gaugeData, setSwatchData } = useYarnCluesStore();
