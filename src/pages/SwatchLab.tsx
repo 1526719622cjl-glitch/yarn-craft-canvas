@@ -1,12 +1,11 @@
 import { motion } from 'framer-motion';
 import { useYarnCluesStore } from '@/store/useYarnCluesStore';
-import { Ruler, Calculator, TrendingUp, Target, Undo, Redo, Save, Droplets, Info, Loader2, FileImage, Camera, X, Trash2, Clock, ChevronDown, Import, AlertTriangle } from 'lucide-react';
+import { Ruler, Calculator, TrendingUp, Target, Undo, Redo, Save, Droplets, Info, Loader2, FileImage, Camera, X, Trash2, Clock, ChevronDown, Import, AlertTriangle, Package } from 'lucide-react';
 import { ImageCropDialog } from '@/components/pixel/ImageCropDialog';
 import { FiberContentSelector } from '@/components/swatch/FiberContentSelector';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { SmartYarnCalculator } from '@/components/swatch/SmartYarnCalculator';
 import { YarnGaugeVault } from '@/components/swatch/YarnGaugeVault';
@@ -14,7 +13,7 @@ import { useUndoRedo, useUndoRedoKeyboard } from '@/hooks/useUndoRedo';
 import { supabase } from '@/integrations/supabase/client';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuth } from '@/hooks/useAuth';
-import { useYarnFolders, useYarnEntries, YarnWeight, YarnStatus } from '@/hooks/useYarnVault';
+import { useYarnFolders, useYarnEntries, YarnEntry, YarnWeight, YarnStatus } from '@/hooks/useYarnVault';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -71,7 +70,6 @@ function useQuickCalcHistory(userId: string | undefined) {
       target_width: number; target_height: number; result_stitches: number; result_rows: number;
     }) => {
       if (!userId) throw new Error('Not authenticated');
-      // If more than 14 records, delete oldest
       if (history.length >= 15) {
         const oldest = history[history.length - 1];
         await supabase.from('quick_calc_history').delete().eq('id', oldest.id);
@@ -139,7 +137,6 @@ function QuickCalcMode() {
 
   return (
     <div className="space-y-5">
-      {/* Swatch Info */}
       <motion.div variants={itemVariants} className="glass-card p-5 space-y-4">
         <h3 className="text-sm font-medium text-foreground flex items-center gap-2">
           <span>🧶</span> 小样信息
@@ -164,7 +161,6 @@ function QuickCalcMode() {
         </div>
       </motion.div>
 
-      {/* Target Size */}
       <motion.div variants={itemVariants} className="glass-card p-5 space-y-4">
         <h3 className="text-sm font-medium text-foreground flex items-center gap-2">
           <Target className="w-4 h-4 text-primary" /> 目标尺寸
@@ -181,7 +177,6 @@ function QuickCalcMode() {
         </div>
       </motion.div>
 
-      {/* Buttons */}
       <motion.div variants={itemVariants} className="flex gap-3">
         <Button onClick={handleCalculate} className="flex-1 rounded-xl h-11" disabled={!stitches || !rows || !targetWidth || !targetHeight}>
           <Calculator className="w-4 h-4 mr-2" /> 计算
@@ -189,7 +184,6 @@ function QuickCalcMode() {
         <Button variant="outline" onClick={handleReset} className="rounded-xl h-11">重置</Button>
       </motion.div>
 
-      {/* Result */}
       {result && (
         <motion.div variants={itemVariants} className="glass-card p-5">
           <p className="text-sm text-muted-foreground mb-2">计算结果</p>
@@ -199,7 +193,6 @@ function QuickCalcMode() {
         </motion.div>
       )}
 
-      {/* History */}
       <motion.div variants={itemVariants} className="glass-card p-5 space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium flex items-center gap-2">
@@ -237,7 +230,12 @@ function QuickCalcMode() {
 // ═══════════════════════════════════════════════
 // Pro Mode Component
 // ═══════════════════════════════════════════════
-function ProMode() {
+interface ProModeProps {
+  pendingYarn: YarnEntry | null;
+  onPendingYarnConsumed: () => void;
+}
+
+function ProMode({ pendingYarn, onPendingYarnConsumed }: ProModeProps) {
   const { 
     swatchData, gaugeData, projectPlan,
     setSwatchData, setProjectPlan, calculateGauge,
@@ -248,7 +246,6 @@ function ProMode() {
   const { createEntry } = useYarnEntries();
   const { t } = useI18n();
   
-  // Cloud save modal state
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [yarnName, setYarnName] = useState('');
@@ -263,13 +260,10 @@ function ProMode() {
   const postWashFileRef = useRef<HTMLInputElement>(null);
   const [fiberContent, setFiberContent] = useState('');
   const [projectName, setProjectName] = useState('');
-  const [projectNotes, setProjectNotes] = useState('');
 
-  // Collapsible states
   const [yarnInfoOpen, setYarnInfoOpen] = useState(false);
   const [postWashOpen, setPostWashOpen] = useState(false);
 
-  // Crop dialog state
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [pendingImageUrl, setPendingImageUrl] = useState('');
   const [cropTarget, setCropTarget] = useState<'pre' | 'post'>('pre');
@@ -325,16 +319,64 @@ function ProMode() {
   const { state: undoableSwatchData, set: setUndoableSwatch, undo, redo, canUndo, canRedo } = useUndoRedo(safeSwatchData);
   useUndoRedoKeyboard(undo, redo);
 
+  // Track whether we initiated the change internally
+  const internalChangeRef = useRef(false);
+
   useEffect(() => {
     if (JSON.stringify(undoableSwatchData) !== JSON.stringify(safeSwatchData)) {
+      internalChangeRef.current = true;
       setSwatchData(undoableSwatchData);
     }
   }, [undoableSwatchData, setSwatchData]);
 
+  // Sync from store when swatchData changes externally (e.g., yarn import from vault)
+  useEffect(() => {
+    if (internalChangeRef.current) {
+      internalChangeRef.current = false;
+      return;
+    }
+    const storeData = {
+      preWashWidth: num(swatchData?.preWashWidth, 10),
+      preWashHeight: num(swatchData?.preWashHeight, 10),
+      stitchesPreWash: num(swatchData?.stitchesPreWash, 20),
+      rowsPreWash: num(swatchData?.rowsPreWash, 28),
+      postWashWidth: num(swatchData?.postWashWidth, 10),
+      postWashHeight: num(swatchData?.postWashHeight, 10),
+      stitchesPostWash: num(swatchData?.stitchesPostWash, 20),
+      rowsPostWash: num(swatchData?.rowsPostWash, 28),
+      toolType: swatchData?.toolType ?? null,
+      toolSizeMm: swatchData?.toolSizeMm ?? null,
+    };
+    if (JSON.stringify(storeData) !== JSON.stringify(undoableSwatchData)) {
+      setUndoableSwatch(storeData);
+    }
+  }, [swatchData]);
+
   useEffect(() => { calculateGauge(); }, [calculateGauge]);
 
+  // Handle pending yarn load from library tab
+  useEffect(() => {
+    if (!pendingYarn) return;
+    setYarnName(pendingYarn.name);
+    setYarnBrand(pendingYarn.brand || '');
+    setFiberContent(pendingYarn.fiber_content || '');
+    setPreWashImage(pendingYarn.pre_wash_photo_url || null);
+    setPostWashImage(pendingYarn.post_wash_photo_url || null);
+    setYarnInfoOpen(true);
+    if (pendingYarn.weight) setYarnWeight(pendingYarn.weight as YarnWeight);
+    onPendingYarnConsumed();
+  }, [pendingYarn, onPendingYarnConsumed]);
+
   const handleSwatchChange = (updates: Partial<typeof safeSwatchData>) => {
-    setUndoableSwatch((prev) => ({ ...prev, ...updates }));
+    setUndoableSwatch((prev) => {
+      const next = { ...prev, ...updates };
+      // Auto-sync: when post-wash width/height is set, copy pre-wash stitch/row counts
+      if ('postWashWidth' in updates || 'postWashHeight' in updates) {
+        next.stitchesPostWash = next.stitchesPreWash;
+        next.rowsPostWash = next.rowsPreWash;
+      }
+      return next;
+    });
   };
 
   const handleToolSizeChange = (value: string) => {
@@ -392,7 +434,7 @@ function ProMode() {
       tool_type: safeSwatchData.toolType,
       tool_size_mm: safeSwatchData.toolSizeMm,
       meters_per_ball: null, grams_per_ball: null, balls_in_stock: 0,
-      notes: projectNotes.trim() || null,
+      notes: null,
       pre_wash_photo_url: prePhotoUrl, post_wash_photo_url: postPhotoUrl,
     });
     setSaveModalOpen(false);
@@ -406,8 +448,6 @@ function ProMode() {
     safeSwatchData.rowsPostWash !== safeSwatchData.rowsPreWash
   ) && safeSwatchData.postWashWidth > 0 && safeSwatchData.postWashHeight > 0;
 
-  const hasShrinkage = safeGaugeData.widthShrinkage !== 0 || safeGaugeData.heightShrinkage !== 0;
-
   // Smart project planner calculations
   const smartCalc = (() => {
     const tw = safeProjectPlan.targetWidth;
@@ -415,7 +455,6 @@ function ProMode() {
     if (tw <= 0 || th <= 0) return null;
 
     if (hasPostWashData) {
-      // Use pre-wash density for starting count, then apply shrinkage compensation
       const preStitchDensity = safeGaugeData.preWashStitchDensity;
       const preRowDensity = safeGaugeData.preWashRowDensity;
       const wFactor = safeGaugeData.widthFactor;
@@ -428,14 +467,12 @@ function ProMode() {
       const heightShrinkPct = safeGaugeData.heightShrinkage;
       return {
         mode: 'compensated' as const,
-        stitches: suggestedStitches,
-        rows: suggestedRows,
+        stitches: suggestedStitches, rows: suggestedRows,
         preWashWidth: Math.round(preWashWidth * 10) / 10,
         preWashHeight: Math.round(preWashHeight * 10) / 10,
         widthShrinkPct, heightShrinkPct,
       };
     } else {
-      // Simple: use pre-wash density only
       const preStitchDensity = safeGaugeData.preWashStitchDensity;
       const preRowDensity = safeGaugeData.preWashRowDensity;
       const suggestedStitches = Math.round(tw * preStitchDensity);
@@ -444,7 +481,6 @@ function ProMode() {
     }
   })();
 
-  // Density formatted as 10×10cm: XX针 × XX行
   const formatDensity = (stitchDensity: number, rowDensity: number) => {
     const st10 = Math.round(stitchDensity * 10);
     const rw10 = Math.round(rowDensity * 10);
@@ -481,7 +517,7 @@ function ProMode() {
                 toolType: null, toolSizeMm: null,
               });
               setProjectPlan({ targetWidth: 0, targetHeight: 0, startingStitches: 0, startingRows: 0 });
-              setYarnName(''); setYarnBrand(''); setYarnWeight(''); setFiberContent(''); setProjectName(''); setProjectNotes('');
+              setYarnName(''); setYarnBrand(''); setYarnWeight(''); setFiberContent(''); setProjectName('');
               setPreWashImage(null); setPostWashImage(null);
               setCustomToolSize(''); setIsCustomToolSize(false); setSelectedFolderId(null);
             }}>
@@ -492,7 +528,7 @@ function ProMode() {
         </Tooltip>
       </motion.div>
 
-      {/* 3a. Collapsible Yarn Info */}
+      {/* Collapsible Yarn Info */}
       <motion.div variants={itemVariants} className="glass-card p-5">
         <Collapsible open={yarnInfoOpen} onOpenChange={setYarnInfoOpen}>
           <CollapsibleTrigger asChild>
@@ -538,7 +574,6 @@ function ProMode() {
                 <FiberContentSelector value={fiberContent} onChange={setFiberContent} />
               </div>
             </div>
-            {/* Tool */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">工具类型</Label>
@@ -597,7 +632,6 @@ function ProMode() {
           </div>
         </div>
 
-        {/* Pre-wash image - smaller */}
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">样片照片</Label>
           <input ref={preWashFileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImageUpload(file, 'pre'); }} />
@@ -622,7 +656,7 @@ function ProMode() {
         </div>
       </motion.div>
 
-      {/* 3b. Collapsible Post-Wash */}
+      {/* Collapsible Post-Wash */}
       <motion.div variants={itemVariants} className="glass-card p-5">
         <Collapsible open={postWashOpen} onOpenChange={setPostWashOpen}>
           <CollapsibleTrigger asChild>
@@ -660,7 +694,6 @@ function ProMode() {
               </div>
             </div>
 
-            {/* Post-wash image - smaller */}
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">样片照片</Label>
               <input ref={postWashFileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImageUpload(file, 'post'); }} />
@@ -687,11 +720,11 @@ function ProMode() {
         </Collapsible>
       </motion.div>
 
-      {/* 3e. Shrinkage Analysis - always visible */}
+      {/* Shrinkage Analysis - always visible, only 2 columns (no compensation factors) */}
       <motion.div variants={itemVariants} className="p-4 rounded-2xl bg-yarn-honey/20 border border-yarn-honey/30">
         <h3 className="text-sm font-medium mb-3">缩水/拉伸分析</h3>
         {hasPostWashData ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+          <div className="grid grid-cols-2 gap-4 text-center">
             <div>
               <p className="text-2xl font-display font-semibold text-primary">
                 {safeGaugeData.widthShrinkage > 0 ? '-' : '+'}{Math.abs(safeGaugeData.widthShrinkage).toFixed(1)}%
@@ -704,21 +737,31 @@ function ProMode() {
               </p>
               <p className="text-xs text-muted-foreground">{safeGaugeData.heightShrinkage > 0 ? '纵向缩水' : '纵向拉伸'}</p>
             </div>
-            <div>
-              <p className="text-2xl font-display font-semibold text-secondary-foreground">×{safeGaugeData.widthFactor.toFixed(2)}</p>
-              <p className="text-xs text-muted-foreground">宽度补偿系数</p>
-            </div>
-            <div>
-              <p className="text-2xl font-display font-semibold text-secondary-foreground">×{safeGaugeData.heightFactor.toFixed(2)}</p>
-              <p className="text-xs text-muted-foreground">高度补偿系数</p>
-            </div>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground text-center py-2">暂无洗后数据，无法分析缩水。请展开上方"洗后小样数据"填写。</p>
         )}
       </motion.div>
 
-      {/* 3f. Smart Project Planner */}
+      {/* Save to Library - moved above project planner */}
+      <motion.div variants={itemVariants} className="flex justify-end">
+        {user ? (
+          <Button onClick={() => setSaveModalOpen(true)} className="rounded-xl soft-press" size="sm">
+            <Save className="w-4 h-4 mr-1" /> 保存到线材库
+          </Button>
+        ) : (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button disabled className="rounded-xl" size="sm">
+                <Save className="w-4 h-4 mr-1" /> 保存到线材库
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>登录后可保存</TooltipContent>
+          </Tooltip>
+        )}
+      </motion.div>
+
+      {/* Project Planner */}
       <motion.div variants={itemVariants} className="glass-card p-5 space-y-4">
         <div className="flex items-center gap-2">
           <Target className="w-4 h-4 text-primary" />
@@ -784,52 +827,17 @@ function ProMode() {
           </div>
         )}
 
-        {/* 3g. Notes */}
-        <div className="space-y-1 pt-3 border-t border-border/30">
-          <Label className="text-xs text-muted-foreground">备注</Label>
-          <Textarea value={projectNotes} onChange={e => setProjectNotes(e.target.value)} placeholder="记录编织相关需求..." className="min-h-[60px]" />
-        </div>
-
-        {/* Action buttons */}
-        <div className="flex justify-end pt-3 border-t border-border/30">
-          {user ? (
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setShowReportGenerator(true)} className="rounded-xl soft-press" size="sm">
-                <FileImage className="w-4 h-4 mr-1" /> 生成报告
-              </Button>
-              <Button onClick={() => setSaveModalOpen(true)} className="rounded-xl soft-press" size="sm">
-                <Save className="w-4 h-4 mr-1" /> 保存到线材库
-              </Button>
-            </div>
-          ) : (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button disabled className="rounded-xl" size="sm">
-                  <Save className="w-4 h-4 mr-1" /> 保存到线材库
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>登录后可保存</TooltipContent>
-            </Tooltip>
-          )}
-        </div>
+        {/* Report button - only show when projectName is filled */}
+        {projectName.trim() && user && (
+          <div className="flex justify-end pt-3 border-t border-border/30">
+            <Button variant="outline" onClick={() => setShowReportGenerator(true)} className="rounded-xl soft-press" size="sm">
+              <FileImage className="w-4 h-4 mr-1" /> 生成报告
+            </Button>
+          </div>
+        )}
       </motion.div>
 
-      {/* Yarn Gauge Vault */}
-      <YarnGaugeVault compact onLoadYarn={(yarn) => {
-        setYarnName(yarn.name);
-        setYarnBrand(yarn.brand || '');
-        setFiberContent(yarn.fiber_content || '');
-        setPreWashImage(yarn.pre_wash_photo_url || null);
-        setPostWashImage(yarn.post_wash_photo_url || null);
-        // Also open yarn info section
-        setYarnInfoOpen(true);
-        if (yarn.weight) setYarnWeight(yarn.weight as YarnWeight);
-      }} preWashImage={preWashImage} postWashImage={postWashImage} uploadSwatchPhoto={uploadSwatchPhoto} />
-
-      {/* Smart Yarn Calculator */}
-      <SmartYarnCalculator />
-
-      {/* 3h. Simplified Save Modal - yarn info auto-filled from page */}
+      {/* Save Modal */}
       <Dialog open={saveModalOpen} onOpenChange={setSaveModalOpen}>
         <DialogContent className="rounded-3xl max-w-md">
           <DialogHeader>
@@ -913,10 +921,30 @@ function ProMode() {
 }
 
 // ═══════════════════════════════════════════════
-// Main SwatchLab Page
+// Main SwatchLab Page - 3 Tabs
 // ═══════════════════════════════════════════════
+type TabKey = 'calc' | 'library' | 'yarn-calc';
+
 export default function SwatchLab() {
+  const [activeTab, setActiveTab] = useState<TabKey>('calc');
   const [mode, setMode] = useState<'quick' | 'pro'>('quick');
+  const [pendingYarn, setPendingYarn] = useState<YarnEntry | null>(null);
+
+  const handleStartProject = useCallback((yarn: YarnEntry) => {
+    setPendingYarn(yarn);
+    setMode('pro');
+    setActiveTab('calc');
+  }, []);
+
+  const handlePendingYarnConsumed = useCallback(() => {
+    setPendingYarn(null);
+  }, []);
+
+  const tabs: { key: TabKey; label: string }[] = [
+    { key: 'calc', label: '样片计算' },
+    { key: 'library', label: '我的线材库' },
+    { key: 'yarn-calc', label: '线量估算' },
+  ];
 
   return (
     <motion.div
@@ -937,33 +965,81 @@ export default function SwatchLab() {
           </div>
         </div>
 
-        {/* iOS-style Mode Toggle */}
+        {/* 3-Tab Segmented Control */}
         <div className="flex bg-muted/50 rounded-xl p-1">
-          <button
-            onClick={() => setMode('quick')}
-            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
-              mode === 'quick'
-                ? 'bg-background shadow-sm text-foreground'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            简易记录
-          </button>
-          <button
-            onClick={() => setMode('pro')}
-            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
-              mode === 'pro'
-                ? 'bg-background shadow-sm text-foreground'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            专业分析 Pro
-          </button>
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
+                activeTab === tab.key
+                  ? 'bg-background shadow-sm text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
       </motion.div>
 
-      {/* Content */}
-      {mode === 'quick' ? <QuickCalcMode /> : <ProMode />}
+      {/* Tab Content */}
+      {activeTab === 'calc' && (
+        <>
+          {/* Quick/Pro toggle inside calc tab */}
+          <motion.div variants={itemVariants}>
+            <div className="flex bg-muted/30 rounded-xl p-1 max-w-xs mx-auto">
+              <button
+                onClick={() => setMode('quick')}
+                className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-all ${
+                  mode === 'quick'
+                    ? 'bg-background shadow-sm text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                极速
+              </button>
+              <button
+                onClick={() => setMode('pro')}
+                className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-all ${
+                  mode === 'pro'
+                    ? 'bg-background shadow-sm text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                专业 Pro
+              </button>
+            </div>
+          </motion.div>
+
+          {mode === 'quick' ? (
+            <QuickCalcMode />
+          ) : (
+            <ProMode pendingYarn={pendingYarn} onPendingYarnConsumed={handlePendingYarnConsumed} />
+          )}
+        </>
+      )}
+
+      {activeTab === 'library' && (
+        mode === 'pro' ? (
+          <YarnGaugeVault
+            onLoadYarn={() => {}}
+            onStartProject={handleStartProject}
+          />
+        ) : (
+          <motion.div variants={itemVariants} className="glass-card p-8 text-center space-y-3">
+            <Package className="w-10 h-10 mx-auto text-muted-foreground opacity-40" />
+            <p className="text-sm text-muted-foreground">线材库为专业模式专属功能</p>
+            <Button variant="outline" size="sm" className="rounded-xl" onClick={() => { setMode('pro'); setActiveTab('calc'); }}>
+              切换到专业模式
+            </Button>
+          </motion.div>
+        )
+      )}
+
+      {activeTab === 'yarn-calc' && (
+        <SmartYarnCalculator />
+      )}
     </motion.div>
   );
 }
