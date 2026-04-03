@@ -38,6 +38,9 @@ interface SwatchReportGeneratorProps {
   };
   yarnName?: string;
   yarnBrand?: string;
+  colorCode?: string;
+  fiberContent?: string;
+  weight?: string;
   preWashImage?: string | null;
   postWashImage?: string | null;
   projectPlan?: {
