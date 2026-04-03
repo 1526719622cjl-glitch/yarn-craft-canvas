@@ -219,8 +219,8 @@ export function SwatchReportGenerator({
                     </tr>
                     <tr>
                       <td className="py-2 text-[#8B7355]">{t('report.density')}</td>
-                      <td className="text-center font-medium">{gaugeData.preWashStitchDensity.toFixed(2)} 针 × {gaugeData.preWashRowDensity.toFixed(2)} 行</td>
-                      <td className="text-center font-medium">{gaugeData.postWashStitchDensity.toFixed(2)} 针 × {gaugeData.postWashRowDensity.toFixed(2)} 行</td>
+                      <td className="text-center font-medium">10×10cm：{Math.round(gaugeData.preWashStitchDensity * 10)}针 × {Math.round(gaugeData.preWashRowDensity * 10)}行</td>
+                      <td className="text-center font-medium">10×10cm：{Math.round(gaugeData.postWashStitchDensity * 10)}针 × {Math.round(gaugeData.postWashRowDensity * 10)}行</td>
                     </tr>
                   </tbody>
                 </table>
