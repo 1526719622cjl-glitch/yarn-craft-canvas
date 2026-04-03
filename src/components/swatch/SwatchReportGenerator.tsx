@@ -167,6 +167,9 @@ export function SwatchReportGenerator({
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div><span className="text-[#8B7355]">{t('report.name')}</span><span className="font-medium">{yarnName || '-'}</span></div>
                   <div><span className="text-[#8B7355]">{t('report.brandLabel')}</span><span className="font-medium">{yarnBrand || '-'}</span></div>
+                  {colorCode && <div><span className="text-[#8B7355]">色号：</span><span className="font-medium">{colorCode}</span></div>}
+                  {weight && <div><span className="text-[#8B7355]">粗细：</span><span className="font-medium">{weight}</span></div>}
+                  {fiberContent && <div className="col-span-2"><span className="text-[#8B7355]">纤维成分：</span><span className="font-medium">{fiberContent}</span></div>}
                 </div>
               </div>
 
