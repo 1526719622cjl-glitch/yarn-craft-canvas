@@ -34,7 +34,7 @@ const itemVariants = {
 
 const createEmptyYarn = (index: number): YarnSpec => ({
   id: crypto.randomUUID(),
-  label: index === 0 ? '线材1 (主线)' : `Yarn ${String.fromCharCode(65 + index)}`,
+  label: index === 0 ? '线材1 (主线)' : `线材${index + 1}`,
   ballWeight: '',
   ballLength: '',
 });
