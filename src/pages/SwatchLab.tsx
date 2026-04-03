@@ -1124,7 +1124,7 @@ export default function SwatchLab() {
           {tabs.map((tab) => (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => handleTabChange(tab.key)}
               className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
                 activeTab === tab.key
                   ? 'bg-background shadow-sm text-foreground'
