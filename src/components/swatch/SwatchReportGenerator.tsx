@@ -38,6 +38,9 @@ interface SwatchReportGeneratorProps {
   };
   yarnName?: string;
   yarnBrand?: string;
+  colorCode?: string;
+  fiberContent?: string;
+  weight?: string;
   preWashImage?: string | null;
   postWashImage?: string | null;
   projectPlan?: {
@@ -58,6 +61,9 @@ export function SwatchReportGenerator({
   gaugeData,
   yarnName: initialYarnName = '',
   yarnBrand: initialYarnBrand = '',
+  colorCode = '',
+  fiberContent = '',
+  weight = '',
   preWashImage,
   postWashImage,
   projectPlan,
@@ -161,6 +167,9 @@ export function SwatchReportGenerator({
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div><span className="text-[#8B7355]">{t('report.name')}</span><span className="font-medium">{yarnName || '-'}</span></div>
                   <div><span className="text-[#8B7355]">{t('report.brandLabel')}</span><span className="font-medium">{yarnBrand || '-'}</span></div>
+                  {colorCode && <div><span className="text-[#8B7355]">色号：</span><span className="font-medium">{colorCode}</span></div>}
+                  {weight && <div><span className="text-[#8B7355]">粗细：</span><span className="font-medium">{weight}</span></div>}
+                  {fiberContent && <div className="col-span-2"><span className="text-[#8B7355]">纤维成分：</span><span className="font-medium">{fiberContent}</span></div>}
                 </div>
               </div>
 
@@ -210,8 +219,8 @@ export function SwatchReportGenerator({
                     </tr>
                     <tr>
                       <td className="py-2 text-[#8B7355]">{t('report.density')}</td>
-                      <td className="text-center font-medium">{gaugeData.preWashStitchDensity.toFixed(2)} 针 × {gaugeData.preWashRowDensity.toFixed(2)} 行</td>
-                      <td className="text-center font-medium">{gaugeData.postWashStitchDensity.toFixed(2)} 针 × {gaugeData.postWashRowDensity.toFixed(2)} 行</td>
+                      <td className="text-center font-medium">10×10cm：{Math.round(gaugeData.preWashStitchDensity * 10)}针 × {Math.round(gaugeData.preWashRowDensity * 10)}行</td>
+                      <td className="text-center font-medium">10×10cm：{Math.round(gaugeData.postWashStitchDensity * 10)}针 × {Math.round(gaugeData.postWashRowDensity * 10)}行</td>
                     </tr>
                   </tbody>
                 </table>

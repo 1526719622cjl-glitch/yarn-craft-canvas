@@ -136,6 +136,16 @@ function QuickCalcMode() {
     setResult(null);
   };
 
+  const handleLoadHistory = (rec: any) => {
+    setSwatchWidth(rec.swatch_width);
+    setSwatchHeight(rec.swatch_height);
+    setStitches(rec.stitches);
+    setRows(rec.rows);
+    setTargetWidth(rec.target_width);
+    setTargetHeight(rec.target_height);
+    setResult({ stitches: rec.result_stitches, rows: rec.result_rows });
+  };
+
   return (
     <div className="space-y-5">
       <motion.div variants={itemVariants} className="glass-card p-5 space-y-4">
@@ -148,12 +158,14 @@ function QuickCalcMode() {
             <Input type="number" step="0.1" value={swatchWidth} onChange={e => setSwatchWidth(Number(e.target.value))} className="h-10" />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">小样针数</Label>
-            <Input type="number" value={stitches} onChange={e => setStitches(e.target.value === '' ? '' : Number(e.target.value))} placeholder="请输入针数" className="h-10" />
-          </div>
-          <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">小样高度(cm)</Label>
             <Input type="number" step="0.1" value={swatchHeight} onChange={e => setSwatchHeight(Number(e.target.value))} className="h-10" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">小样针数</Label>
+            <Input type="number" value={stitches} onChange={e => setStitches(e.target.value === '' ? '' : Number(e.target.value))} placeholder="请输入针数" className="h-10" />
           </div>
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">小样行数</Label>
@@ -218,11 +230,15 @@ function QuickCalcMode() {
         ) : (
           <div className="space-y-2 max-h-80 overflow-y-auto">
             {history.map((rec: any) => (
-              <div key={rec.id} className="frosted-panel text-xs space-y-0.5">
+              <button
+                key={rec.id}
+                onClick={() => handleLoadHistory(rec)}
+                className="w-full text-left frosted-panel text-xs space-y-0.5 hover:bg-muted/30 transition-colors cursor-pointer"
+              >
                 <p className="text-muted-foreground">{new Date(rec.created_at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
                 <p>{rec.swatch_width}×{rec.swatch_height}cm: {rec.stitches}针×{rec.rows}行</p>
                 <p>目标: {rec.target_width}×{rec.target_height}cm → <span className="font-medium text-primary">{rec.result_stitches}针 / {rec.result_rows}行</span></p>
-              </div>
+              </button>
             ))}
           </div>
         )}
@@ -493,6 +509,10 @@ function ProMode({ pendingYarn, onPendingYarnConsumed }: ProModeProps) {
       toolSizeMm: yarn.tool_size_mm ?? null,
     });
     setYarnInfoOpen(true);
+    // Auto-expand post-wash section if imported yarn has post-wash data
+    const hasImportedPostWash = yarn.post_wash_width_cm && yarn.post_wash_height_cm &&
+      (yarn.post_wash_width_cm !== preWidth || yarn.post_wash_height_cm !== preHeight);
+    if (hasImportedPostWash) setPostWashOpen(true);
     setImportDialogOpen(false);
     toast.success(`已导入线材：${yarn.name}`);
   };
@@ -787,10 +807,10 @@ function ProMode({ pendingYarn, onPendingYarnConsumed }: ProModeProps) {
         </Collapsible>
       </motion.div>
 
-      {/* Shrinkage Analysis */}
-      <motion.div variants={itemVariants} className="p-4 rounded-2xl bg-yarn-honey/20 border border-yarn-honey/30">
-        <h3 className="text-sm font-medium mb-3">缩水/拉伸分析</h3>
-        {hasPostWashData ? (
+      {/* Shrinkage Analysis - only show when post-wash data exists */}
+      {hasPostWashData && (
+        <motion.div variants={itemVariants} className="p-4 rounded-2xl bg-yarn-honey/20 border border-yarn-honey/30">
+          <h3 className="text-sm font-medium mb-3">缩水/拉伸分析</h3>
           <div className="grid grid-cols-2 gap-4 text-center">
             <div>
               <p className="text-2xl font-display font-semibold text-primary">
@@ -805,13 +825,11 @@ function ProMode({ pendingYarn, onPendingYarnConsumed }: ProModeProps) {
               <p className="text-xs text-muted-foreground">{safeGaugeData.heightShrinkage > 0 ? '纵向缩水' : '纵向拉伸'}</p>
             </div>
           </div>
-        ) : (
-          <p className="text-sm text-muted-foreground text-center py-2">暂无洗后数据，无法分析缩水。请展开上方"洗后小样数据"填写。</p>
-        )}
-      </motion.div>
+        </motion.div>
+      )}
 
-      {/* Save to Library + Report - below shrinkage analysis, above project planner */}
-      <motion.div variants={itemVariants} className="flex items-center justify-between">
+      {/* Save to Library + Report - right aligned */}
+      <motion.div variants={itemVariants} className="flex items-center justify-end gap-2">
         {user ? (
           <Button onClick={() => setSaveModalOpen(true)} className="rounded-xl soft-press" size="sm">
             <Save className="w-4 h-4 mr-1" /> 保存到线材库
@@ -1005,6 +1023,9 @@ function ProMode({ pendingYarn, onPendingYarnConsumed }: ProModeProps) {
         gaugeData={safeGaugeData}
         yarnName={yarnName}
         yarnBrand={yarnBrand}
+        colorCode={yarnColorCode}
+        fiberContent={fiberContent}
+        weight={yarnWeight}
         preWashImage={preWashImage}
         postWashImage={postWashImage}
         projectPlan={undefined}
@@ -1033,6 +1054,35 @@ export default function SwatchLab() {
   const [activeTab, setActiveTab] = useState<TabKey>('calc');
   const [mode, setMode] = useState<'quick' | 'pro'>('quick');
   const [pendingYarn, setPendingYarn] = useState<YarnEntry | null>(null);
+  const { swatchData } = useYarnCluesStore();
+
+  // Check if Pro mode has unsaved data
+  const hasProUnsavedData = useCallback(() => {
+    if (mode !== 'pro') return false;
+    const sd = swatchData;
+    return sd && (sd.stitchesPreWash > 0 || sd.rowsPreWash > 0);
+  }, [mode, swatchData]);
+
+  const confirmLeaveProIfNeeded = useCallback(() => {
+    if (hasProUnsavedData()) {
+      return window.confirm('当前数据尚未保存到线材库，确定要离开吗？');
+    }
+    return true;
+  }, [hasProUnsavedData]);
+
+  const handleTabChange = useCallback((tab: TabKey) => {
+    if (activeTab === 'calc' && mode === 'pro' && tab !== 'calc') {
+      if (!confirmLeaveProIfNeeded()) return;
+    }
+    setActiveTab(tab);
+  }, [activeTab, mode, confirmLeaveProIfNeeded]);
+
+  const handleModeChange = useCallback((newMode: 'quick' | 'pro') => {
+    if (mode === 'pro' && newMode === 'quick') {
+      if (!confirmLeaveProIfNeeded()) return;
+    }
+    setMode(newMode);
+  }, [mode, confirmLeaveProIfNeeded]);
 
   const handleStartProject = useCallback((yarn: YarnEntry) => {
     setPendingYarn(yarn);
@@ -1074,7 +1124,7 @@ export default function SwatchLab() {
           {tabs.map((tab) => (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => handleTabChange(tab.key)}
               className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
                 activeTab === tab.key
                   ? 'bg-background shadow-sm text-foreground'
@@ -1094,7 +1144,7 @@ export default function SwatchLab() {
           <motion.div variants={itemVariants}>
             <div className="flex bg-muted/30 rounded-xl p-1 max-w-xs mx-auto">
               <button
-                onClick={() => setMode('quick')}
+                onClick={() => handleModeChange('quick')}
                 className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-all ${
                   mode === 'quick'
                     ? 'bg-background shadow-sm text-foreground'
@@ -1104,7 +1154,7 @@ export default function SwatchLab() {
                 极速
               </button>
               <button
-                onClick={() => setMode('pro')}
+                onClick={() => handleModeChange('pro')}
                 className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-all ${
                   mode === 'pro'
                     ? 'bg-background shadow-sm text-foreground'
