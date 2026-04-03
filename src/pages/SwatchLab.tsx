@@ -828,8 +828,8 @@ function ProMode({ pendingYarn, onPendingYarnConsumed }: ProModeProps) {
         </motion.div>
       )}
 
-      {/* Save to Library + Report - below shrinkage analysis, above project planner */}
-      <motion.div variants={itemVariants} className="flex items-center justify-between">
+      {/* Save to Library + Report - right aligned */}
+      <motion.div variants={itemVariants} className="flex items-center justify-end gap-2">
         {user ? (
           <Button onClick={() => setSaveModalOpen(true)} className="rounded-xl soft-press" size="sm">
             <Save className="w-4 h-4 mr-1" /> 保存到线材库
