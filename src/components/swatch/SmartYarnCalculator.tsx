@@ -221,12 +221,12 @@ export function SmartYarnCalculator() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="total-meters-req" className="text-xs text-muted-foreground">总需米数 (优先)</Label>
-                <Input id="total-meters-req" type="number" value={totalMeters} onChange={(e) => setTotalMeters(e.target.value)} placeholder="e.g., 2500" className="input-glass h-10" min={0} />
+                <Label htmlFor="total-grams" className="text-xs text-muted-foreground">总需克重</Label>
+                <Input id="total-grams" type="number" value={totalGrams} onChange={(e) => setTotalGrams(e.target.value)} placeholder="如：850" className="input-glass h-10" min={0} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="total-grams" className="text-xs text-muted-foreground">或总需克重</Label>
-                <Input id="total-grams" type="number" value={totalGrams} onChange={(e) => setTotalGrams(e.target.value)} placeholder="e.g., 850" className="input-glass h-10" min={0} />
+                <Label htmlFor="total-meters-req" className="text-xs text-muted-foreground">总需米数（优先）</Label>
+                <Input id="total-meters-req" type="number" value={totalMeters} onChange={(e) => setTotalMeters(e.target.value)} placeholder="如：2500" className="input-glass h-10" min={0} />
               </div>
             </div>
           </div>
