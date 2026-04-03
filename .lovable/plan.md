@@ -1,76 +1,72 @@
 
 
-# 样片实验室多项修复与增强
+# 样片实验室多项 UI/逻辑修改
 
 ## 修改清单
 
-### 1. Pro 版洗前小样宽高默认 10
-**文件**: `src/pages/SwatchLab.tsx` 第305-313行
-- `safeSwatchData` 的 fallback 值已经是 10，但 store 初始值可能为 0（清空后）。问题在于清空时设为 0，重新进入 Pro 时显示 0 而非 10。
-- 修复：清空逻辑中 `preWashWidth/preWashHeight` 设为 10 而非 0
+### 1. 极速版布局改为竖向（与 Pro 一致）
+**文件**: `src/pages/SwatchLab.tsx` QuickCalcMode（第139-231行）
+- 当前极速版小样信息是 `grid-cols-2`（宽度+针数横排、高度+行数横排），Pro 版是宽度+高度一行、针数+行数一行
+- 统一为 Pro 版的排列：第一行宽度+高度，第二行针数+行数
+- 目标尺寸同理
 
-### 2. 线材报告移到缩水分析下方，不含项目规划器内容
-**文件**: `src/pages/SwatchLab.tsx`
-- 将"保存到线材库"按钮 + 报告生成按钮移到缩水分析区块（第724-744行）之后
-- `SwatchReportGenerator` 调用时移除 `projectPlan`、`compensatedStitches`、`compensatedRows`、`projectName` 参数
-- 报告仅包含样片密度 + 缩水分析数据
+### 2. 极速版历史记录可点击导入+修改
+**文件**: `src/pages/SwatchLab.tsx` QuickCalcMode
+- 点击历史记录项时，将该记录的数据回填到表单（swatchWidth/Height、stitches/rows、targetWidth/Height）
+- 回填后用户可修改任意字段并重新计算
 
-### 3. 所有删除/清空操作前确认
-**文件**: `src/pages/SwatchLab.tsx`、`src/components/swatch/YarnGaugeVault.tsx`
-- 快速模式"一键清空"历史（第202行）：加 `confirm()` 
-- Pro 模式清空按钮（第512行）：已有 confirm，保留
-- 线材库删除文件夹（第217行）：加 `confirm()`
-- 线材库删除线材（第254行）：加 `confirm()`
+### 3. Pro 版无洗后数据时收起分析 UI
+**文件**: `src/pages/SwatchLab.tsx` ProMode（第790-811行）
+- 当 `hasPostWashData === false` 时，不渲染缩水分析区块（完全隐藏），而非显示"暂无洗后数据"提示
+- 导入含洗后数据的线材时，自动展开 `postWashOpen` 和显示分析
 
-### 4. Pro 版线材信息搜索 + 从线材库导入
-**文件**: `src/pages/SwatchLab.tsx`
-- 在线材信息折叠区（第544行）内顶部增加"从线材库导入"按钮
-- 点击弹出 Dialog，内含搜索框 + 线材列表（复用 `useYarnEntries` 的 searchQuery）
-- 选择线材后填充：name、brand、color_code、fiber_content、weight、toolType、toolSizeMm + swatch data + 图片
+### 4. 保存到线材库和生成报告放右侧
+**文件**: `src/pages/SwatchLab.tsx`（第813-834行）
+- 将保存和报告按钮改为 `justify-end`（靠右对齐）
 
-### 5. 线材信息加色号字段
-**文件**: `src/pages/SwatchLab.tsx`
-- ProMode 中增加 `colorCode` state
-- 线材信息折叠区加一个色号 Input
-- 保存时传入 `color_code`（当前第419行硬编码为 null）
+### 5. 报告包含所有线材详情
+**文件**: `src/components/swatch/SwatchReportGenerator.tsx`
+- 报告 props 增加 `colorCode`、`fiberContent`、`weight`（粗细）字段
+- 报告中线材信息区展示：名称、品牌、色号、粗细、纤维成分
+- 密度表格中的显示格式改为 `10×10cm：XX针 × XX行`（与填写时一致）
+- 调用处传入这些额外字段
 
-### 6. 纤维成分加号按钮缩小并移到第一行后
-**文件**: `src/components/swatch/FiberContentSelector.tsx`
-- 将底部的"添加成分"按钮改为小图标按钮，放在第一行右侧
-- 只在第一行旁显示加号，后续行只显示删除按钮
+### 6. 离开 Pro 版时提醒保存
+**文件**: `src/pages/SwatchLab.tsx` SwatchLab 主组件
+- 当用户在 Pro 模式下切换 tab 或切换到极速模式时，检查是否有未保存数据
+- 如果有数据（如 yarnName 不为空或 stitchesPreWash > 0），弹出 confirm 提示"当前数据尚未保存到线材库，确定要离开吗？"
+- 需要在 ProMode 暴露一个 `hasUnsavedData` 状态给父组件，或用 ref
 
-### 7. 重复保存检测
-**文件**: `src/pages/SwatchLab.tsx`
-- `handleSaveToCloud` 中，保存前查询 `yarn_entries` 是否存在同名、同品牌、同密度的记录
-- 如果存在，toast 提示"线材库已存在相同记录"，不执行保存
+### 7. 线材库"加载"改为弹出详情（无确认导入按钮）
+**文件**: `src/components/swatch/YarnGaugeVault.tsx` YarnCard（第401-508行）
+- 点击"查看详情"时展开所有信息（品牌、系列、色号、成分、工具、密度、历史密度、图片）
+- 移除"确认导入"按钮
+- 展开区域右上角加关闭 X 按钮（就是收起）
 
-### 8. 线材库"加载"按钮重新定义：原地展开详情
+### 8. "以此开坑"改名为"导入计算"
 **文件**: `src/components/swatch/YarnGaugeVault.tsx`
-- 点击"加载"不再立即调用 `onLoadYarn`
-- 改为在卡片内展开一个小面板，显示：品牌、系列、色号、成分 + 该线材所有历史密度记录（需查询同 name+brand 的 yarn_entries 的不同密度）
-- 展开面板内有"确认导入"按钮执行原 `handleLoadYarn`
+- 文本从 `🧶 以此开坑` 改为 `导入计算`
 
-### 9. "以此开坑"带入图片
-**文件**: `src/pages/SwatchLab.tsx` 第358-368行
-- `pendingYarn` 处理中已设置 `setPreWashImage(pendingYarn.pre_wash_photo_url)` 和 `setPostWashImage(pendingYarn.post_wash_photo_url)`，这部分已实现
-- 但 `onStartProject` 在 `YarnGaugeVault` 中直接调用，store 的 `setSwatchData` 没有被 `handleStartProject` 触发
-- 修复：确保 `handleStartProject` 也调用 `handleLoadYarn`（设置 store swatchData），然后再触发 tab 跳转
+### 9. 导入计算时同步图片
+**文件**: `src/pages/SwatchLab.tsx` handleStartProject
+- 当前 `handleStartProject` 只设置 `pendingYarn` 然后由 `useEffect` 在 ProMode 中处理
+- ProMode 第374行已有 `setPreWashImage(pendingYarn.pre_wash_photo_url || null)` 和 `setPostWashImage`
+- 问题可能是 URL 为 null。检查 YarnGaugeVault 的 `handleLoadYarn` 是否在 `onStartProject` 之前调用——当前第255行 `onStartProject` 回调中先调用了 `handleLoadYarn(yarn)` 再调用 `onStartProject(yarn)`，store 更新是异步的
+- 需确保 `pendingYarn` 对象本身携带了 `pre_wash_photo_url` 和 `post_wash_photo_url`
 
-### 10. 线材库 UI 优化
-**文件**: `src/components/swatch/YarnGaugeVault.tsx`
-- 卡片使用更紧凑布局，按钮始终在卡片内底部显示（不溢出）
-- 使用 `overflow-hidden` 确保缩放时按钮不跑出卡片
-- 加载/开坑按钮用小尺寸 icon+text，保持在卡片 padding 内
+### 10. 线材库卡片 UI 修复按钮溢出
+**文件**: `src/components/swatch/YarnGaugeVault.tsx` YarnCard
+- 卡片添加 `p-3` 统一内边距，按钮区域固定在底部
+- 确保 `overflow-hidden` 在卡片容器上
 
-### 11. 线量估算算法修正
-**文件**: `src/components/swatch/SmartYarnCalculator.tsx`
-- 当前算法问题：只用克重或只用米数单独计算。正确逻辑应优先用米数。
-- 修正算法：
-  - 输入：每球克重、每球米数、项目总需米数或总需克重
-  - 如果输入了总需米数 + 每球米数：`balls = ceil(totalMeters * buffer / metersPerBall)`
-  - 如果输入了总需克重 + 每球克重 + 每球米数：先算总需米数 `totalMeters = totalGrams / gramsPerBall * metersPerBall`，然后按米数算球数
-  - 如果只有总需克重 + 每球克重（无米数）：`balls = ceil(totalGrams * buffer / gramsPerBall)`
-  - 核心思想：**米数是编织实际消耗的度量，克重是辅助换算**
+### 11. 线量估算填写顺序：先克重后米数
+**文件**: `src/components/swatch/SmartYarnCalculator.tsx`（第222-231行）
+- 项目需求区：将"总需克重"放第一个，"总需米数"放第二个
+- 标签调整："总需克重" 和 "总需米数（优先）"
+
+### 12. 合股线材中文命名
+**文件**: `src/components/swatch/SmartYarnCalculator.tsx`（第35-40行）
+- `createEmptyYarn` 中，非首个线材的 label 从 `Yarn ${String.fromCharCode(65 + index)}` 改为 `线材${index + 1}`
 
 ---
 
@@ -78,16 +74,15 @@
 
 | 文件 | 改动 |
 |------|------|
-| `src/pages/SwatchLab.tsx` | 默认值修正、报告位置、搜索导入、色号、重复检测、清空确认 |
-| `src/components/swatch/YarnGaugeVault.tsx` | 加载展开详情、UI优化、删除确认 |
-| `src/components/swatch/FiberContentSelector.tsx` | 加号按钮缩小移位 |
-| `src/components/swatch/SmartYarnCalculator.tsx` | 算法修正 |
+| `src/pages/SwatchLab.tsx` | 极速版布局、历史导入、Pro 缩水分析隐藏、按钮右对齐、离开提醒、报告传参 |
+| `src/components/swatch/YarnGaugeVault.tsx` | 卡片展开详情改版、移除确认导入、改名导入计算、UI 修复 |
+| `src/components/swatch/SwatchReportGenerator.tsx` | 增加线材详情字段、密度格式统一 |
+| `src/components/swatch/SmartYarnCalculator.tsx` | 填写顺序调换、中文线材命名 |
 
 ## 实现顺序
 
-1. Pro 默认值 + 色号 + 纤维加号样式
-2. 报告移位 + 删除确认 + 重复保存检测
-3. 线材库搜索导入功能
-4. 线材库 UI 优化 + 加载展开详情
-5. 线量估算算法修正
+1. SmartYarnCalculator：填写顺序 + 中文命名
+2. SwatchReportGenerator：增加线材详情 + 密度格式
+3. YarnGaugeVault：卡片展开改版 + 导入计算 + UI
+4. SwatchLab：极速布局 + 历史导入 + Pro 缩水隐藏 + 按钮右对齐 + 离开提醒 + 图片同步
 
