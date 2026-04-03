@@ -456,10 +456,26 @@ function YarnCard({ yarn, expanded, onToggleExpand, onConfirmLoad, onStartProjec
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="pt-3 mt-3 border-t border-border/30 space-y-2">
+            <div className="pt-3 mt-3 border-t border-border/30 space-y-2 relative">
+              <button onClick={onToggleExpand} className="absolute top-3 right-0 text-muted-foreground hover:text-foreground transition-colors">
+                <X className="w-4 h-4" />
+              </button>
               {yarn.tool_type && (
                 <p className="text-xs text-muted-foreground">工具: {yarn.tool_type === 'hook' ? '钩针' : '棒针'} {yarn.tool_size_mm ? `${yarn.tool_size_mm}mm` : ''}</p>
               )}
+              {yarn.pre_wash_width_cm && yarn.pre_wash_height_cm && (
+                <p className="text-xs text-muted-foreground">洗前尺寸: {yarn.pre_wash_width_cm}×{yarn.pre_wash_height_cm}cm</p>
+              )}
+              {yarn.stitches_pre_wash && yarn.rows_pre_wash && (
+                <p className="text-xs text-muted-foreground">洗前针行: {yarn.stitches_pre_wash}针 × {yarn.rows_pre_wash}行</p>
+              )}
+              {yarn.post_wash_width_cm && yarn.post_wash_height_cm && (
+                <p className="text-xs text-muted-foreground">洗后尺寸: {yarn.post_wash_width_cm}×{yarn.post_wash_height_cm}cm</p>
+              )}
+              {yarn.stitches_post_wash && yarn.rows_post_wash && (
+                <p className="text-xs text-muted-foreground">洗后针行: {yarn.stitches_post_wash}针 × {yarn.rows_post_wash}行</p>
+              )}
+              {yarn.notes && <p className="text-xs text-muted-foreground">备注: {yarn.notes}</p>}
 
               {gaugeHistory.length > 1 && (
                 <div className="space-y-1">
@@ -492,14 +508,9 @@ function YarnCard({ yarn, expanded, onToggleExpand, onConfirmLoad, onStartProjec
           {expanded ? <ChevronUp className="w-3 h-3 mr-1" /> : <ChevronDown className="w-3 h-3 mr-1" />}
           {expanded ? '收起' : '查看详情'}
         </Button>
-        {expanded && (
-          <Button size="sm" onClick={onConfirmLoad} className="flex-1 rounded-xl h-8 text-xs">
-            确认导入
-          </Button>
-        )}
         {onStartProject && (
           <Button size="sm" variant="secondary" onClick={onStartProject} className="flex-1 rounded-xl h-8 text-xs">
-            🧶 以此开坑
+            导入计算
           </Button>
         )}
       </div>
