@@ -136,6 +136,16 @@ function QuickCalcMode() {
     setResult(null);
   };
 
+  const handleLoadHistory = (rec: any) => {
+    setSwatchWidth(rec.swatch_width);
+    setSwatchHeight(rec.swatch_height);
+    setStitches(rec.stitches);
+    setRows(rec.rows);
+    setTargetWidth(rec.target_width);
+    setTargetHeight(rec.target_height);
+    setResult({ stitches: rec.result_stitches, rows: rec.result_rows });
+  };
+
   return (
     <div className="space-y-5">
       <motion.div variants={itemVariants} className="glass-card p-5 space-y-4">
@@ -148,12 +158,14 @@ function QuickCalcMode() {
             <Input type="number" step="0.1" value={swatchWidth} onChange={e => setSwatchWidth(Number(e.target.value))} className="h-10" />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">小样针数</Label>
-            <Input type="number" value={stitches} onChange={e => setStitches(e.target.value === '' ? '' : Number(e.target.value))} placeholder="请输入针数" className="h-10" />
-          </div>
-          <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">小样高度(cm)</Label>
             <Input type="number" step="0.1" value={swatchHeight} onChange={e => setSwatchHeight(Number(e.target.value))} className="h-10" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">小样针数</Label>
+            <Input type="number" value={stitches} onChange={e => setStitches(e.target.value === '' ? '' : Number(e.target.value))} placeholder="请输入针数" className="h-10" />
           </div>
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">小样行数</Label>
@@ -218,11 +230,15 @@ function QuickCalcMode() {
         ) : (
           <div className="space-y-2 max-h-80 overflow-y-auto">
             {history.map((rec: any) => (
-              <div key={rec.id} className="frosted-panel text-xs space-y-0.5">
+              <button
+                key={rec.id}
+                onClick={() => handleLoadHistory(rec)}
+                className="w-full text-left frosted-panel text-xs space-y-0.5 hover:bg-muted/30 transition-colors cursor-pointer"
+              >
                 <p className="text-muted-foreground">{new Date(rec.created_at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
                 <p>{rec.swatch_width}×{rec.swatch_height}cm: {rec.stitches}针×{rec.rows}行</p>
                 <p>目标: {rec.target_width}×{rec.target_height}cm → <span className="font-medium text-primary">{rec.result_stitches}针 / {rec.result_rows}行</span></p>
-              </div>
+              </button>
             ))}
           </div>
         )}
