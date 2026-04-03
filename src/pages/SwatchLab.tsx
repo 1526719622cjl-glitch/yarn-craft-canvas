@@ -1144,7 +1144,7 @@ export default function SwatchLab() {
           <motion.div variants={itemVariants}>
             <div className="flex bg-muted/30 rounded-xl p-1 max-w-xs mx-auto">
               <button
-                onClick={() => setMode('quick')}
+                onClick={() => handleModeChange('quick')}
                 className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-all ${
                   mode === 'quick'
                     ? 'bg-background shadow-sm text-foreground'
@@ -1154,7 +1154,7 @@ export default function SwatchLab() {
                 极速
               </button>
               <button
-                onClick={() => setMode('pro')}
+                onClick={() => handleModeChange('pro')}
                 className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-all ${
                   mode === 'pro'
                     ? 'bg-background shadow-sm text-foreground'
