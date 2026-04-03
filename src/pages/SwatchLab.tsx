@@ -1054,6 +1054,35 @@ export default function SwatchLab() {
   const [activeTab, setActiveTab] = useState<TabKey>('calc');
   const [mode, setMode] = useState<'quick' | 'pro'>('quick');
   const [pendingYarn, setPendingYarn] = useState<YarnEntry | null>(null);
+  const { swatchData } = useYarnCluesStore();
+
+  // Check if Pro mode has unsaved data
+  const hasProUnsavedData = useCallback(() => {
+    if (mode !== 'pro') return false;
+    const sd = swatchData;
+    return sd && (sd.stitchesPreWash > 0 || sd.rowsPreWash > 0);
+  }, [mode, swatchData]);
+
+  const confirmLeaveProIfNeeded = useCallback(() => {
+    if (hasProUnsavedData()) {
+      return window.confirm('当前数据尚未保存到线材库，确定要离开吗？');
+    }
+    return true;
+  }, [hasProUnsavedData]);
+
+  const handleTabChange = useCallback((tab: TabKey) => {
+    if (activeTab === 'calc' && mode === 'pro' && tab !== 'calc') {
+      if (!confirmLeaveProIfNeeded()) return;
+    }
+    setActiveTab(tab);
+  }, [activeTab, mode, confirmLeaveProIfNeeded]);
+
+  const handleModeChange = useCallback((newMode: 'quick' | 'pro') => {
+    if (mode === 'pro' && newMode === 'quick') {
+      if (!confirmLeaveProIfNeeded()) return;
+    }
+    setMode(newMode);
+  }, [mode, confirmLeaveProIfNeeded]);
 
   const handleStartProject = useCallback((yarn: YarnEntry) => {
     setPendingYarn(yarn);
