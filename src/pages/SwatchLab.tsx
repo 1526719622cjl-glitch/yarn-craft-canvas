@@ -509,6 +509,10 @@ function ProMode({ pendingYarn, onPendingYarnConsumed }: ProModeProps) {
       toolSizeMm: yarn.tool_size_mm ?? null,
     });
     setYarnInfoOpen(true);
+    // Auto-expand post-wash section if imported yarn has post-wash data
+    const hasImportedPostWash = yarn.post_wash_width_cm && yarn.post_wash_height_cm &&
+      (yarn.post_wash_width_cm !== preWidth || yarn.post_wash_height_cm !== preHeight);
+    if (hasImportedPostWash) setPostWashOpen(true);
     setImportDialogOpen(false);
     toast.success(`已导入线材：${yarn.name}`);
   };
