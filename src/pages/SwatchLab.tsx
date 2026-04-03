@@ -807,10 +807,10 @@ function ProMode({ pendingYarn, onPendingYarnConsumed }: ProModeProps) {
         </Collapsible>
       </motion.div>
 
-      {/* Shrinkage Analysis */}
-      <motion.div variants={itemVariants} className="p-4 rounded-2xl bg-yarn-honey/20 border border-yarn-honey/30">
-        <h3 className="text-sm font-medium mb-3">缩水/拉伸分析</h3>
-        {hasPostWashData ? (
+      {/* Shrinkage Analysis - only show when post-wash data exists */}
+      {hasPostWashData && (
+        <motion.div variants={itemVariants} className="p-4 rounded-2xl bg-yarn-honey/20 border border-yarn-honey/30">
+          <h3 className="text-sm font-medium mb-3">缩水/拉伸分析</h3>
           <div className="grid grid-cols-2 gap-4 text-center">
             <div>
               <p className="text-2xl font-display font-semibold text-primary">
@@ -825,10 +825,8 @@ function ProMode({ pendingYarn, onPendingYarnConsumed }: ProModeProps) {
               <p className="text-xs text-muted-foreground">{safeGaugeData.heightShrinkage > 0 ? '纵向缩水' : '纵向拉伸'}</p>
             </div>
           </div>
-        ) : (
-          <p className="text-sm text-muted-foreground text-center py-2">暂无洗后数据，无法分析缩水。请展开上方"洗后小样数据"填写。</p>
-        )}
-      </motion.div>
+        </motion.div>
+      )}
 
       {/* Save to Library + Report - below shrinkage analysis, above project planner */}
       <motion.div variants={itemVariants} className="flex items-center justify-between">
