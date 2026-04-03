@@ -1023,6 +1023,9 @@ function ProMode({ pendingYarn, onPendingYarnConsumed }: ProModeProps) {
         gaugeData={safeGaugeData}
         yarnName={yarnName}
         yarnBrand={yarnBrand}
+        colorCode={yarnColorCode}
+        fiberContent={fiberContent}
+        weight={yarnWeight}
         preWashImage={preWashImage}
         postWashImage={postWashImage}
         projectPlan={undefined}
